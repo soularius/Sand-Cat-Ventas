@@ -9,7 +9,7 @@ function __construct(&$mpdf) {
 }
 
 // mPDF 5.3.A1
-function CoonsPatchMesh($x, $y, $w, $h, $patch_array=array(), $x_min=0, $x_max=1, $y_min=0, $y_max=1, $colspace='RGB', $return=false){
+function CoonsPatchMesh($x, $y, $w, $h, $patmiau_array=array(), $x_min=0, $x_max=1, $y_min=0, $y_max=1, $colspace='RGB', $return=false){
 	$s=' q ';
 	$s.=sprintf(' %.3F %.3F %.3F %.3F re W n ', $x*_MPDFK, ($this->mpdf->h-$y)*_MPDFK, $w*_MPDFK, -$h*_MPDFK);
 	$s.=sprintf(' %.3F 0 0 %.3F %.3F %.3F cm ', $w*_MPDFK, $h*_MPDFK, $x*_MPDFK, ($this->mpdf->h-($y+$h))*_MPDFK);
@@ -19,63 +19,63 @@ function CoonsPatchMesh($x, $y, $w, $h, $patch_array=array(), $x_min=0, $x_max=1
 	$bpcd=65535; //16 BitsPerCoordinate
 	$trans = false;
 	$this->mpdf->gradients[$n]['stream']='';
-	for($i=0;$i<count($patch_array);$i++){
-		$this->mpdf->gradients[$n]['stream'].=chr($patch_array[$i]['f']); //start with the edge flag as 8 bit
-		for($j=0;$j<count($patch_array[$i]['points']);$j++){
+	for($i=0;$i<count($patmiau_array);$i++){
+		$this->mpdf->gradients[$n]['stream'].=chr($patmiau_array[$i]['f']); //start with the edge flag as 8 bit
+		for($j=0;$j<count($patmiau_array[$i]['points']);$j++){
 			//each point as 16 bit
 			if (($j % 2) == 1) {	// Y coordinate (adjusted as input is From top left)
-				$patch_array[$i]['points'][$j]=(($patch_array[$i]['points'][$j]-$y_min)/($y_max-$y_min))*$bpcd;
-				$patch_array[$i]['points'][$j]=$bpcd-$patch_array[$i]['points'][$j];
+				$patmiau_array[$i]['points'][$j]=(($patmiau_array[$i]['points'][$j]-$y_min)/($y_max-$y_min))*$bpcd;
+				$patmiau_array[$i]['points'][$j]=$bpcd-$patmiau_array[$i]['points'][$j];
 			}
 			else {
-				$patch_array[$i]['points'][$j]=(($patch_array[$i]['points'][$j]-$x_min)/($x_max-$x_min))*$bpcd;
+				$patmiau_array[$i]['points'][$j]=(($patmiau_array[$i]['points'][$j]-$x_min)/($x_max-$x_min))*$bpcd;
 			}
-			if($patch_array[$i]['points'][$j]<0) $patch_array[$i]['points'][$j]=0;
-			if($patch_array[$i]['points'][$j]>$bpcd) $patch_array[$i]['points'][$j]=$bpcd;
-			$this->mpdf->gradients[$n]['stream'].=chr(floor($patch_array[$i]['points'][$j]/256));
-			$this->mpdf->gradients[$n]['stream'].=chr(floor($patch_array[$i]['points'][$j]%256));
+			if($patmiau_array[$i]['points'][$j]<0) $patmiau_array[$i]['points'][$j]=0;
+			if($patmiau_array[$i]['points'][$j]>$bpcd) $patmiau_array[$i]['points'][$j]=$bpcd;
+			$this->mpdf->gradients[$n]['stream'].=chr(floor($patmiau_array[$i]['points'][$j]/256));
+			$this->mpdf->gradients[$n]['stream'].=chr(floor($patmiau_array[$i]['points'][$j]%256));
 		}
-		for($j=0;$j<count($patch_array[$i]['colors']);$j++){
+		for($j=0;$j<count($patmiau_array[$i]['colors']);$j++){
 			//each color component as 8 bit
 			if ($colspace=='RGB') {
-				$this->mpdf->gradients[$n]['stream'].=($patch_array[$i]['colors'][$j][1]);
-				$this->mpdf->gradients[$n]['stream'].=($patch_array[$i]['colors'][$j][2]);
-				$this->mpdf->gradients[$n]['stream'].=($patch_array[$i]['colors'][$j][3]);
-				if (isset($patch_array[$i]['colors'][$j][4]) && ord($patch_array[$i]['colors'][$j][4])<100) { $trans = true; }
+				$this->mpdf->gradients[$n]['stream'].=($patmiau_array[$i]['colors'][$j][1]);
+				$this->mpdf->gradients[$n]['stream'].=($patmiau_array[$i]['colors'][$j][2]);
+				$this->mpdf->gradients[$n]['stream'].=($patmiau_array[$i]['colors'][$j][3]);
+				if (isset($patmiau_array[$i]['colors'][$j][4]) && ord($patmiau_array[$i]['colors'][$j][4])<100) { $trans = true; }
 			}
 			else if ($colspace=='CMYK') {
-				$this->mpdf->gradients[$n]['stream'].=chr(ord($patch_array[$i]['colors'][$j][1])*2.55);
-				$this->mpdf->gradients[$n]['stream'].=chr(ord($patch_array[$i]['colors'][$j][2])*2.55);
-				$this->mpdf->gradients[$n]['stream'].=chr(ord($patch_array[$i]['colors'][$j][3])*2.55);
-				$this->mpdf->gradients[$n]['stream'].=chr(ord($patch_array[$i]['colors'][$j][4])*2.55);
-				if (isset($patch_array[$i]['colors'][$j][5]) && ord($patch_array[$i]['colors'][$j][5])<100) { $trans = true; }
+				$this->mpdf->gradients[$n]['stream'].=chr(ord($patmiau_array[$i]['colors'][$j][1])*2.55);
+				$this->mpdf->gradients[$n]['stream'].=chr(ord($patmiau_array[$i]['colors'][$j][2])*2.55);
+				$this->mpdf->gradients[$n]['stream'].=chr(ord($patmiau_array[$i]['colors'][$j][3])*2.55);
+				$this->mpdf->gradients[$n]['stream'].=chr(ord($patmiau_array[$i]['colors'][$j][4])*2.55);
+				if (isset($patmiau_array[$i]['colors'][$j][5]) && ord($patmiau_array[$i]['colors'][$j][5])<100) { $trans = true; }
 			}
 			else if ($colspace=='Gray') {
-				$this->mpdf->gradients[$n]['stream'].=($patch_array[$i]['colors'][$j][1]);
-				if ($patch_array[$i]['colors'][$j][2]==1) { $trans = true; }	// transparency converted from rgba or cmyka()
+				$this->mpdf->gradients[$n]['stream'].=($patmiau_array[$i]['colors'][$j][1]);
+				if ($patmiau_array[$i]['colors'][$j][2]==1) { $trans = true; }	// transparency converted from rgba or cmyka()
 			}
 		}
 	}
 	// TRANSPARENCY
 	if ($trans) {
 		$this->mpdf->gradients[$n]['stream_trans']='';
-		for($i=0;$i<count($patch_array);$i++){
-			$this->mpdf->gradients[$n]['stream_trans'].=chr($patch_array[$i]['f']);
-			for($j=0;$j<count($patch_array[$i]['points']);$j++){
+		for($i=0;$i<count($patmiau_array);$i++){
+			$this->mpdf->gradients[$n]['stream_trans'].=chr($patmiau_array[$i]['f']);
+			for($j=0;$j<count($patmiau_array[$i]['points']);$j++){
 				//each point as 16 bit
-				$this->mpdf->gradients[$n]['stream_trans'].=chr(floor($patch_array[$i]['points'][$j]/256));
-				$this->mpdf->gradients[$n]['stream_trans'].=chr(floor($patch_array[$i]['points'][$j]%256));
+				$this->mpdf->gradients[$n]['stream_trans'].=chr(floor($patmiau_array[$i]['points'][$j]/256));
+				$this->mpdf->gradients[$n]['stream_trans'].=chr(floor($patmiau_array[$i]['points'][$j]%256));
 			}
-			for($j=0;$j<count($patch_array[$i]['colors']);$j++){
+			for($j=0;$j<count($patmiau_array[$i]['colors']);$j++){
 				//each color component as 8 bit // OPACITY
 				if ($colspace=='RGB') {
-					$this->mpdf->gradients[$n]['stream_trans'].=chr(intval(ord($patch_array[$i]['colors'][$j][4])*2.55));
+					$this->mpdf->gradients[$n]['stream_trans'].=chr(intval(ord($patmiau_array[$i]['colors'][$j][4])*2.55));
 				}
 				else if ($colspace=='CMYK') {
-					$this->mpdf->gradients[$n]['stream_trans'].=chr(intval(ord($patch_array[$i]['colors'][$j][5])*2.55));
+					$this->mpdf->gradients[$n]['stream_trans'].=chr(intval(ord($patmiau_array[$i]['colors'][$j][5])*2.55));
 				}
 				else if ($colspace=='Gray') {
-					$this->mpdf->gradients[$n]['stream_trans'].=chr(intval(ord($patch_array[$i]['colors'][$j][3])*2.55));
+					$this->mpdf->gradients[$n]['stream_trans'].=chr(intval(ord($patmiau_array[$i]['colors'][$j][3])*2.55));
 				}
 			}
 		}

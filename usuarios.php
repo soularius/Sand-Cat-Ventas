@@ -51,12 +51,13 @@ if (!((isset($_SESSION['MM_Username'])))) {
   header("Location: ". $MM_restrictGoTo); 
   exit;
 }
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
@@ -110,13 +111,13 @@ if(isset($_POST['id_usuarios']) && isset($_POST['m_estado'])) {
 }
 
 $query_usuarios = sprintf("SELECT * FROM usuarios");
-$usuarios = mysqli_query($sandycat, $query_usuarios) or die(mysqli_error());
+$usuarios = mysqli_query($sandycat, $query_usuarios) or die(mysqli_error($sandycat));
 $row_usuarios = mysqli_fetch_assoc($usuarios);
 $totalRows_usuarios = mysqli_num_rows($usuarios);
 
 $ellogin = '';
-$ellogin = $row_usuario['documento'];
-$id_usuarios = $row_usuario['id_usuarios'];
+$ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
+$id_usuarios = isset($row_usuario['id_usuarios']) ? $row_usuario['id_usuarios'] : 0;
 
 
 if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
@@ -156,7 +157,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
   <h2>Usuarios del sistema <a class="btn btn-default" href="#" title="Agregar" data-toggle="modal" data-target="#creausu"><i class="fa fa-plus-circle fa-lg"></i></a></h2>
 <div class="tab-content">
   <br />
-		<?php if(!empty($row_usuarios['id_usuarios'])) { ?>
+		<?php if($row_usuarios && isset($row_usuarios['id_usuarios']) && !empty($row_usuarios['id_usuarios'])) { ?>
 	  <input class="form-control" id="busca" type="text" placeholder="Busqueda..">
   <table class="table table-hover">
     <thead>

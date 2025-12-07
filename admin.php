@@ -2,7 +2,7 @@
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
-require_once('conectar.php'); 
+require_once('config.php'); 
 
 if (!isset($_SESSION)) {
   session_start();
@@ -11,32 +11,7 @@ $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
 // *** Restrict Access To Page: Grant or deny access to this page
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) { 
-  // For security, start by assuming the visitor is NOT authorized. 
-  $isValid = False; 
-
-  // When a visitor has logged into this site, the Session variable MM_Username set equal to their username. 
-  // Therefore, we know that a user is NOT logged in if that Session variable is blank. 
-  if (!empty($UserName)) { 
-    // Besides being logged in, you may restrict access to only certain users based on an ID established when they login. 
-    // Parse the strings into arrays. 
-    $arrUsers = Explode(",", $strUsers); 
-    $arrGroups = Explode(",", $strGroups); 
-    if (in_array($UserName, $arrUsers)) { 
-      $isValid = true; 
-    } 
-    // Or, you may restrict access to only certain users based on their username. 
-    if (in_array($UserGroup, $arrGroups)) { 
-      $isValid = true; 
-    } 
-    if (($strUsers == "") && false) { 
-      $isValid = true; 
-    } 
-  } 
-  return $isValid; 
-}
-
-
+// La función isAuthorized() ahora está disponible desde tools.php
 
 $MM_restrictGoTo = "http://localhost/ventas";
 
@@ -51,18 +26,19 @@ if (!((isset($_SESSION['MM_Username'])))) {
   header("Location: ". $MM_restrictGoTo); 
   exit;
 }
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
-$ellogin = $row_usuario['documento'];
-$id_usuarios = $row_usuario['id_usuarios'];
+$ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
+$id_usuarios = isset($row_usuario['id_usuarios']) ? $row_usuario['id_usuarios'] : 0;
 $acti1 = 'active';
 $acti2 = 'fade';
 $pes1 = 'active';
@@ -101,12 +77,12 @@ if(isset($_POST['id_ventas']) && isset($_POST['cancelar'])) {
 
 
 $query_preventa = sprintf("SELECT ventas.id_ventas, ventas.consecutivo, doc_cliente, nom_cliente, fecha, SUM((valor-detalle.descuento)*cantidad) AS eltotal FROM ventas LEFT JOIN detalle ON ventas.id_ventas = detalle.id_ventas WHERE estado = 'a' AND factura = '' GROUP BY ventas.id_ventas ORDER BY id_ventas ASC");
-$preventa = mysqli_query($sandycat, $query_preventa) or die(mysqli_error());
+$preventa = mysqli_query($sandycat, $query_preventa) or die(mysqli_error($sandycat));
 $row_preventa = mysqli_fetch_assoc($preventa);
 $totalRows_preventa = mysqli_num_rows($preventa);
 
 $query_preventaf = sprintf("SELECT ventas.id_ventas, ventas.consecutivo, doc_cliente, factura, nom_cliente, fecha, SUM((valor-detalle.descuento)*cantidad) AS eltotal FROM ventas LEFT JOIN detalle ON ventas.id_ventas = detalle.id_ventas WHERE estado = 'a' AND factura <> '' AND fecha < '$inifact' AND fecha > '$finfact' GROUP BY ventas.id_ventas ORDER BY id_ventas DESC");
-$preventaf = mysqli_query($sandycat, $query_preventaf) or die(mysqli_error());
+$preventaf = mysqli_query($sandycat, $query_preventaf) or die(mysqli_error($sandycat));
 $row_preventaf = mysqli_fetch_assoc($preventaf);
 $totalRows_preventaf = mysqli_num_rows($preventaf);
 

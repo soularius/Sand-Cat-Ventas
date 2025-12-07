@@ -1,33 +1,6 @@
 <?php
-// Conexión a la base de datos del sistema de ventas
-$hostname_sandycat = "localhost";
-$database_sandycat = "ventassc";
-$username_sandycat = "root";
-$password_sandycat = "";
-$sandycat = new mysqli($hostname_sandycat, $username_sandycat, $password_sandycat, $database_sandycat);
-if ($sandycat -> connect_errno) {
-die( "Fallo la conexión a MySQL ventassc: (" . $sandycat -> connect_errno 
-. ") " . $sandycat -> connect_error);
-}
-if (!mysqli_set_charset($sandycat, "utf8mb4")) {
-    printf("Error utf8mb4 ventassc: %s\n", mysqli_error($sandycat));
-    exit();
-}
-
-// Conexión a la base de datos de WordPress/WooCommerce
-$hostname_miau = "localhost";
-$database_miau = "miau";
-$username_miau = "root";
-$password_miau = "";
-$miau = new mysqli($hostname_miau, $username_miau, $password_miau, $database_miau);
-if ($miau -> connect_errno) {
-die( "Fallo la conexión a MySQL miau: (" . $miau -> connect_errno 
-. ") " . $miau -> connect_error);
-}
-if (!mysqli_set_charset($miau, "utf8mb4")) {
-    printf("Error utf8mb4 miau: %s\n", mysqli_error($miau));
-    exit();
-}
+// Cargar configuración desde archivo .env
+require_once('config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -36,30 +9,7 @@ $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
 // *** Restrict Access To Page: Grant or deny access to this page
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) { 
-  // For security, start by assuming the visitor is NOT authorized. 
-  $isValid = False; 
-
-  // When a visitor has logged into this site, the Session variable MM_Username set equal to their username. 
-  // Therefore, we know that a user is NOT logged in if that Session variable is blank. 
-  if (!empty($UserName)) { 
-    // Besides being logged in, you may restrict access to only certain users based on an ID established when they login. 
-    // Parse the strings into arrays. 
-    $arrUsers = Explode(",", $strUsers); 
-    $arrGroups = Explode(",", $strGroups); 
-    if (in_array($UserName, $arrUsers)) { 
-      $isValid = true; 
-    } 
-    // Or, you may restrict access to only certain users based on their username. 
-    if (in_array($UserGroup, $arrGroups)) { 
-      $isValid = true; 
-    } 
-    if (($strUsers == "") && false) { 
-      $isValid = true; 
-    } 
-  } 
-  return $isValid; 
-}
+// La función isAuthorized() ahora está disponible desde tools.php
 
 
 
@@ -77,17 +27,18 @@ if (!((isset($_SESSION['MM_Username'])))) {
   exit;
 }
 
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
-$ellogin = $row_usuario['elnombre'];
+$ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
 $acti1 = 'active';
 $acti2 = 'fade';
 $pes1 = 'active';
@@ -116,9 +67,9 @@ if(isset($_POST['id_ventas']) && isset($_POST['imprimiendo'])) {
 	$factu = $_POST['num'];
 	$query = "INSERT INTO facturas (id_order, factura, estado) VALUES ('$venta', '$factu', 'a')";
 	mysqli_query($sandycat, $query);
-	$query = "UPDATE ch_posts SET post_status = 'wc-completed' WHERE ID = '$venta'";
+	$query = "UPDATE miau_posts SET post_status = 'wc-completed' WHERE ID = '$venta'";
 	mysqli_query($miau, $query);
-	$query = "UPDATE ch_wc_order_stats SET status = 'wc-completed' WHERE id_ventas = '$venta'";
+	$query = "UPDATE miau_wc_order_stats SET status = 'wc-completed' WHERE id_ventas = '$venta'";
 	mysqli_query($miau, $query);
 }
 if(isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
@@ -126,14 +77,14 @@ if(isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
 	$_POST['num'];
 	$venta = $_POST['id_ventas'];
 	$factu = $_POST['num'];
-	$query = "UPDATE ch_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
+	$query = "UPDATE miau_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
 	mysqli_query($miau, $query);
-	$query = "UPDATE ch_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$venta'";
+	$query = "UPDATE miau_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$venta'";
 	mysqli_query($miau, $query);
 	$query = "UPDATE facturas SET estado = 'i' WHERE id_order = '$venta'";
 	mysqli_query($sandycat, $query);
 
-  $query_vcancel = sprintf("SELECT order_id, product_id, product_qty FROM ch_wc_order_product_lookup WHERE order_id = '$venta'");
+  $query_vcancel = sprintf("SELECT order_id, product_id, product_qty FROM miau_wc_order_product_lookup WHERE order_id = '$venta'");
 	$vcancel = mysqli_query($miau, $query_vcancel) or die(mysqli_error($miau));
 	$row_vcancel = mysqli_fetch_assoc($vcancel);
 	$totalRows_vcancel = mysqli_num_rows($vcancel);
@@ -141,16 +92,16 @@ if(isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
         $product_id = $row_vcancel['product_id'];
         $product_qty = $row_vcancel['product_qty'];
 
-        $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
+        $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
       	$stock = mysqli_query($miau, $query_stock) or die(mysqli_error($miau));
       	$row_stock = mysqli_fetch_assoc($stock);
       	$totalRows_stock = mysqli_num_rows($stock);
         $_stock1 = $row_stock['meta_value'];
         $_stock2 = $row_stock['meta_value'] + $product_qty;
-        $query9 = "UPDATE ch_postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
+        $query9 = "UPDATE miau_postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
         mysqli_query($miau, $query9);
         if($_stock2 > 0) {       
-          $query10 = "UPDATE ch_postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
+          $query10 = "UPDATE miau_postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
 	        mysqli_query($miau, $query10); 
           }
       } while ($row_vcancel = mysqli_fetch_assoc($vcancel));
@@ -159,17 +110,17 @@ if(isset($_POST['fin_pedido'])) {
 	$_POST['fin_pedido'];
 	$venta = $_POST['fin_pedido'];
   
-	$query = "UPDATE ch_posts SET post_status = 'wc-processing' WHERE ID = '$venta'";
+	$query = "UPDATE miau_posts SET post_status = 'wc-processing' WHERE ID = '$venta'";
 	mysqli_query($miau, $query);
 
-	$query = "UPDATE ch_wc_order_stats SET status = 'wc-processing' WHERE order_id = '$venta'";
+	$query = "UPDATE miau_wc_order_stats SET status = 'wc-processing' WHERE order_id = '$venta'";
 	mysqli_query($miau, $query);
 }
 
 
-/* $query_pendientes = sprintf("SELECT ID, post_date, (SELECT meta_value FROM ch_postmeta WHERE meta_key='_billing_first_name' AND post_id = ID ) AS nombre1, (SELECT meta_value FROM ch_postmeta WHERE meta_key='_billing_last_name' AND post_id = ID ) AS nombre2, (SELECT total_sales FROM ch_wc_order_stats WHERE order_id = ID ) AS valor FROM ch_posts WHERE post_status = 'wc-processing' ORDER BY ID DESC");  codigo hasta dic 23 2023*/
+/* $query_pendientes = sprintf("SELECT ID, post_date, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_first_name' AND post_id = ID ) AS nombre1, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_last_name' AND post_id = ID ) AS nombre2, (SELECT total_sales FROM miau_wc_order_stats WHERE order_id = ID ) AS valor FROM miau_posts WHERE post_status = 'wc-processing' ORDER BY ID DESC");  codigo hasta dic 23 2023*/
     // codigo para que reconozca las compras de cheque(datafono) status wc-on-hold
-    $query_pendientes = sprintf("SELECT ch_posts.ID, post_date, (SELECT meta_value FROM ch_postmeta WHERE meta_key='_billing_first_name' AND post_id = ch_posts.ID ) AS nombre1, (SELECT meta_value FROM ch_postmeta WHERE meta_key='_billing_last_name' AND post_id = ch_posts.ID ) AS nombre2, (SELECT total_sales FROM ch_wc_order_stats WHERE order_id = ch_posts.ID ) AS valor FROM ch_posts WHERE post_status = 'wc-processing' OR ch_posts.ID IN (SELECT ch_posts.ID FROM ch_posts JOIN ch_postmeta ON ch_posts.ID = ch_postmeta.post_id WHERE ch_posts.post_status = 'wc-on-hold' AND ch_postmeta.meta_value = 'cheque') ORDER BY ID DESC;");
+    $query_pendientes = sprintf("SELECT miau_posts.ID, post_date, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_first_name' AND post_id = miau_posts.ID ) AS nombre1, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_last_name' AND post_id = miau_posts.ID ) AS nombre2, (SELECT total_sales FROM miau_wc_order_stats WHERE order_id = miau_posts.ID ) AS valor FROM miau_posts WHERE post_status = 'wc-processing' OR miau_posts.ID IN (SELECT miau_posts.ID FROM miau_posts JOIN miau_postmeta ON miau_posts.ID = miau_postmeta.post_id WHERE miau_posts.post_status = 'wc-on-hold' AND miau_postmeta.meta_value = 'cheque') ORDER BY ID DESC;");
 $pendientes = mysqli_query($miau, $query_pendientes) or die(mysqli_error($miau));
 $row_pendientes = mysqli_fetch_assoc($pendientes);
 $totalRows_pendientes = mysqli_num_rows($pendientes);
@@ -185,11 +136,11 @@ while($row_fact = mysqli_fetch_assoc($facturas_result)) {
 // Si hay facturas, consultamos WordPress, sino creamos resultado vacío
 if(!empty($facturas_ids)) {
     $ids_string = implode(',', $facturas_ids);
-    $query_pendientesf = sprintf("SELECT ID, post_date, (SELECT meta_value FROM ch_postmeta WHERE meta_key='_billing_first_name' AND post_id = ID ) AS nombre1, (SELECT meta_value FROM ch_postmeta WHERE meta_key='_billing_last_name' AND post_id = ID ) AS nombre2, (SELECT total_sales FROM ch_wc_order_stats WHERE order_id = ID ) AS valor FROM ch_posts WHERE ID IN ($ids_string) AND post_date < '$inifact' AND post_date > '$finfact' ORDER BY ID DESC");
+    $query_pendientesf = sprintf("SELECT ID, post_date, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_first_name' AND post_id = ID ) AS nombre1, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_last_name' AND post_id = ID ) AS nombre2, (SELECT total_sales FROM miau_wc_order_stats WHERE order_id = ID ) AS valor FROM miau_posts WHERE ID IN ($ids_string) AND post_date < '$inifact' AND post_date > '$finfact' ORDER BY ID DESC");
     $pendientesf = mysqli_query($miau, $query_pendientesf) or die(mysqli_error($miau));
 } else {
     // Crear resultado vacío si no hay facturas
-    $pendientesf = mysqli_query($miau, "SELECT ID, post_date, '' AS nombre1, '' AS nombre2, 0 AS valor FROM ch_posts WHERE 1=0");
+    $pendientesf = mysqli_query($miau, "SELECT ID, post_date, '' AS nombre1, '' AS nombre2, 0 AS valor FROM miau_posts WHERE 1=0");
 }
 $row_pendientesf = mysqli_fetch_assoc($pendientesf);
 $totalRows_pendientesf = mysqli_num_rows($pendientesf);

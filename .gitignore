@@ -1,0 +1,31 @@
+# Archivos de configuración sensibles
+.env
+.env.local
+.env.production
+
+# Archivos de logs
+*.log
+logs/
+
+# Archivos temporales
+*.tmp
+*.temp
+temp/
+
+# Archivos de backup
+*.bak
+*.backup
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos de dependencias (si usas Composer en el futuro)
+vendor/
+composer.lock

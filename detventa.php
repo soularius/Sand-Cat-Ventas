@@ -51,35 +51,43 @@ if (!((isset($_SESSION['MM_Username'])))) {
   header("Location: ". $MM_restrictGoTo); 
   exit;
 }
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
-$ellogin = $row_usuario['documento'];
-$id_usuarios = $row_usuario['id_usuarios'];
+$ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
+$id_usuarios = isset($row_usuario['id_usuarios']) ? $row_usuario['id_usuarios'] : 0;
 $hoy = date("Y-m-d");
+
+// Inicializar variables por defecto
+$id_ventas = '';
+$row_preventa = null;
+$row_totalpreventa = null;
+$row_artpreventa = null;
+$artpreventa = null;
 
 /*if(isset($_POST['id_ventas']) && isset($_POST['valor'])) { */
 if(isset($_POST['id_ventas'])) {
 	$id_ventas = $_POST['id_ventas'];	
 	$query_preventa = sprintf("SELECT * FROM ventas WHERE id_ventas = '$id_ventas'");
-	$preventa = mysqli_query($sandycat, $query_preventa) or die(mysqli_error());
+	$preventa = mysqli_query($sandycat, $query_preventa) or die(mysqli_error($sandycat));
 	$row_preventa = mysqli_fetch_assoc($preventa);
 	$totalRows_preventa = mysqli_num_rows($preventa);
 	
 	$query_artpreventa = sprintf("SELECT detalle.id_detalle, detalle.id_articulos, articulos.nombre, id_ventas, detalle.valor, cantidad, detalle.descuento FROM detalle LEFT JOIN articulos ON detalle.id_articulos = articulos.id_articulos WHERE id_ventas = '$id_ventas' ORDER BY detalle.id_detalle ASC");
-	$artpreventa = mysqli_query($sandycat, $query_artpreventa) or die(mysqli_error());
+	$artpreventa = mysqli_query($sandycat, $query_artpreventa) or die(mysqli_error($sandycat));
 	$row_artpreventa = mysqli_fetch_assoc($artpreventa);
 	$totalRows_artpreventa = mysqli_num_rows($artpreventa);
 	
 	$query_totalpreventa = sprintf("SELECT SUM((valor-descuento)*cantidad) AS eltotal FROM detalle WHERE id_ventas= '$id_ventas'");
-	$totalpreventa = mysqli_query($sandycat, $query_totalpreventa) or die(mysqli_error());
+	$totalpreventa = mysqli_query($sandycat, $query_totalpreventa) or die(mysqli_error($sandycat));
 	$row_totalpreventa = mysqli_fetch_assoc($totalpreventa);
 	$totalRows_totalpreventa = mysqli_num_rows($totalpreventa);
   	/* $elnuevo = "ventasrrr.php?i=$id_ventas";
@@ -121,10 +129,10 @@ if(isset($_POST['id_ventas'])) {
 	      		  <span class="fa fa-user-o"></span>
 		      	</div> -->
 						<div class="container p-3 my-3 bg-primary text-white">
-						  <?php echo $row_preventa['nom_cliente']; ?><br />
-							<?php echo $row_preventa['doc_cliente']; ?><br />
-							<?php echo "Total: ".number_format($row_totalpreventa['eltotal']); ?><br />
-							<?php echo $row_preventa['consecutivo']; ?>
+						  <?php echo isset($row_preventa['nom_cliente']) ? $row_preventa['nom_cliente'] : ''; ?><br />
+							<?php echo isset($row_preventa['doc_cliente']) ? $row_preventa['doc_cliente'] : ''; ?><br />
+							<?php echo "Total: ".number_format(isset($row_totalpreventa['eltotal']) ? $row_totalpreventa['eltotal'] : 0); ?><br />
+							<?php echo isset($row_preventa['consecutivo']) ? $row_preventa['consecutivo'] : ''; ?>
 						</div>
 						<div class="form-group">
 						<form action="admin.php" class="login-form" method="post">
@@ -149,22 +157,24 @@ if(isset($_POST['id_ventas'])) {
 									<a href="admin.php" class="btn btn-warning rounded submit px-3" role="button">Regresar</a></div>
 							</div>
 						</div>
-							<?php if(!empty($row_preventa['observacion'])) { ?>
+							<?php if(isset($row_preventa['observacion']) && !empty($row_preventa['observacion'])) { ?>
 						<div class="container p-3 my-3 bg-success text-white">
 							<?php echo $row_preventa['observacion']; ?>
 						</div>
 						  <?php } ?>	
 						  <?php 
+						if($artpreventa && $row_artpreventa) {
 						do {
 					  ?>	
 						<div class="container p-3 my-3 border">
-						  <?php echo $row_artpreventa['nombre']; ?><br />
-							Valor: <?php echo number_format($row_artpreventa['valor']); ?><br />
-							Descuento: <?php echo $row_artpreventa['descuento']; ?><br />
-							Cantidad: <?php echo $row_artpreventa['cantidad']; ?><br />
-							Valor: <?php echo number_format(($row_artpreventa['valor']-$row_artpreventa['descuento'])*$row_artpreventa['cantidad']); ?>
+						  <?php echo isset($row_artpreventa['nombre']) ? $row_artpreventa['nombre'] : ''; ?><br />
+							Valor: <?php echo number_format(isset($row_artpreventa['valor']) ? $row_artpreventa['valor'] : 0); ?><br />
+							Descuento: <?php echo isset($row_artpreventa['descuento']) ? $row_artpreventa['descuento'] : 0; ?><br />
+							Cantidad: <?php echo isset($row_artpreventa['cantidad']) ? $row_artpreventa['cantidad'] : 0; ?><br />
+							Valor: <?php echo number_format(((isset($row_artpreventa['valor']) ? $row_artpreventa['valor'] : 0)-(isset($row_artpreventa['descuento']) ? $row_artpreventa['descuento'] : 0))*(isset($row_artpreventa['cantidad']) ? $row_artpreventa['cantidad'] : 0)); ?>
 						</div>							
     	 				 <?php } while ($row_artpreventa = mysqli_fetch_assoc($artpreventa)); 
+						} 
 					  ?>
 	        </div>
 			  </div>

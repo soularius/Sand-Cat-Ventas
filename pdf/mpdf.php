@@ -5649,7 +5649,7 @@ function printobjectbuffer($is_table=false, $blockdir=false) {
 				$maxsize_y = $h;
 				$cx = $x + $w/2;
 				$cy = $y + $h/2;
-				preg_match_all('/(translatex|translatey|translate|scalex|scaley|scale|rotate|skewX|skewY|skew)\((.*?)\)/is',$objattr['transform'],$m);
+				preg_matmiau_all('/(translatex|translatey|translate|scalex|scaley|scale|rotate|skewX|skewY|skew)\((.*?)\)/is',$objattr['transform'],$m);
 				if (count($m[0])) {
 					for($i=0; $i<count($m[0]); $i++) {
 						$c = strtolower($m[1][$i]);
@@ -8074,7 +8074,7 @@ function _putpages()
 			$s2 = $this->aliasNbPg;
 			if (!$this->onlyCoreFonts) { $r1 = $this->UTF8ToUTF16BE($nb, false); }
 			$r2 = $nb;
-			if (preg_match_all('/{mpdfheadernbpg (C|R) ff=(\S*) fs=(\S*) fz=(.*?)}/',$thispage,$m)) {
+			if (preg_matmiau_all('/{mpdfheadernbpg (C|R) ff=(\S*) fs=(\S*) fz=(.*?)}/',$thispage,$m)) {
 				for($hi=0;$hi<count($m[0]);$hi++) {
 					$pos = $m[1][$hi];
 					$hff = $m[2][$hi];
@@ -8108,7 +8108,7 @@ function _putpages()
 			$nbt = $this->docPageNumTotal($n);
 			if (!$this->onlyCoreFonts) { $r1 = $this->UTF8ToUTF16BE($nbt, false); }
 			$r2 = $nbt;
-			if (preg_match_all('/{mpdfheadernbpggp (C|R) ff=(\S*) fs=(\S*) fz=(.*?)}/',$thispage,$m)) {
+			if (preg_matmiau_all('/{mpdfheadernbpggp (C|R) ff=(\S*) fs=(\S*) fz=(.*?)}/',$thispage,$m)) {
 				for($hi=0;$hi<count($m[0]);$hi++) {
 					$pos = $m[1][$hi];
 					$hff = $m[2][$hi];
@@ -9476,9 +9476,9 @@ function _enddoc() {
 	// mPDF 5.6.01 - LAYERS
 	if (count($this->layers)) {
 	  foreach($this->pages AS $pn=>$page) {
-		preg_match_all('/\/OCZ-index \/ZI(\d+) BDC(.*?)(EMCZ)-index/is',$this->pages[$pn],$m1);
-		preg_match_all('/\/OCBZ-index \/ZI(\d+) BDC(.*?)(EMCBZ)-index/is',$this->pages[$pn],$m2);
-		preg_match_all('/\/OCGZ-index \/ZI(\d+) BDC(.*?)(EMCGZ)-index/is',$this->pages[$pn],$m3);
+		preg_matmiau_all('/\/OCZ-index \/ZI(\d+) BDC(.*?)(EMCZ)-index/is',$this->pages[$pn],$m1);
+		preg_matmiau_all('/\/OCBZ-index \/ZI(\d+) BDC(.*?)(EMCBZ)-index/is',$this->pages[$pn],$m2);
+		preg_matmiau_all('/\/OCGZ-index \/ZI(\d+) BDC(.*?)(EMCGZ)-index/is',$this->pages[$pn],$m3);
 		$m = array();
 		for ($i=0;$i<4;$i++) {
 			$m[$i] = array_merge($m1[$i],$m2[$i],$m3[$i]);
@@ -13245,14 +13245,14 @@ function WriteHTML($html,$sub=0,$init=true,$close=true) {
 	if ($this->autoFontGroups) { $html = $this->AutoFont($html); }
 
 /*-- HTMLHEADERS-FOOTERS --*/
-	preg_match_all('/<htmlpageheader([^>]*)>(.*?)<\/htmlpageheader>/si',$html,$h);
+	preg_matmiau_all('/<htmlpageheader([^>]*)>(.*?)<\/htmlpageheader>/si',$html,$h);
 	for($i=0;$i<count($h[1]);$i++) {
 		if (preg_match('/name=[\'|\"](.*?)[\'|\"]/',$h[1][$i],$n)) {
 			$this->pageHTMLheaders[$n[1]]['html'] = $h[2][$i];
 			$this->pageHTMLheaders[$n[1]]['h'] = $this->_gethtmlheight($h[2][$i]);
 		}
 	}
-	preg_match_all('/<htmlpagefooter([^>]*)>(.*?)<\/htmlpagefooter>/si',$html,$f);
+	preg_matmiau_all('/<htmlpagefooter([^>]*)>(.*?)<\/htmlpagefooter>/si',$html,$f);
 	for($i=0;$i<count($f[1]);$i++) {
 		if (preg_match('/name=[\'|\"](.*?)[\'|\"]/',$f[1][$i],$n)) {
 			$this->pageHTMLfooters[$n[1]]['html'] = $f[2][$i];
@@ -13586,8 +13586,8 @@ function WriteHTML($html,$sub=0,$init=true,$close=true) {
 			// Changed to allow style="background: url('bg.jpg')"
 			// mPDF 5.5.17  Changed to improve performance; maximum length of \S (attribute) = 16
 			// mPDF 5.6.30  Increase allowed attribute name to 32 - cutting off "toc-even-header-name" etc.
-			preg_match_all('/\\S{1,32}=["][^"]*["]/',$e,$contents1);
-			preg_match_all('/\\S{1,32}=[\'][^\']*[\']/i',$e,$contents2);
+			preg_matmiau_all('/\\S{1,32}=["][^"]*["]/',$e,$contents1);
+			preg_matmiau_all('/\\S{1,32}=[\'][^\']*[\']/i',$e,$contents2);
 
 			$contents = array_merge($contents1, $contents2);
 			preg_match('/\\S+/',$e,$a2);
@@ -21638,13 +21638,13 @@ function PaintDivBB($divider='',$blockstate=0,$blvl=0) {
 
 			$shadow .= sprintf('%.3F %.3F m ', ($p1x )*_MPDFK, ($this->h-($p1y ))*_MPDFK);
 			$shadow .= sprintf('%.3F %.3F %.3F %.3F %.3F %.3F c ', ($p1c2x)*_MPDFK, ($this->h-($p1y))*_MPDFK, ($p4x)*_MPDFK, ($this->h-($p4c2y))*_MPDFK, ($p4x)*_MPDFK, ($this->h-($p4y))*_MPDFK);
-			$patch_array[0]['f']=0;
-			$patch_array[0]['points']=array($p1x,$p1y, $p1x,$p1y,
+			$patmiau_array[0]['f']=0;
+			$patmiau_array[0]['points']=array($p1x,$p1y, $p1x,$p1y,
 				$p2x,$p2c1y, $p2x,$p2y, $p2c2x,$p2y,
 				$p3x,$p3c1y, $p3x,$p3y, $p3c2x,$p3y,
 				$p4x,$p4y, $p4x,$p4y, $p4x,$p4c2y,
 				$p1c2x,$p1y);
-			$patch_array[0]['colors'] = array($col1,$col2,$col2,$col1);
+			$patmiau_array[0]['colors'] = array($col1,$col2,$col2,$col1);
 
 
 			// RIGHT
@@ -21666,12 +21666,12 @@ function PaintDivBB($divider='',$blockstate=0,$blvl=0) {
 			}
 
 			$shadow .= sprintf('%.3F %.3F l ', ($p3x )*_MPDFK, ($this->h-($p3y ))*_MPDFK);
-			$patch_array[1]['f']=2;
-			$patch_array[1]['points']=array($p2x,$p2y,
+			$patmiau_array[1]['f']=2;
+			$patmiau_array[1]['points']=array($p2x,$p2y,
 				$p3x,$p3y, $p3x,$p3y, $p3x,$p3y,
 				$p4c1x,$p4y, $p4x,$p4y, $p4x,$p4y,
 				$p1x,$p1y);
-			$patch_array[1]['colors'] = array($col1,$col2);
+			$patmiau_array[1]['colors'] = array($col1,$col2);
 
 
 			// BOTTOM RIGHT corner
@@ -21692,12 +21692,12 @@ function PaintDivBB($divider='',$blockstate=0,$blvl=0) {
 			}
 
 			$shadow .= sprintf('%.3F %.3F %.3F %.3F %.3F %.3F c ', ($p1x)*_MPDFK, ($this->h-($p1c2y))*_MPDFK, ($p4c2x)*_MPDFK, ($this->h-($p4y))*_MPDFK, ($p4x)*_MPDFK, ($this->h-($p4y))*_MPDFK);
-			$patch_array[2]['f']=2;
-			$patch_array[2]['points']=array($p2x,$p2c2y,
+			$patmiau_array[2]['f']=2;
+			$patmiau_array[2]['points']=array($p2x,$p2c2y,
 				$p3c1x,$p3y, $p3x,$p3y, $p3x,$p3c2y,
 				$p4x,$p4y, $p4x,$p4y, $p4c2x,$p4y,
 				$p1x,$p1c2y);
-			$patch_array[2]['colors'] = array($col2,$col1);
+			$patmiau_array[2]['colors'] = array($col2,$col1);
 
 
 
@@ -21721,12 +21721,12 @@ function PaintDivBB($divider='',$blockstate=0,$blvl=0) {
 			}
 
 			$shadow .= sprintf('%.3F %.3F l ', ($p3x )*_MPDFK, ($this->h-($p3y ))*_MPDFK);
-			$patch_array[3]['f']=2;
-			$patch_array[3]['points']=array($p2x,$p2y,
+			$patmiau_array[3]['f']=2;
+			$patmiau_array[3]['points']=array($p2x,$p2y,
 				$p3x,$p3y, $p3x,$p3y, $p3x,$p3y,
 				$p4x,$p4c1y, $p4x,$p4y, $p4x,$p4y,
 				$p1x,$p1y);
-			$patch_array[3]['colors'] = array($col1,$col2);
+			$patmiau_array[3]['colors'] = array($col1,$col2);
 
 			// BOTTOM LEFT corner
 			$p1x = $x00+$d1+$brbgBL_H;		$p1c2x = $p1x - ($d2+$brbgBL_H)*$mag;	// control points only matches p3 preceding
@@ -21745,12 +21745,12 @@ function PaintDivBB($divider='',$blockstate=0,$blvl=0) {
 			}
 
 			$shadow .= sprintf('%.3F %.3F %.3F %.3F %.3F %.3F c ', ($p1c2x)*_MPDFK, ($this->h-($p1y))*_MPDFK, ($p4x)*_MPDFK, ($this->h-($p4c2y))*_MPDFK, ($p4x)*_MPDFK, ($this->h-($p4y))*_MPDFK);
-			$patch_array[4]['f']=2;
-			$patch_array[4]['points']=array($p2c2x,$p2y,
+			$patmiau_array[4]['f']=2;
+			$patmiau_array[4]['points']=array($p2c2x,$p2y,
 				$p3x,$p3c1y, $p3x,$p3y, $p3c2x,$p3y,
 				$p4x,$p4y, $p4x,$p4y, $p4x,$p4c2y,
 				$p1c2x,$p1y);
-			$patch_array[4]['colors'] = array($col2,$col1);
+			$patmiau_array[4]['colors'] = array($col2,$col1);
 
 
 			// LEFT - joins on the right (C3-C4 of previous): f = 2
@@ -21772,12 +21772,12 @@ function PaintDivBB($divider='',$blockstate=0,$blvl=0) {
 			}
 
 			$shadow .= sprintf('%.3F %.3F l ', ($p3x )*_MPDFK, ($this->h-($p3y ))*_MPDFK);
-			$patch_array[5]['f']=2;
-			$patch_array[5]['points']=array($p2x,$p2y,
+			$patmiau_array[5]['f']=2;
+			$patmiau_array[5]['points']=array($p2x,$p2y,
 				$p3x,$p3y, $p3x,$p3y, $p3x,$p3y,
 				$p4c1x,$p4y, $p4x,$p4y, $p4x,$p4y,
 				$p1x,$p1y);
-			$patch_array[5]['colors'] = array($col1,$col2);
+			$patmiau_array[5]['colors'] = array($col1,$col2);
 
 			// TOP LEFT corner
 			$p1x = $x00+$bl;		// control points only matches p3 preceding
@@ -21797,12 +21797,12 @@ function PaintDivBB($divider='',$blockstate=0,$blvl=0) {
 			}
 
 			$shadow .= sprintf('%.3F %.3F %.3F %.3F %.3F %.3F c ', ($p1x)*_MPDFK, ($this->h-($p1c2y))*_MPDFK, ($p4c2x)*_MPDFK, ($this->h-($p4y))*_MPDFK, ($p4x)*_MPDFK, ($this->h-($p4y))*_MPDFK);
-			$patch_array[6]['f']=2;
-			$patch_array[6]['points']=array($p2x,$p2c2y,
+			$patmiau_array[6]['f']=2;
+			$patmiau_array[6]['points']=array($p2x,$p2c2y,
 				$p3c1x,$p3y, $p3x,$p3y, $p3x,$p3c2y,
 				$p4x,$p4y, $p4x,$p4y, $p4c2x,$p4y,
 				$p1x,$p1c2y);
-			$patch_array[6]['colors'] = array($col2,$col1);
+			$patmiau_array[6]['colors'] = array($col2,$col1);
 
 
 			// TOP - joins on the right (C3-C4 of previous): f = 2
@@ -21824,16 +21824,16 @@ function PaintDivBB($divider='',$blockstate=0,$blvl=0) {
 			}
 
 			$shadow .= sprintf('%.3F %.3F l ', ($p3x )*_MPDFK, ($this->h-($p3y ))*_MPDFK);
-			$patch_array[7]['f']=2;
-			$patch_array[7]['points']=array($p2x,$p2y,
+			$patmiau_array[7]['f']=2;
+			$patmiau_array[7]['points']=array($p2x,$p2y,
 				$p3x,$p3y, $p3x,$p3y, $p3x,$p3y,
 				$p4x,$p4c1y, $p4x,$p4y, $p4x,$p4y,
 				$p1x,$p1y);
-			$patch_array[7]['colors'] = array($col1,$col2);
+			$patmiau_array[7]['colors'] = array($col1,$col2);
 
 			$shadow .= ' h f Q '."\n";	// Close path and Fill the inner solid shadow
 
-			if ($bl) $shadow .= $this->grad->CoonsPatchMesh($x00,$y00,$w00,$h00,$patch_array,$x00,$x00+$w00,$y00,$y00+$h00, $colspace, true);
+			if ($bl) $shadow .= $this->grad->CoonsPatchMesh($x00,$y00,$w00,$h00,$patmiau_array,$x00,$x00+$w00,$y00,$y00+$h00, $colspace, true);
 
 			if ($sh['x'] || $sh['y']) $shadow .= ' Q'."\n"; 	// Shadow Offset
 			$shadow .= ' Q'."\n";	// Ends path no-op & Sets the clipping path
@@ -22284,7 +22284,7 @@ function ReadMetaTags($html) {
 	if (preg_match('/<title>(.*?)<\/title>/si',$html,$m)) {
 		$this->SetTitle($m[1]);
 	}
-	preg_match_all('/<meta [^>]*?(name|content)="([^>]*?)" [^>]*?(name|content)="([^>]*?)".*?>/si',$html,$aux);
+	preg_matmiau_all('/<meta [^>]*?(name|content)="([^>]*?)" [^>]*?(name|content)="([^>]*?)".*?>/si',$html,$aux);
 	$firstattr = $aux[1];
 	$secondattr = $aux[3];
 	for( $i = 0 ; $i < count($aux[0]) ; $i++) {
@@ -30594,7 +30594,7 @@ function magic_reverse_dir(&$chunk, $join=true, $dir) {
 	$nonDirchars = "\x{A0}\"\'\(\)\{\}\[\].,:\\/-=";	// mPDF 5.6.32
 	// mPDF 5.6.43
 	$bdo=array();
-	preg_match_all('/([\x{202A}\x{202B}])(.*?)([\x{202C}])/u',$chunk,$m);
+	preg_matmiau_all('/([\x{202A}\x{202B}])(.*?)([\x{202C}])/u',$chunk,$m);
 	if (count($m[0])) {
 		for($i=0;$i<count($m[0]);$i++) {
 			if ($m[1][$i]=="\xe2\x80\xab") {	// Right-to-Left Embedding [RLE] U+202B &#8235;
@@ -32552,7 +32552,7 @@ function AdjustHTML($html, $tabSpaces=8) {
 	}
 
 /*-- ANNOTATIONS --*/
-	preg_match_all("/(<annotation.*?>)/si", $html, $m);
+	preg_matmiau_all("/(<annotation.*?>)/si", $html, $m);
 	if (count($m[1])) {
 		for($i=0;$i<count($m[1]);$i++) {
 			$sub = preg_replace("/\n/si", "\xbb\xa4\xac", $m[1][$i]);
@@ -32561,7 +32561,7 @@ function AdjustHTML($html, $tabSpaces=8) {
 	}
 /*-- END ANNOTATIONS --*/
 
-	preg_match_all("/(<svg.*?<\/svg>)/si", $html, $svgi);
+	preg_matmiau_all("/(<svg.*?<\/svg>)/si", $html, $svgi);
 	if (count($svgi[0])) {
 		for($i=0;$i<count($svgi[0]);$i++) {
 			$file = _MPDF_TEMP_PATH.'_tempSVG'.uniqid(rand(1,100000),true).'_'.$i.'.svg';
@@ -32620,9 +32620,9 @@ function AdjustHTML($html, $tabSpaces=8) {
 		}
 		$html = implode("", $h);
 	}
-	$thereispre = preg_match_all('#<pre(.*?)>(.*?)</pre>#si',$html,$temp);
+	$thereispre = preg_matmiau_all('#<pre(.*?)>(.*?)</pre>#si',$html,$temp);
 	// Preserve '\n's in content between the tags <textarea> and </textarea>
-	$thereistextarea = preg_match_all('#<textarea(.*?)>(.*?)</textarea>#si',$html,$temp2);
+	$thereistextarea = preg_matmiau_all('#<textarea(.*?)>(.*?)</textarea>#si',$html,$temp2);
 	$html = preg_replace('/[\n]/',' ',$html); //replace linefeed by spaces
 	$html = preg_replace('/[\t]/',' ',$html); //replace tabs by spaces
 
@@ -32927,14 +32927,14 @@ function OverWrite($file_in, $search, $replacement, $dest="D", $file_out="mpdf" 
 	$xref = array();
 	preg_match("/xref\n0 (\d+)\n(.*?)\ntrailer/s",$pdf,$m);
 	$xref_objid = $m[1];
-	preg_match_all('/(\d{10}) (\d{5}) (f|n)/',$m[2],$x);
+	preg_matmiau_all('/(\d{10}) (\d{5}) (f|n)/',$m[2],$x);
 	for($i=0; $i<count($x[0]); $i++) {
 		$xref[] = array(intval($x[1][$i]), $x[2][$i], $x[3][$i]);
 	}
 
 	$changes = array();
 	preg_match("/<<\s*\/Type\s*\/Pages\s*\/Kids\s*\[(.*?)\]\s*\/Count/s",$pdf,$m);
-	preg_match_all("/(\d+) 0 R /s",$m[1],$o);
+	preg_matmiau_all("/(\d+) 0 R /s",$m[1],$o);
 	$objlist = $o[1];
 	foreach($objlist AS $obj) {
 	  if ($this->compress) {

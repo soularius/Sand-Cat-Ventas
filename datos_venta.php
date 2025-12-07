@@ -2,19 +2,8 @@
 //ini_set('display_errors', 1);
 //ini_set('display_startup_errors', 1);
 //error_reporting(E_ALL);
-$hostname_sandycat = "localhost";
-$database_sandycat = "ventassc";
-$username_sandycat = "root";
-$password_sandycat = "";
-$sandycat = new mysqli($hostname_sandycat, $username_sandycat, $password_sandycat, $database_sandycat);
-if ($sandycat -> connect_errno) {
-die( "Fallo la conexión a MySQL: (" . $mysqli -> mysqli_connect_errno() 
-. ") " . $mysqli -> mysqli_connect_error());
-}
-if (!mysqli_set_charset($sandycat, "utf8mb4")) {
-    printf(" utf8mb4: %s\n", mysqli_error($sandycat));
-    exit();
-}
+// Cargar configuración desde archivo .env
+require_once('config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -23,30 +12,7 @@ $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
 // *** Restrict Access To Page: Grant or deny access to this page
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) { 
-  // For security, start by assuming the visitor is NOT authorized. 
-  $isValid = False; 
-
-  // When a visitor has logged into this site, the Session variable MM_Username set equal to their username. 
-  // Therefore, we know that a user is NOT logged in if that Session variable is blank. 
-  if (!empty($UserName)) { 
-    // Besides being logged in, you may restrict access to only certain users based on an ID established when they login. 
-    // Parse the strings into arrays. 
-    $arrUsers = Explode(",", $strUsers); 
-    $arrGroups = Explode(",", $strGroups); 
-    if (in_array($UserName, $arrUsers)) { 
-      $isValid = true; 
-    } 
-    // Or, you may restrict access to only certain users based on their username. 
-    if (in_array($UserGroup, $arrGroups)) { 
-      $isValid = true; 
-    } 
-    if (($strUsers == "") && false) { 
-      $isValid = true; 
-    } 
-  } 
-  return $isValid; 
-}
+// La función isAuthorized() ahora está disponible desde tools.php
 
 
 
@@ -68,7 +34,7 @@ $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
@@ -77,19 +43,24 @@ $ellogin = $row_usuario['elnombre'];
 $id_usuarios = $row_usuario['id_ingreso'];
 $hoy = date("Y-m-d");
 
-
+// Inicializar variables por defecto
+$billing_id = '';
+$post_id = '';
+$row_lista = null;
+$lista = null;
+$totalRows_lista = 0;
 
 if(isset($_POST['billing_id'])) {
 	$billing_id = $_POST['billing_id'];	
     
-	$query_idlast = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE meta_value = '$billing_id' AND meta_key = 'billing_id ' ORDER BY post_id DESC LIMIT 1");
-	$idlast = mysqli_query($sandycat, $query_idlast) or die(mysqli_error());
+	$query_idlast = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE meta_value = '$billing_id' AND meta_key = 'billing_id ' ORDER BY post_id DESC LIMIT 1");
+	$idlast = mysqli_query($miau, $query_idlast) or die(mysqli_error($miau));
 	$row_idlast = mysqli_fetch_assoc($idlast);
 	$totalRows_idlast = mysqli_num_rows($idlast);
   $post_id = $row_idlast['post_id'];
     
-	$query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id = '$post_id'");
-	$lista = mysqli_query($sandycat, $query_lista) or die(mysqli_error());
+	$query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$post_id'");
+	$lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
 	$row_lista = mysqli_fetch_assoc($lista);
 	$totalRows_lista = mysqli_num_rows($lista);
 
@@ -129,7 +100,7 @@ if(isset($_POST['billing_id'])) {
 					<div class="login-wrap p-4 p-md-5 justify-content-center">
             <?php						 
 					    include("postmeta.php");
-              $documento = $billing_id ;
+              $documento = !empty($billing_id) ? $billing_id : $documento;
               ?>
             <form action="pros_venta.php" method="post" id="d_usuario">
               <div class="form-group">

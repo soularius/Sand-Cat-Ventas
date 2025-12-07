@@ -51,12 +51,13 @@ if (!((isset($_SESSION['MM_Username'])))) {
   header("Location: ". $MM_restrictGoTo); 
   exit;
 }
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
@@ -108,13 +109,13 @@ if(isset($_POST['n_productos']) && isset($_POST['n_productos'])) {
 }
 
 $query_articulos = sprintf("SELECT * FROM articulos");
-$articulos = mysqli_query($sandycat, $query_articulos) or die(mysqli_error());
+$articulos = mysqli_query($sandycat, $query_articulos) or die(mysqli_error($sandycat));
 $row_articulos = mysqli_fetch_assoc($articulos);
 $totalRows_articulos = mysqli_num_rows($articulos);
 
 $ellogin = '';
-$ellogin = $row_usuario['documento'];
-$id_usuarios = $row_usuario['id_usuarios'];
+$ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
+$id_usuarios = isset($row_usuario['id_usuarios']) ? $row_usuario['id_usuarios'] : 0;
 
 
 if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {

@@ -1,13 +1,6 @@
 <?php
-$hostname_sandycat = "localhost";
-$database_sandycat = "ventassc";
-$username_sandycat = "root";
-$password_sandycat = "";
-$sandycat = new mysqli($hostname_sandycat, $username_sandycat, $password_sandycat, $database_sandycat);
-if ($sandycat -> connect_errno) {
-die( "Fallo la conexión a MySQL: (" . $mysqli -> mysqli_connect_errno() 
-. ") " . $mysqli -> mysqli_connect_error());
-}
+// Cargar configuración desde archivo .env
+require_once('config.php');
 if (!isset($_SESSION)) {
   session_start();
 }

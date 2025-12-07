@@ -35,10 +35,10 @@ else  {
  if ($postdata) {
   echo '<h4>XFDF format data detected</h4>';
   // To parse XFDF
-  if (preg_match_all('/<field name="([^>]*)"\s*>\s*(<value\s*>(.*?)<\/value\s*>)\s*<\/field\s*>/s', $postdata, $m)) {
+  if (preg_matmiau_all('/<field name="([^>]*)"\s*>\s*(<value\s*>(.*?)<\/value\s*>)\s*<\/field\s*>/s', $postdata, $m)) {
 	for($i=0; $i<count($m[0]); $i++) {
 		// if multiple values in response e.g. from multiple selected options
-  		preg_match_all('/<value\s*>(.*?)<\/value\s*>/s', $m[2][$i], $v);
+  		preg_matmiau_all('/<value\s*>(.*?)<\/value\s*>/s', $m[2][$i], $v);
 		if (count($v[0])>1) {
 			$values = array();
 			foreach($v[1] AS $val) { $values[] = $val; }
@@ -51,12 +51,12 @@ else  {
 		}
 	}
   }
-  if (preg_match_all('/<field name="([^>]*)"\s*>\s*<value\s*\/\s*>\s*<\/field\s*>/s', $postdata, $m)) {
+  if (preg_matmiau_all('/<field name="([^>]*)"\s*>\s*<value\s*\/\s*>\s*<\/field\s*>/s', $postdata, $m)) {
 	for($i=0; $i<count($m[0]); $i++) {
 		echo '<p>Field: '.$m[1][$i].' => [blank]</p>';
 	}
   }
-  if (preg_match_all('/<field name="([^>]*)"\s*\/\s*>/s', $postdata, $m)) {
+  if (preg_matmiau_all('/<field name="([^>]*)"\s*\/\s*>/s', $postdata, $m)) {
 	for($i=0; $i<count($m[0]); $i++) {
 		echo '<p>Field: '.$m[1][$i].' => [no value]</p>';
 	}

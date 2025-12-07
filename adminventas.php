@@ -2,19 +2,8 @@
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
-$hostname_sandycat = "localhost";
-$database_sandycat = "ventassc";
-$username_sandycat = "root";
-$password_sandycat = "";
-$sandycat = new mysqli($hostname_sandycat, $username_sandycat, $password_sandycat, $database_sandycat);
-if ($sandycat -> connect_errno) {
-die( "Fallo la conexión a MySQL: (" . $mysqli -> mysqli_connect_errno() 
-. ") " . $mysqli -> mysqli_connect_error());
-}
-if (!mysqli_set_charset($sandycat, "utf8mb4")) {
-    printf(" utf8mb4: %s\n", mysqli_error($sandycat));
-    exit();
-}
+// Cargar configuración desde archivo .env
+require_once('config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -23,30 +12,7 @@ $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
 // *** Restrict Access To Page: Grant or deny access to this page
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) { 
-  // For security, start by assuming the visitor is NOT authorized. 
-  $isValid = False; 
-
-  // When a visitor has logged into this site, the Session variable MM_Username set equal to their username. 
-  // Therefore, we know that a user is NOT logged in if that Session variable is blank. 
-  if (!empty($UserName)) { 
-    // Besides being logged in, you may restrict access to only certain users based on an ID established when they login. 
-    // Parse the strings into arrays. 
-    $arrUsers = Explode(",", $strUsers); 
-    $arrGroups = Explode(",", $strGroups); 
-    if (in_array($UserName, $arrUsers)) { 
-      $isValid = true; 
-    } 
-    // Or, you may restrict access to only certain users based on their username. 
-    if (in_array($UserGroup, $arrGroups)) { 
-      $isValid = true; 
-    } 
-    if (($strUsers == "") && false) { 
-      $isValid = true; 
-    } 
-  } 
-  return $isValid; 
-}
+// La función isAuthorized() ahora está disponible desde tools.php
 
 
 
@@ -68,7 +34,7 @@ $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
@@ -84,31 +50,31 @@ if(isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
 	$_POST['num'];
 	$venta = $_POST['id_ventas'];
 	$factu = $_POST['num'];
-	$query = "UPDATE ch_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
-	mysqli_query($sandycat, $query);
-	$query = "UPDATE ch_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$venta'";
-	mysqli_query($sandycat, $query);
+	$query = "UPDATE miau_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
+	mysqli_query($miau, $query);
+	$query = "UPDATE miau_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$venta'";
+	mysqli_query($miau, $query);
 
-  $query_vcancel = sprintf("SELECT order_id, product_id, product_qty FROM ch_wc_order_product_lookup WHERE order_id = '$venta'");
-	$vcancel = mysqli_query($sandycat, $query_vcancel) or die(mysqli_error());
+  $query_vcancel = sprintf("SELECT order_id, product_id, product_qty FROM miau_wc_order_product_lookup WHERE order_id = '$venta'");
+	$vcancel = mysqli_query($miau, $query_vcancel) or die(mysqli_error($miau));
 	$row_vcancel = mysqli_fetch_assoc($vcancel);
 	$totalRows_vcancel = mysqli_num_rows($vcancel);
   do { 
     $product_id = $row_vcancel['product_id'];
     $product_qty = $row_vcancel['product_qty'];
 
-  $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
-	$stock = mysqli_query($sandycat, $query_stock) or die(mysqli_error());
+  $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
+	$stock = mysqli_query($miau, $query_stock) or die(mysqli_error($miau));
 	$row_stock = mysqli_fetch_assoc($stock);
 	$totalRows_stock = mysqli_num_rows($stock);
 
     $_stock1 = $row_stock['meta_value'];
     $_stock2 = $row_stock['meta_value'] + $product_qty;
-    $query9 = "UPDATE ch_postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
-	mysqli_query($sandycat, $query9);
+    $query9 = "UPDATE miau_postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
+	mysqli_query($miau, $query9);
     if($_stock2 > 0) {       
-        $query10 = "UPDATE ch_postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
-	    mysqli_query($sandycat, $query10); 
+        $query10 = "UPDATE miau_postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
+	    mysqli_query($miau, $query10); 
     }
     } while ($row_vcancel = mysqli_fetch_assoc($vcancel));
 

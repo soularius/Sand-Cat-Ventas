@@ -1,5 +1,5 @@
 <?php
-require_once('conectar.php');
+require_once('config.php');
 if (!isset($_SESSION)) {
   session_start();
 }
@@ -21,7 +21,7 @@ if (isset($_POST['usuario']) && !empty($_POST['usuario'])) {
 			$userok = "";
    
 			if($resulta = $sandycat->query($LoginRS_query)) {
-				while($row_LoginRS_query = $resulta->fetch_array()) {
+				while($row_LoginRS_query = $resulta->fetmiau_array()) {
  
 					$userok = $row_LoginRS_query["documento"];
 					$passok = $row_LoginRS_query["clave"];

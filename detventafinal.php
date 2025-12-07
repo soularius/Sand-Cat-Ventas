@@ -2,19 +2,8 @@
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
-$hostname_sandycat = "localhost";
-$database_sandycat = "ventassc";
-$username_sandycat = "root";
-$password_sandycat = "";
-$sandycat = new mysqli($hostname_sandycat, $username_sandycat, $password_sandycat, $database_sandycat);
-if ($sandycat -> connect_errno) {
-die( "Fallo la conexión a MySQL: (" . $mysqli -> mysqli_connect_errno() 
-. ") " . $mysqli -> mysqli_connect_error());
-}
-if (!mysqli_set_charset($sandycat, "utf8mb4")) {
-    printf(" utf8mb4: %s\n", mysqli_error($sandycat));
-    exit();
-}
+// Cargar configuración desde archivo .env
+require_once('config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -23,30 +12,7 @@ $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
 // *** Restrict Access To Page: Grant or deny access to this page
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) { 
-  // For security, start by assuming the visitor is NOT authorized. 
-  $isValid = False; 
-
-  // When a visitor has logged into this site, the Session variable MM_Username set equal to their username. 
-  // Therefore, we know that a user is NOT logged in if that Session variable is blank. 
-  if (!empty($UserName)) { 
-    // Besides being logged in, you may restrict access to only certain users based on an ID established when they login. 
-    // Parse the strings into arrays. 
-    $arrUsers = Explode(",", $strUsers); 
-    $arrGroups = Explode(",", $strGroups); 
-    if (in_array($UserName, $arrUsers)) { 
-      $isValid = true; 
-    } 
-    // Or, you may restrict access to only certain users based on their username. 
-    if (in_array($UserGroup, $arrGroups)) { 
-      $isValid = true; 
-    } 
-    if (($strUsers == "") && false) { 
-      $isValid = true; 
-    } 
-  } 
-  return $isValid; 
-}
+// La función isAuthorized() ahora está disponible desde tools.php
 
 
 
@@ -63,18 +29,19 @@ if (!((isset($_SESSION['MM_Username'])))) {
   header("Location: ". $MM_restrictGoTo); 
   exit;
 }
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
-$ellogin = $row_usuario['elnombre'];
-$id_usuarios = $row_usuario['id_ingreso'];
+$ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
+$id_usuarios = isset($row_usuario['id_ingreso']) ? $row_usuario['id_ingreso'] : 0;
 $hoy = date("Y-m-d");
 
 
@@ -83,24 +50,24 @@ $hoy = date("Y-m-d");
 /* if(isset($_POST['id_ventas']) && isset($_POST['valor'])) { */
 if(isset($_POST['id_ventas'])) {
 	$id_ventas = $_POST['id_ventas'];	
-	$query_datos = sprintf("SELECT ID, post_date, post_status, post_excerpt FROM ch_posts WHERE ID = '$id_ventas'");
-	$datos = mysqli_query($sandycat, $query_datos) or die(mysqli_error());
+	$query_datos = sprintf("SELECT ID, post_date, post_status, post_excerpt FROM miau_posts WHERE ID = '$id_ventas'");
+	$datos = mysqli_query($miau, $query_datos) or die(mysqli_error($miau));
 	$row_datos = mysqli_fetch_assoc($datos);
 	$totalRows_datos = mysqli_num_rows($datos);
 
-	$query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id  = '$id_ventas'");
-	$lista = mysqli_query($sandycat, $query_lista) or die(mysqli_error());
+	$query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id  = '$id_ventas'");
+	$lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
 	$row_lista = mysqli_fetch_assoc($lista);
 	$totalRows_lista = mysqli_num_rows($lista);
 	
 	
-	$query_productos = sprintf("SELECT I.order_item_id, order_item_name, I.order_id, L.order_id, order_item_type, product_qty, product_net_revenue, coupon_amount, shipping_amount, L.order_item_id FROM ch_woocommerce_order_items I RIGHT JOIN ch_wc_order_product_lookup L ON  I.order_item_id = L.order_item_id WHERE I.order_id = '$id_ventas' AND order_item_type='line_item'");
-	$productos = mysqli_query($sandycat, $query_productos) or die(mysqli_error());
+	$query_productos = sprintf("SELECT I.order_item_id, order_item_name, I.order_id, L.order_id, order_item_type, product_qty, product_net_revenue, coupon_amount, shipping_amount, L.order_item_id FROM miau_woocommerce_order_items I RIGHT JOIN miau_wc_order_product_lookup L ON  I.order_item_id = L.order_item_id WHERE I.order_id = '$id_ventas' AND order_item_type='line_item'");
+	$productos = mysqli_query($miau, $query_productos) or die(mysqli_error($miau));
 	$row_productos = mysqli_fetch_assoc($productos);
 	$totalRows_productos = mysqli_num_rows($productos);
 	
 	$query_numfact = sprintf("SELECT factura FROM facturas WHERE id_order = '$id_ventas'");
-	$numfact = mysqli_query($sandycat, $query_numfact) or die(mysqli_error());
+	$numfact = mysqli_query($sandycat, $query_numfact) or die(mysqli_error($sandycat));
 	$row_numfact = mysqli_fetch_assoc($numfact);
 	$totalRows_numfact = mysqli_num_rows($numfact);
 	$numfact = $row_numfact['factura'];

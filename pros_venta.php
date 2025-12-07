@@ -2,19 +2,8 @@
 // ini_set('display_errors', 1);
 // ini_set('display_startup_errors', 1);
 // error_reporting(E_ALL);
-$hostname_sandycat = "localhost";
-$database_sandycat = "ventassc";
-$username_sandycat = "root";
-$password_sandycat = "";
-$sandycat = new mysqli($hostname_sandycat, $username_sandycat, $password_sandycat, $database_sandycat);
-if ($sandycat -> connect_errno) {
-die( "Fallo la conexión a MySQL: (" . $mysqli -> mysqli_connect_errno() 
-. ") " . $mysqli -> mysqli_connect_error());
-}
-if (!mysqli_set_charset($sandycat, "utf8mb4")) {
-    printf(" utf8mb4: %s\n", mysqli_error($sandycat));
-    exit();
-}
+// Cargar configuración desde archivo .env
+require_once('config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -23,30 +12,7 @@ $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
 // *** Restrict Access To Page: Grant or deny access to this page
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) { 
-  // For security, start by assuming the visitor is NOT authorized. 
-  $isValid = False; 
-
-  // When a visitor has logged into this site, the Session variable MM_Username set equal to their username. 
-  // Therefore, we know that a user is NOT logged in if that Session variable is blank. 
-  if (!empty($UserName)) { 
-    // Besides being logged in, you may restrict access to only certain users based on an ID established when they login. 
-    // Parse the strings into arrays. 
-    $arrUsers = Explode(",", $strUsers); 
-    $arrGroups = Explode(",", $strGroups); 
-    if (in_array($UserName, $arrUsers)) { 
-      $isValid = true; 
-    } 
-    // Or, you may restrict access to only certain users based on their username. 
-    if (in_array($UserGroup, $arrGroups)) { 
-      $isValid = true; 
-    } 
-    if (($strUsers == "") && false) { 
-      $isValid = true; 
-    } 
-  } 
-  return $isValid; 
-}
+// La función isAuthorized() ahora está disponible desde tools.php
 
 
 
@@ -68,13 +34,13 @@ $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
-$ellogin = $row_usuario['elnombre'];
-$id_usuarios = $row_usuario['id_ingreso'];
+$ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
+$id_usuarios = isset($row_usuario['id_ingreso']) ? $row_usuario['id_ingreso'] : 0;
 $hoy = date("Y-m-d");
 
 
@@ -128,21 +94,21 @@ $hoy = date('Y-m-d H:i:s');
 
 if(isset($_POST['nombre1'])) {
     
-	$query = "INSERT INTO ch_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_excerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
-	mysqli_query($sandycat, $query);
-   // $query = "INSERT INTO ch_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_expcerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
+	$query = "INSERT INTO miau_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_excerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
+	mysqli_query($miau, $query);
+   // $query = "INSERT INTO miau_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_expcerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
 	// mysqli_query($sandycat, $query);
 
    
     if($query){
-        $elid = mysqli_insert_id($sandycat);
+        $elid = mysqli_insert_id($miau);
     }else{
         echo "No se inserto el registro correctamente.";
     }
-    /* $query2 = "INSERT INTO ch_postmeta (_shipping_first_name, _shipping_last_name, billing_id, _billing_email, _billing_phone, _shipping_address_1) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy')";
+    /* $query2 = "INSERT INTO miau_postmeta (_shipping_first_name, _shipping_last_name, billing_id, _billing_email, _billing_phone, _shipping_address_1) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy')";
 	mysqli_query($sandycat, $query2); */
 
-    $query2 = "INSERT INTO ch_postmeta (
+    $query2 = "INSERT INTO miau_postmeta (
         post_id,
         meta_key,
         meta_value
@@ -290,14 +256,14 @@ if(isset($_POST['nombre1'])) {
         )";
 	mysqli_query($sandycat, $query2);
 
-    $query_cliente = sprintf("SELECT customer_id, email FROM ch_wc_customer_lookup WHERE email = '$_billing_email'");
-	$cliente = mysqli_query($sandycat, $query_cliente) or die(mysqli_error());
+    $query_cliente = sprintf("SELECT customer_id, email FROM miau_wc_customer_lookup WHERE email = '$_billing_email'");
+	$cliente = mysqli_query($miau, $query_cliente) or die(mysqli_error($miau));
 	$row_cliente = mysqli_fetch_assoc($cliente);
 	$totalRows_cliente = mysqli_num_rows($cliente);
 
     if(!isset($row_cliente['email'])) {
-    $query3 = "INSERT INTO ch_wc_customer_lookup (first_name, last_name, email, date_last_active, country, city, state) VALUES ('$_shipping_first_name', '$_shipping_last_name', '$_billing_email', '$hoy', 'Co', '$_shipping_city', '$_shipping_state')";
-	mysqli_query($sandycat, $query3);
+    $query3 = "INSERT INTO miau_wc_customer_lookup (first_name, last_name, email, date_last_active, country, city, state) VALUES ('$_shipping_first_name', '$_shipping_last_name', '$_billing_email', '$hoy', 'Co', '$_shipping_city', '$_shipping_state')";
+	mysqli_query($miau, $query3);
     }
 
 }
@@ -308,23 +274,23 @@ if(isset($_POST['proceso'])) {
     $product_qty = $_POST['product_qty'];
     $order_item_name = $_POST['order_idbn'];
     
-    $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id = '$elid'");
-	$lista = mysqli_query($sandycat, $query_lista) or die(mysqli_error());
+    $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$elid'");
+	$lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
 	$row_lista = mysqli_fetch_assoc($lista);
 	$totalRows_lista = mysqli_num_rows($lista);
     
-    $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
-	$stock = mysqli_query($sandycat, $query_stock) or die(mysqli_error());
+    $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
+	$stock = mysqli_query($miau, $query_stock) or die(mysqli_error($miau));
 	$row_stock = mysqli_fetch_assoc($stock);
 	$totalRows_stock = mysqli_num_rows($stock);
 
     $_stock1 = $row_stock['meta_value'];
     $_stock2 = $row_stock['meta_value'] - $product_qty;
-    $query9 = "UPDATE ch_postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
-	mysqli_query($sandycat, $query9);
+    $query9 = "UPDATE miau_postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
+	mysqli_query($miau, $query9);
     if($_stock2 < 1) {       
-        $query10 = "UPDATE ch_postmeta SET meta_value = 'outofstock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
-	    mysqli_query($sandycat, $query10); 
+        $query10 = "UPDATE miau_postmeta SET meta_value = 'outofstock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
+	    mysqli_query($miau, $query10); 
     }
     					 
     include("postventa.php");
@@ -335,31 +301,31 @@ if(isset($_POST['proceso'])) {
         $elenvio = $_order_shipping;
     }
 
-    $query4 = "INSERT INTO ch_woocommerce_order_items (order_item_name, order_item_type, order_id) VALUES ('$order_item_name', 'line_item', '$elid')";
-	mysqli_query($sandycat, $query4);
+    $query4 = "INSERT INTO miau_woocommerce_order_items (order_item_name, order_item_type, order_id) VALUES ('$order_item_name', 'line_item', '$elid')";
+	mysqli_query($miau, $query4);
 
     if($query4){
-        $order_item_id = mysqli_insert_id($sandycat);
+        $order_item_id = mysqli_insert_id($miau);
     }else{
         echo "No se inserto el registro correctamente.";
     }
 
-    $query_lookprod = sprintf("SELECT ID, post_title, post_status, post_parent, post_type FROM ch_posts WHERE ID = '$product_id' AND post_status = 'publish'");
-	$lookprod = mysqli_query($sandycat, $query_lookprod) or die(mysqli_error());
+    $query_lookprod = sprintf("SELECT ID, post_title, post_status, post_parent, post_type FROM miau_posts WHERE ID = '$product_id' AND post_status = 'publish'");
+	$lookprod = mysqli_query($miau, $query_lookprod) or die(mysqli_error($miau));
 	$row_lookprod = mysqli_fetch_assoc($lookprod);
 	$totalRows_lookprod = mysqli_num_rows($lookprod);
 
     $product_id = $row_lookprod['ID'];
  
-    $query_precio = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id = '$product_id' AND meta_key = '_price'");
-    $precio = mysqli_query($sandycat, $query_precio) or die(mysqli_error());
+    $query_precio = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_price'");
+    $precio = mysqli_query($miau, $query_precio) or die(mysqli_error($miau));
     $row_precio = mysqli_fetch_assoc($precio);
     $totalRows_precio = mysqli_num_rows($precio);
 
     $product_net_revenue = $row_precio['meta_value'];
 
-    $query_vrnormal = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id = '$product_id' AND meta_key = '_regular_price'");
-    $vrnormal = mysqli_query($sandycat, $query_vrnormal) or die(mysqli_error());
+    $query_vrnormal = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_regular_price'");
+    $vrnormal = mysqli_query($miau, $query_vrnormal) or die(mysqli_error($miau));
     $row_vrnormal = mysqli_fetch_assoc($vrnormal);
     $totalRows_vrnormal = mysqli_num_rows($vrnormal);
 
@@ -367,8 +333,8 @@ if(isset($_POST['proceso'])) {
 
     $coupon_amount = ($elvrnormal - $product_net_revenue) * $product_qty;
 
-    $query_cliente = sprintf("SELECT customer_id, email FROM ch_wc_customer_lookup WHERE email = '$_billing_email'");
-	$cliente = mysqli_query($sandycat, $query_cliente) or die(mysqli_error());
+    $query_cliente = sprintf("SELECT customer_id, email FROM miau_wc_customer_lookup WHERE email = '$_billing_email'");
+	$cliente = mysqli_query($miau, $query_cliente) or die(mysqli_error($miau));
 	$row_cliente = mysqli_fetch_assoc($cliente);
 	$totalRows_cliente = mysqli_num_rows($cliente);
 
@@ -383,76 +349,76 @@ if(isset($_POST['proceso'])) {
      $variation_id = '0'; 
      }
  
-    $query2 = "INSERT INTO ch_wc_order_product_lookup (order_item_id, order_id, product_id, variation_id, customer_id, date_created, product_qty, product_net_revenue, coupon_amount, tax_amount, shipping_tax_amount) VALUES ('$order_item_id', '$elid', '$product_id', '$variation_id', '$customer_id', '$hoy', '$product_qty', '$prodvalor', '$coupon_amount', '0', '0')";
+    $query2 = "INSERT INTO miau_wc_order_product_lookup (order_item_id, order_id, product_id, variation_id, customer_id, date_created, product_qty, product_net_revenue, coupon_amount, tax_amount, shipping_tax_amount) VALUES ('$order_item_id', '$elid', '$product_id', '$variation_id', '$customer_id', '$hoy', '$product_qty', '$prodvalor', '$coupon_amount', '0', '0')";
 	mysqli_query($sandycat, $query2);
     
-    $query_vrtotal = sprintf("SELECT SUM(product_net_revenue) AS total FROM ch_wc_order_product_lookup WHERE order_id = '$elid'");
-	$vrtotal = mysqli_query($sandycat, $query_vrtotal) or die(mysqli_error());
+    $query_vrtotal = sprintf("SELECT SUM(product_net_revenue) AS total FROM miau_wc_order_product_lookup WHERE order_id = '$elid'");
+	$vrtotal = mysqli_query($miau, $query_vrtotal) or die(mysqli_error($miau));
 	$row_vrtotal = mysqli_fetch_assoc($vrtotal);
 	$totalRows_vrtotal = mysqli_num_rows($vrtotal);
     $vractual = $row_vrtotal['total'];
 
-    $query_vrdescuento = sprintf("SELECT SUM(coupon_amount) AS total FROM ch_wc_order_product_lookup WHERE order_id = '$elid'");
-	$vrdescuento = mysqli_query($sandycat, $query_vrdescuento) or die(mysqli_error());
+    $query_vrdescuento = sprintf("SELECT SUM(coupon_amount) AS total FROM miau_wc_order_product_lookup WHERE order_id = '$elid'");
+	$vrdescuento = mysqli_query($miau, $query_vrdescuento) or die(mysqli_error($miau));
 	$row_vrdescuento = mysqli_fetch_assoc($vrdescuento);
 	$totalRows_vrdescuento = mysqli_num_rows($vrdescuento);
     $vrdesc = $row_vrdescuento['total'];
 
     $vatotal = $vractual + $elenvio;
     
-	/*$query6 = "UPDATE ch_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
+	/*$query6 = "UPDATE miau_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
 	mysqli_query($sandycat, $query6); */
 
-	$query6 = "UPDATE ch_postmeta SET meta_value = '$vatotal' WHERE post_id = '$elid' AND meta_key = '_order_total'";
+	$query6 = "UPDATE miau_postmeta SET meta_value = '$vatotal' WHERE post_id = '$elid' AND meta_key = '_order_total'";
 	mysqli_query($sandycat, $query6);
 
 
-	$query8 = "UPDATE ch_postmeta SET meta_value = '$vrdesc' WHERE post_id = '$elid' AND meta_key = '_cart_discount'";
+	$query8 = "UPDATE miau_postmeta SET meta_value = '$vrdesc' WHERE post_id = '$elid' AND meta_key = '_cart_discount'";
 	mysqli_query($sandycat, $query8);
 
-    $query_listavr = sprintf("SELECT post_id, meta_key, meta_value FROM ch_postmeta WHERE post_id = '$elid' AND meta_key = '_order_total'");
-	$listavr = mysqli_query($sandycat, $query_listavr) or die(mysqli_error());
+    $query_listavr = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$elid' AND meta_key = '_order_total'");
+	$listavr = mysqli_query($miau, $query_listavr) or die(mysqli_error($miau));
 	$row_listavr = mysqli_fetch_assoc($listavr);
 	$totalRows_listavr = mysqli_num_rows($listavr);
     $vtotal = $row_listavr['meta_value'];
 
-    $query_cantotal = sprintf("SELECT SUM(product_qty) AS num_items_sold FROM ch_wc_order_product_lookup WHERE order_id = '$elid'");
-	$cantotal = mysqli_query($sandycat, $query_cantotal) or die(mysqli_error());
+    $query_cantotal = sprintf("SELECT SUM(product_qty) AS num_items_sold FROM miau_wc_order_product_lookup WHERE order_id = '$elid'");
+	$cantotal = mysqli_query($miau, $query_cantotal) or die(mysqli_error($miau));
 	$row_cantotal = mysqli_fetch_assoc($cantotal);
 	$totalRows_cantotal = mysqli_num_rows($cantotal);
     $num_items_sold = $row_cantotal['num_items_sold'];
 
     $net_sales = $vtotal - $elenvio;
 
-    $query_consulorderstats = sprintf("SELECT order_id FROM ch_wc_order_stats WHERE order_id = '$elid'");
-	$consulorderstats = mysqli_query($sandycat, $query_consulorderstats) or die(mysqli_error());
+    $query_consulorderstats = sprintf("SELECT order_id FROM miau_wc_order_stats WHERE order_id = '$elid'");
+	$consulorderstats = mysqli_query($miau, $query_consulorderstats) or die(mysqli_error($miau));
 	$row_consulorderstats = mysqli_fetch_assoc($consulorderstats);
 	$totalRows_consulorderstats = mysqli_num_rows($consulorderstats);
     $order_id = $row_consulorderstats['order_id'];
 
     if(isset($row_consulorderstats['order_id'])) {
-        $query7 = "UPDATE ch_wc_order_stats SET num_items_sold = '$num_items_sold', total_sales = '$vtotal', net_total = '$net_sales' WHERE order_id = '$elid'";
+        $query7 = "UPDATE miau_wc_order_stats SET num_items_sold = '$num_items_sold', total_sales = '$vtotal', net_total = '$net_sales' WHERE order_id = '$elid'";
         mysqli_query($sandycat, $query7);
     } else {    
-    $query2 = "INSERT INTO ch_wc_order_stats (order_id, date_created, date_created_gmt, num_items_sold, total_sales, tax_total, shipping_total, net_total, returning_customer, status, customer_id) VALUES ('$elid', '$hoy', '$hoy', '$num_items_sold', '$vatotal', '0', '$_order_shipping', '$vtotal', '1', 'wc-processing', '$customer_id')";
+    $query2 = "INSERT INTO miau_wc_order_stats (order_id, date_created, date_created_gmt, num_items_sold, total_sales, tax_total, shipping_total, net_total, returning_customer, status, customer_id) VALUES ('$elid', '$hoy', '$hoy', '$num_items_sold', '$vatotal', '0', '$_order_shipping', '$vtotal', '1', 'wc-processing', '$customer_id')";
 	mysqli_query($sandycat, $query2);
     }
 
 
    //cuadrar esto
-	//$query = "INSERT INTO ch_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_excerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
+	//$query = "INSERT INTO miau_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_excerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
 	//mysqli_query($sandycat, $query);    
 
 }
 
             
-	$query_productos = sprintf("SELECT I.order_item_id, order_item_name, I.order_id, L.order_id, order_item_type, product_qty, product_net_revenue, coupon_amount, shipping_amount, L.order_item_id FROM ch_woocommerce_order_items I RIGHT JOIN ch_wc_order_product_lookup L ON I.order_item_id = L.order_item_id WHERE I.order_id = '$elid' AND order_item_type='line_item'");
-	$productos = mysqli_query($sandycat, $query_productos) or die(mysqli_error());
+	$query_productos = sprintf("SELECT I.order_item_id, order_item_name, I.order_id, L.order_id, order_item_type, product_qty, product_net_revenue, coupon_amount, shipping_amount, L.order_item_id FROM miau_woocommerce_order_items I RIGHT JOIN miau_wc_order_product_lookup L ON I.order_item_id = L.order_item_id WHERE I.order_id = '$elid' AND order_item_type='line_item'");
+	$productos = mysqli_query($miau, $query_productos) or die(mysqli_error($miau));
 	$row_productos = mysqli_fetch_assoc($productos);
 	$totalRows_productos = mysqli_num_rows($productos);
 
-    $query_obser = sprintf("SELECT ID, post_excerpt, post_date FROM ch_posts WHERE ID = '$elid'");
-	$obser = mysqli_query($sandycat, $query_obser) or die(mysqli_error());
+    $query_obser = sprintf("SELECT ID, post_excerpt, post_date FROM miau_posts WHERE ID = '$elid'");
+	$obser = mysqli_query($miau, $query_obser) or die(mysqli_error($miau));
 	$row_obser = mysqli_fetch_assoc($obser);
 	$totalRows_obser = mysqli_num_rows($obser);
     $post_excerpt = $row_obser['post_excerpt'];

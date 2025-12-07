@@ -5,7 +5,7 @@
 //	http://www.godisaduck.com/svg2pdf_with_fpdf
 //	http://rhodopsin.blogspot.com
 //
-//	cette class etendue est open source, toute modification devra cependant etre repertoriée~
+//	cette class etendue est open source, toute modification devra cependant etre repertoriï¿½e~
 
 
 // If you wish to use "AutoFont" within SVG's. change this definition to true.
@@ -33,12 +33,12 @@ if (!defined("_SVG_CLASSES")) { define("_SVG_CLASSES", false); }
 
 class SVG {
 
-	var $svg_gradient;	//	array - contient les infos sur les gradient fill du svg classé par id du svg
+	var $svg_gradient;	//	array - contient les infos sur les gradient fill du svg classï¿½ par id du svg
 	var $svg_shadinglist;	//	array - contient les ids des objet shading
 	var $svg_info;		//	array contenant les infos du svg voulue par l'utilisateur
 	var $svg_attribs;		//	array - holds all attributes of root <svg> tag
 	var $svg_style;		//	array contenant les style de groupes du svg
-	var $svg_string;		//	String contenant le tracage du svg en lui même.
+	var $svg_string;		//	String contenant le tracage du svg en lui mï¿½me.
 	var $txt_data;		//    array - holds string info to write txt to image
 	var $txt_style;		// 	array - current text style
 	var $mpdf_ref;
@@ -295,7 +295,7 @@ class SVG {
 			$y_offset = $this->pathBBox[1];
 		  }
 		  else {
-			preg_match_all('/([a-z]|[A-Z])([ ,\-.\d]+)*/', $attribs['d'], $commands, PREG_SET_ORDER);
+			preg_matmiau_all('/([a-z]|[A-Z])([ ,\-.\d]+)*/', $attribs['d'], $commands, PREG_SET_ORDER);
 			$maxr=$maxb=0;
 			$minl=$mint=999999;
 			foreach($commands as $c){
@@ -338,7 +338,7 @@ class SVG {
 		// TRANSFORMATIONS
 		$transformations = '';
 		if (isset($gradient_info['transform'])){
-			preg_match_all('/(matrix|translate|scale|rotate|skewX|skewY)\((.*?)\)/is',$gradient_info['transform'],$m);
+			preg_matmiau_all('/(matrix|translate|scale|rotate|skewX|skewY)\((.*?)\)/is',$gradient_info['transform'],$m);
 			if (count($m[0])) {
 				for($i=0; $i<count($m[0]); $i++) {
 					$c = strtolower($m[1][$i]);
@@ -872,7 +872,7 @@ class SVG {
 		// TRANSFORM SCALE
 		$transformations = '';
 		if (isset($critere_style['transform'])){
-			preg_match_all('/(matrix|translate|scale|rotate|skewX|skewY)\((.*?)\)/is',$critere_style['transform'],$m);
+			preg_matmiau_all('/(matrix|translate|scale|rotate|skewX|skewY)\((.*?)\)/is',$critere_style['transform'],$m);
 			if (count($m[0])) {
 				for($i=0; $i<count($m[0]); $i++) {
 					$c = strtolower($m[1][$i]);
@@ -1062,7 +1062,7 @@ $md = $sy * cos($t);
 		$path_style = '';
 		if (substr_count($critere_style['fill'],'url')>0 && $element != 'line'){
 			//
-			// couleur degradé
+			// couleur degradï¿½
 			$id_gradient = preg_replace("/url\(#([\w_]*)\)/i","$1",$critere_style['fill']);
 			if ($id_gradient != $critere_style['fill']) {
 			   if (isset($this->svg_gradient[$id_gradient])) {
@@ -1243,7 +1243,7 @@ $md = $sy * cos($t);
 		$maxb = $this->pathBBox[3]+$this->pathBBox[1];
 		$start = array($this->xbase, -$this->ybase);
 
-		preg_match_all('/[\-^]?[\d.]+(e[\-]?[\d]+){0,1}/i', $arguments, $a, PREG_SET_ORDER);
+		preg_matmiau_all('/[\-^]?[\d.]+(e[\-]?[\d]+){0,1}/i', $arguments, $a, PREG_SET_ORDER);
 
 		//	if the command is a capital letter, the coords go absolute, otherwise relative
 		if(strtolower($command) == $command) $relative = true;
@@ -1828,7 +1828,7 @@ function Arcto($x1, $y1, $x2, $y2, $rx, $ry, $angle, $largeArcFlag, $sweepFlag) 
 
 	//
 	//	fonction retracant les <ellipse /> et <circle />
-	//	 le cercle est tracé grave a 4 bezier cubic, les poitn de controles
+	//	 le cercle est tracï¿½ grave a 4 bezier cubic, les poitn de controles
 	//	sont deduis grace a la constante kappa * rayon
 	function svgEllipse($arguments){
 		if ($arguments['rx']==0 || $arguments['ry']==0) { return ''; }
@@ -2213,7 +2213,7 @@ function svgDefineTxtStyle($critere_style)
 
 		if (preg_match('/<!ENTITY/si',$data)) {
 			// Get User-defined entities
-			preg_match_all('/<!ENTITY\s+([a-z]+)\s+\"(.*?)\">/si',$data, $ent);
+			preg_matmiau_all('/<!ENTITY\s+([a-z]+)\s+\"(.*?)\">/si',$data, $ent);
 			// Replace entities
 			for ($i=0; $i<count($ent[0]); $i++) {
 				$data = preg_replace('/&'.preg_quote($ent[1][$i],'/').';/is', $ent[2][$i], $data);
@@ -2224,7 +2224,7 @@ function svgDefineTxtStyle($critere_style)
 		if (preg_match('/xlink:href\s*=/si',$data)) {
 			// GRADIENTS
 			// Get links
-			preg_match_all('/(<(linearGradient|radialgradient)[^>]*)xlink:href\s*=\s*["\']#(.*?)["\'](.*?)\/>/si',$data, $links);
+			preg_matmiau_all('/(<(linearGradient|radialgradient)[^>]*)xlink:href\s*=\s*["\']#(.*?)["\'](.*?)\/>/si',$data, $links);
 			if (count($links[0])) { $links[5] = array(); }
 			// Delete links from data - keeping in $links
 			for ($i=0; $i<count($links[0]); $i++) {
@@ -2232,7 +2232,7 @@ function svgDefineTxtStyle($critere_style)
 				$data = preg_replace('/'.preg_quote($links[0][$i],'/').'/is', '<MYLINKS'.$links[5][$i].'>' , $data);
 			}
 			// Get targets
-			preg_match_all('/<(linearGradient|radialgradient)([^>]*)id\s*=\s*["\'](.*?)["\'](.*?)>(.*?)<\/(linearGradient|radialgradient)>/si',$data, $m);
+			preg_matmiau_all('/<(linearGradient|radialgradient)([^>]*)id\s*=\s*["\'](.*?)["\'](.*?)>(.*?)<\/(linearGradient|radialgradient)>/si',$data, $m);
 			$targets = array();
 			$stops = array();
 			// keeping in $targets
@@ -2248,7 +2248,7 @@ function svgDefineTxtStyle($critere_style)
 
 			// mPDF 5.7.4
 			// <TREF>
-			preg_match_all('/<tref ([^>]*)xlink:href\s*=\s*["\']#([^>]*?)["\']([^>]*)\/>/si',$data, $links);
+			preg_matmiau_all('/<tref ([^>]*)xlink:href\s*=\s*["\']#([^>]*?)["\']([^>]*)\/>/si',$data, $links);
 			for ($i=0; $i<count($links[0]); $i++) {
 
 				// Get the item to use from defs
@@ -2263,7 +2263,7 @@ function svgDefineTxtStyle($critere_style)
 
 			// mPDF 5.7.2
 			// <USE>
-			preg_match_all('/<use ([^>]*)xlink:href\s*=\s*["\']#([^>]*?)["\']([^>]*)\/>/si',$data, $links);
+			preg_matmiau_all('/<use ([^>]*)xlink:href\s*=\s*["\']#([^>]*?)["\']([^>]*)\/>/si',$data, $links);
 			for ($i=0; $i<count($links[0]); $i++) {
 
 				// Get the item to use from defs
@@ -2309,7 +2309,7 @@ function svgDefineTxtStyle($critere_style)
 				$replacement = '<g '.$inners.'>'.$insert.'</g>';
 				$data = preg_replace('/'.preg_quote($links[0][$i],'/').'/is', $replacement, $data);
 			}
-			preg_match_all('/<use ([^>]*)xlink:href\s*=\s*["\']#([^>]*?)["\']([^>]*)>\s*<\/use>/si',$data, $links);
+			preg_matmiau_all('/<use ([^>]*)xlink:href\s*=\s*["\']#([^>]*?)["\']([^>]*)>\s*<\/use>/si',$data, $links);
 			for ($i=0; $i<count($links[0]); $i++) {
 
 				// Get the item to use from defs
@@ -2472,7 +2472,7 @@ function svgDefineTxtStyle($critere_style)
 
 				case 'path':
 					$path = $attribs['d'];
-					preg_match_all('/([MZLHVCSQTAmzlhvcsqta])([eE ,\-.\d]+)*/', $path, $commands, PREG_SET_ORDER);
+					preg_matmiau_all('/([MZLHVCSQTAmzlhvcsqta])([eE ,\-.\d]+)*/', $path, $commands, PREG_SET_ORDER);
 					$path_cmd = '';
 					$svg_class->subPathInit = true;
 					$svg_class->pathBBox = array(999999,999999,-999999,-999999);
@@ -2555,7 +2555,7 @@ function svgDefineTxtStyle($critere_style)
 
 				case 'polyline':
 					$path = $attribs['points'];
-					preg_match_all('/[0-9\-\.]*/',$path, $tmp, PREG_SET_ORDER);
+					preg_matmiau_all('/[0-9\-\.]*/',$path, $tmp, PREG_SET_ORDER);
 					$arguments = array();
 					for ($i=0;$i<count($tmp);$i++){
 						if ($tmp[$i][0] !=''){
@@ -2570,7 +2570,7 @@ function svgDefineTxtStyle($critere_style)
 
 				case 'polygon':
 					$path = $attribs['points'];
-					preg_match_all('/([\-]*[0-9\.]+)/',$path, $tmp);
+					preg_matmiau_all('/([\-]*[0-9\.]+)/',$path, $tmp);
 					$arguments = array();
 					for ($i=0;$i<count($tmp[0]);$i++){
 						if ($tmp[0][$i] !=''){
@@ -2780,7 +2780,7 @@ function svgDefineTxtStyle($critere_style)
 				}
 
 				//
-				//insertion des path et du style dans le flux de donné general.
+				//insertion des path et du style dans le flux de donnï¿½ general.
 				if (isset($path_cmd) && $path_cmd) {
 					// mPDF 5.0
 					list($prestyle,$poststyle) = $svg_class->svgStyle($path_style, $attribs, strtolower($name));

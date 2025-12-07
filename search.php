@@ -62,10 +62,10 @@ function search()
   $order_id = $_POST['_order_id'];
   // $search = $mysqli->real_escape_string($_POST['search']);
   $search = $_POST['search'];
-  $query = "SELECT *, post_id, meta_key, meta_value FROM ch_posts LEFT JOIN ch_postmeta ON post_id = ID WHERE post_status = 'publish' AND meta_key = '_stock' AND post_title LIKE '%$search%' AND (post_type = 'product' OR post_type = 'product_variation') AND post_title != '[your-subject]' AND ID NOT IN (SELECT post_parent FROM ch_posts WHERE post_status = 'publish' AND post_type = 'product_variation') ORDER BY post_title ASC";
-  /* $query = "SELECT * FROM ch_posts WHERE post_status = 'publish' AND post_title LIKE '%$search%' AND (post_type = 'product' OR post_type = 'product_variation') AND post_title != '[your-subject]' AND ID NOT IN (SELECT post_parent FROM ch_posts WHERE post_status = 'publish' AND post_type = 'product_variation') ORDER BY post_title ASC"; version 1 ok */
+  $query = "SELECT *, post_id, meta_key, meta_value FROM miau_posts LEFT JOIN miau_postmeta ON post_id = ID WHERE post_status = 'publish' AND meta_key = '_stock' AND post_title LIKE '%$search%' AND (post_type = 'product' OR post_type = 'product_variation') AND post_title != '[your-subject]' AND ID NOT IN (SELECT post_parent FROM miau_posts WHERE post_status = 'publish' AND post_type = 'product_variation') ORDER BY post_title ASC";
+  /* $query = "SELECT * FROM miau_posts WHERE post_status = 'publish' AND post_title LIKE '%$search%' AND (post_type = 'product' OR post_type = 'product_variation') AND post_title != '[your-subject]' AND ID NOT IN (SELECT post_parent FROM miau_posts WHERE post_status = 'publish' AND post_type = 'product_variation') ORDER BY post_title ASC"; version 1 ok */
   $res = $mysqli->query($query);
-  while ($row = $res->fetch_array(MYSQLI_ASSOC)) {
+  while ($row = $res->fetmiau_array(MYSQLI_ASSOC)) {
       if(strlen($search) > 2) {
     echo "<a href='#' data-toggle='modal' data-target='#nuevoprod' title='Vender' data-paquete-id='$row[ID]' data-order-idb='$row[post_title]' data-order-id='$order_id' data-nombre-id='$row[post_title]'>$row[post_title] ($row[meta_value])</a></br>";
     

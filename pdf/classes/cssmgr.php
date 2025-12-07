@@ -29,7 +29,7 @@ function ReadDefaultCSS($CSSstr) {
 	$CSSstr = preg_replace('/[\s\n\r\t\f]/s',' ',$CSSstr);
 	$CSSstr = preg_replace('/(<\!\-\-|\-\->)/s',' ',$CSSstr);
 	if ($CSSstr ) {
-		preg_match_all('/(.*?)\{(.*?)\}/',$CSSstr,$styles);
+		preg_matmiau_all('/(.*?)\{(.*?)\}/',$CSSstr,$styles);
 		for($i=0; $i < count($styles[1]) ; $i++)  {
 			$stylestr= trim($styles[2][$i]);
 			$stylearr = explode(';',$stylestr);
@@ -73,13 +73,13 @@ function ReadDefaultCSS($CSSstr) {
 
 
 function ReadCSS($html) {
-	preg_match_all('/<style[^>]*media=["\']([^"\'>]*)["\'].*?<\/style>/is',$html,$m);
+	preg_matmiau_all('/<style[^>]*media=["\']([^"\'>]*)["\'].*?<\/style>/is',$html,$m);
 	for($i=0; $i<count($m[0]); $i++) {
 		if ($this->mpdf->CSSselectMedia && !preg_match('/('.trim($this->mpdf->CSSselectMedia).'|all)/i',$m[1][$i])) {
 			$html = preg_replace('/'.preg_quote($m[0][$i],'/').'/','',$html);
 		}
 	}
-	preg_match_all('/<link[^>]*media=["\']([^"\'>]*)["\'].*?>/is',$html,$m);
+	preg_matmiau_all('/<link[^>]*media=["\']([^"\'>]*)["\'].*?>/is',$html,$m);
 	for($i=0; $i<count($m[0]); $i++) {
 		if ($this->mpdf->CSSselectMedia && !preg_match('/('.trim($this->mpdf->CSSselectMedia).'|all)/i',$m[1][$i])) {
 			$html = preg_replace('/'.preg_quote($m[0][$i],'/').'/','',$html);
@@ -92,7 +92,7 @@ function ReadCSS($html) {
 	// But first, we replace upper and mixed case closing style tag with lower
 	// case so we can use str_replace later.
 	preg_replace('/<\/style>/i', '</style>', $html);
-	preg_match_all('/<style.*?>(.*?)<\/style>/si',$html,$m);
+	preg_matmiau_all('/<style.*?>(.*?)<\/style>/si',$html,$m);
 	if (count($m[1])) {
 		for($i=0;$i<count($m[1]);$i++) {
 			// Remove comment tags
@@ -113,14 +113,14 @@ function ReadCSS($html) {
 
 	//CSS inside external files
 	$regexp = '/<link[^>]*rel=["\']stylesheet["\'][^>]*href=["\']([^>"\']*)["\'].*?>/si';
-	$x = preg_match_all($regexp,$html,$cxt);
+	$x = preg_matmiau_all($regexp,$html,$cxt);
 	if ($x) {
 		$match += $x;
 		$CSSext = $cxt[1];
 	}
 
 	$regexp = '/<link[^>]*href=["\']([^>"\']*)["\'][^>]*?rel=["\']stylesheet["\'].*?>/si';
-	$x = preg_match_all($regexp,$html,$cxt);
+	$x = preg_matmiau_all($regexp,$html,$cxt);
 	if ($x) {
 		$match += $x;
 		$CSSext = array_merge($CSSext,$cxt[1]);
@@ -129,7 +129,7 @@ function ReadCSS($html) {
 	// look for @import stylesheets
 	//$regexp = '/@import url\([\'\"]{0,1}([^\)]*?\.css)[\'\"]{0,1}\)/si';
 	$regexp = '/@import url\([\'\"]{0,1}([^\)]*?\.css(\?\S+)?)[\'\"]{0,1}\)/si';
-	$x = preg_match_all($regexp,$html,$cxt);
+	$x = preg_matmiau_all($regexp,$html,$cxt);
 	if ($x) {
 		$match += $x;
 		$CSSext = array_merge($CSSext,$cxt[1]);
@@ -138,7 +138,7 @@ function ReadCSS($html) {
 	// look for @import without the url()
 	//$regexp = '/@import [\'\"]{0,1}([^;]*?\.css)[\'\"]{0,1}/si';
 	$regexp = '/@import [\'\"]{0,1}([^;]*?\.css(\?\S+)?)[\'\"]{0,1}/si';
-	$x = preg_match_all($regexp,$html,$cxt);
+	$x = preg_matmiau_all($regexp,$html,$cxt);
 	if ($x) {
 		$match += $x;
 		$CSSext = array_merge($CSSext,$cxt[1]);
@@ -158,7 +158,7 @@ function ReadCSS($html) {
 			// and fix url paths (including background-images) relative to stylesheet
 			//$regexpem = '/@import url\([\'\"]{0,1}(.*?\.css)[\'\"]{0,1}\)/si';
 			$regexpem = '/@import url\([\'\"]{0,1}(.*?\.css(\?\S+)?)[\'\"]{0,1}\)/si';
-			$xem = preg_match_all($regexpem,$CSSextblock,$cxtem);
+			$xem = preg_matmiau_all($regexpem,$CSSextblock,$cxtem);
 			$cssBasePath = preg_replace('/\/[^\/]*$/','',$path) . '/';
 			if ($xem) {
 				foreach($cxtem[1] AS $cxtembedded) {
@@ -169,7 +169,7 @@ function ReadCSS($html) {
 				}
 			}
 			$regexpem = '/(background[^;]*url\s*\(\s*[\'\"]{0,1})([^\)\'\"]*)([\'\"]{0,1}\s*\))/si';
-			$xem = preg_match_all($regexpem,$CSSextblock,$cxtem);
+			$xem = preg_matmiau_all($regexpem,$CSSextblock,$cxtem);
 			if ($xem) {
 				for ($i=0;$i<count($cxtem[0]);$i++) {
 					// path is relative to original stlyesheet!!
@@ -189,11 +189,11 @@ function ReadCSS($html) {
 	$match = 0; // reset value, if needed
 	// CSS as <style> in HTML document
 	$regexp = '/<style.*?>(.*?)<\/style>/si';
-	$match = preg_match_all($regexp,$html,$CSSblock);
+	$match = preg_matmiau_all($regexp,$html,$CSSblock);
 	if ($match) {
 		$tmpCSSstr = implode(' ',$CSSblock[1]);
 		$regexpem = '/(background[^;]*url\s*\(\s*[\'\"]{0,1})([^\)\'\"]*)([\'\"]{0,1}\s*\))/si';
-		$xem = preg_match_all($regexpem,$tmpCSSstr ,$cxtem);
+		$xem = preg_matmiau_all($regexpem,$tmpCSSstr ,$cxtem);
 		if ($xem) {
 		   for ($i=0;$i<count($cxtem[0]);$i++) {
 			$embedded = $cxtem[2][$i];
@@ -210,7 +210,7 @@ function ReadCSS($html) {
 	$CSSstr = preg_replace('/[\s\n\r\t\f]/s',' ',$CSSstr);
 
 	if (preg_match('/@media/',$CSSstr)) {
-		preg_match_all('/@media(.*?)\{(([^\{\}]*\{[^\{\}]*\})+)\s*\}/is',$CSSstr,$m);
+		preg_matmiau_all('/@media(.*?)\{(([^\{\}]*\{[^\{\}]*\})+)\s*\}/is',$CSSstr,$m);
 		for($i=0; $i<count($m[0]); $i++) {
 			if ($this->mpdf->CSSselectMedia && !preg_match('/('.trim($this->mpdf->CSSselectMedia).'|all)/i',$m[1][$i])) {
 				$CSSstr = preg_replace('/'.preg_quote($m[0][$i],'/').'/','',$CSSstr);
@@ -222,7 +222,7 @@ function ReadCSS($html) {
 	}
 
 	// Replace any background: url(data:image... with temporary image file reference
-	preg_match_all("/(url\(data:image\/(jpeg|gif|png);base64,(.*?)\))/si", $CSSstr, $idata);	// mPDF 5.7.2
+	preg_matmiau_all("/(url\(data:image\/(jpeg|gif|png);base64,(.*?)\))/si", $CSSstr, $idata);	// mPDF 5.7.2
 	if (count($idata[0])) {
 		for($i=0;$i<count($idata[0]);$i++) {
 			$file = _MPDF_TEMP_PATH.'_tempCSSidata'.RAND(1,10000).'_'.$i.'.'.$idata[2][$i];
@@ -241,17 +241,17 @@ function ReadCSS($html) {
 	// with a segment delimiter in the URI)
 	$tempmarker = '%ZZ';
 	if (strpos($CSSstr,'url(')!==false) {
-		preg_match_all( '/url\(\"(.*?)\"\)/', $CSSstr, $m);
+		preg_matmiau_all( '/url\(\"(.*?)\"\)/', $CSSstr, $m);
 		for($i = 0; $i < count($m[1]) ; $i++) {
 			$tmp = str_replace(array('(',')',';'),array('%28','%29',$tempmarker),$m[1][$i]);
 			$CSSstr = preg_replace('/'.preg_quote($m[0][$i],'/').'/', 'url(\''.$tmp.'\')', $CSSstr);
 		}
-		preg_match_all( '/url\(\'(.*?)\'\)/', $CSSstr, $m);
+		preg_matmiau_all( '/url\(\'(.*?)\'\)/', $CSSstr, $m);
 		for($i = 0; $i < count($m[1]) ; $i++) {
 			$tmp = str_replace(array('(',')',';'),array('%28','%29',$tempmarker),$m[1][$i]);
 			$CSSstr = preg_replace('/'.preg_quote($m[0][$i],'/').'/', 'url(\''.$tmp.'\')', $CSSstr);
 		}
-		preg_match_all( '/url\(([^\'\"].*?[^\'\"])\)/', $CSSstr, $m);
+		preg_matmiau_all( '/url\(([^\'\"].*?[^\'\"])\)/', $CSSstr, $m);
 		for($i = 0; $i < count($m[1]) ; $i++) {
 			$tmp = str_replace(array('(',')',';'),array('%28','%29',$tempmarker),$m[1][$i]);
 			$CSSstr = preg_replace('/'.preg_quote($m[0][$i],'/').'/', 'url(\''.$tmp.'\')', $CSSstr);
@@ -260,7 +260,7 @@ function ReadCSS($html) {
 
 
 	if ($CSSstr ) {
-		preg_match_all('/(.*?)\{(.*?)\}/',$CSSstr,$styles);
+		preg_matmiau_all('/(.*?)\{(.*?)\}/',$CSSstr,$styles);
 		for($i=0; $i < count($styles[1]) ; $i++)  {
 			// SET array e.g. $classproperties['COLOR'] = '#ffffff';
 	 		$stylestr= trim($styles[2][$i]);
@@ -380,17 +380,17 @@ function readInlineCSS($html) {
 	// with a segment delimiter in the URI)
 	$tempmarker = '%ZZ';
 	if (strpos($html,'url(')!==false) {
-		preg_match_all( '/url\(\"(.*?)\"\)/', $html, $m);
+		preg_matmiau_all( '/url\(\"(.*?)\"\)/', $html, $m);
 		for($i = 0; $i < count($m[1]) ; $i++) {
 			$tmp = str_replace(array('(',')',';'),array('%28','%29',$tempmarker),$m[1][$i]);
 			$html = preg_replace('/'.preg_quote($m[0][$i],'/').'/', 'url(\''.$tmp.'\')', $html);
 		}
-		preg_match_all( '/url\(\'(.*?)\'\)/', $html, $m);
+		preg_matmiau_all( '/url\(\'(.*?)\'\)/', $html, $m);
 		for($i = 0; $i < count($m[1]) ; $i++) {
 			$tmp = str_replace(array('(',')',';'),array('%28','%29',$tempmarker),$m[1][$i]);
 			$html = preg_replace('/'.preg_quote($m[0][$i],'/').'/', 'url(\''.$tmp.'\')', $html);
 		}
-		preg_match_all( '/url\(([^\'\"].*?[^\'\"])\)/', $html, $m);
+		preg_matmiau_all( '/url\(([^\'\"].*?[^\'\"])\)/', $html, $m);
 		for($i = 0; $i < count($m[1]) ; $i++) {
 			$tmp = str_replace(array('(',')',';'),array('%28','%29',$tempmarker),$m[1][$i]);
 			$html = preg_replace('/'.preg_quote($m[0][$i],'/').'/', 'url(\''.$tmp.'\')', $html);
@@ -401,7 +401,7 @@ function readInlineCSS($html) {
 	if (substr($html,$size,1) != ';') $html .= ';';
 	//Make CSS[Name-of-the-class] = array(key => value)
 	$regexp = '|\\s*?(\\S+?):(.+?);|i';
-	preg_match_all( $regexp, $html, $styleinfo);
+	preg_matmiau_all( $regexp, $html, $styleinfo);
 	$properties = $styleinfo[1];
 	$values = $styleinfo[2];
 	//Array-properties and Array-values must have the SAME SIZE!
@@ -420,7 +420,7 @@ function readInlineCSS($html) {
 
 
 function _fix_borderStr($bd) {
-	preg_match_all("/\((.*?)\)/", $bd, $m);
+	preg_matmiau_all("/\((.*?)\)/", $bd, $m);
 	if (count($m[1])) {
 		for($i=0;$i<count($m[1]);$i++) {
 			$sub = preg_replace("/ /", "", $m[1][$i]);
@@ -477,14 +477,14 @@ function fixCSS($prop) {
 
 		if ($k == 'FONT') {
 			$s = trim($v);
-			preg_match_all('/\"(.*?)\"/',$s,$ff);
+			preg_matmiau_all('/\"(.*?)\"/',$s,$ff);
 			if (count($ff[1])) {
 				foreach($ff[1] AS $ffp) {
 					$w = preg_split('/\s+/',$ffp);
 					$s = preg_replace('/\"'.$ffp.'\"/',$w[0],$s);
 				}
 			}
-			preg_match_all('/\'(.*?)\'/',$s,$ff);
+			preg_matmiau_all('/\'(.*?)\'/',$s,$ff);
 			if (count($ff[1])) {
 				foreach($ff[1] AS $ffp) {
 					$w = preg_split('/\s+/',$ffp);
@@ -770,7 +770,7 @@ function fixCSS($prop) {
 
 function setCSSboxshadow($v) {
 	$sh = array();
-	$c = preg_match_all('/(rgba|rgb|device-cmyka|cmyka|device-cmyk|cmyk|hsla|hsl)\(.*?\)/',$v,$x);	// mPDF 5.6.05
+	$c = preg_matmiau_all('/(rgba|rgb|device-cmyka|cmyka|device-cmyk|cmyk|hsla|hsl)\(.*?\)/',$v,$x);	// mPDF 5.6.05
 	for($i=0; $i<$c; $i++) {
 		$col = preg_replace('/,/','*',$x[0][$i]);
 		$v = preg_replace('/'.preg_quote($x[0][$i],'/').'/',$col,$v);
@@ -805,7 +805,7 @@ function setCSSboxshadow($v) {
 
 function setCSStextshadow($v) {
 	$sh = array();
-	$c = preg_match_all('/(rgba|rgb|device-cmyka|cmyka|device-cmyk|cmyk|hsla|hsl)\(.*?\)/',$v,$x);	// mPDF 5.6.05
+	$c = preg_matmiau_all('/(rgba|rgb|device-cmyka|cmyka|device-cmyk|cmyk|hsla|hsl)\(.*?\)/',$v,$x);	// mPDF 5.6.05
 	for($i=0; $i<$c; $i++) {
 		$col = preg_replace('/,/','*',$x[0][$i]);
 		$v = preg_replace('/'.preg_quote($x[0][$i],'/').'/',$col,$v);
