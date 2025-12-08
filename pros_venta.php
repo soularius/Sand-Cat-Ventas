@@ -434,7 +434,11 @@ include("parts/header.php");
 <body class="order-details-container">
     <div class="container">
         <?php include("parts/menf.php"); ?>
-        <div class="py-5"></div>
+        <?php 
+        // Configurar el paso actual para el wizard
+        $current_step = 2; // Paso 2: Productos
+        include('parts/step_wizard.php'); 
+        ?>
         <section class="row justify-content-center mt-4">
             <div class="col-12">
                 <!-- Order Header -->
@@ -594,17 +598,6 @@ include("parts/header.php");
                             </div>
                             <?php endif; ?>
                             
-                            <!-- Agregar Producto -->
-                            <div class="col-md-4">
-                                <form action="bproducto.php" method="post" class="h-100">
-                                    <input type="hidden" name="_order_id" value="<?php echo $elid; ?>">
-                                    <button type="submit" class="btn btn-primary btn-custom action-button w-100 d-flex align-items-center justify-content-center">
-                                        <i class="fas fa-plus-circle fa-2x mx-2"></i>
-                                        <span>Agregar Producto</span>
-                                    </button>
-                                </form>
-                            </div>
-                            
                             <!-- Cancelar Pedido -->
                             <div class="col-md-4">
                                 <form action="adminventas.php" method="post" class="h-100" 
@@ -614,6 +607,17 @@ include("parts/header.php");
                                     <button type="submit" class="btn btn-danger btn-custom action-button w-100 d-flex align-items-center justify-content-center">
                                         <i class="fas fa-times-circle fa-2x mx-2"></i>
                                         <span>Cancelar Pedido</span>
+                                    </button>
+                                </form>
+                            </div>
+                            
+                            <!-- Agregar Producto -->
+                            <div class="col-md-4">
+                                <form action="bproducto.php" method="post" class="h-100">
+                                    <input type="hidden" name="_order_id" value="<?php echo $elid; ?>">
+                                    <button type="submit" class="btn btn-primary btn-custom action-button w-100 d-flex align-items-center justify-content-center">
+                                        <i class="fas fa-plus-circle fa-2x mx-2"></i>
+                                        <span>Agregar Producto</span>
                                     </button>
                                 </form>
                             </div>

@@ -38,133 +38,133 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
     <div class="container-fluid">
         <?php include("parts/menf.php"); ?>
         
-        <!-- Header Section -->
-        <div class="product-page-header">
-            <div class="container">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <div class="page-title">
-                            <h1><i class="fas fa-shopping-cart me-3"></i>Seleccionar Productos</h1>
-                            <p class="page-subtitle">Busca y agrega productos a tu pedido de manera rápida y eficiente</p>
-                        </div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <?php if($_order_id): ?>
-                        <div class="order-badge">
-                            <i class="fas fa-receipt me-2"></i>
-                            <span>Pedido #<?php echo htmlspecialchars($_order_id); ?></span>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Main Content -->
-        <div class="container">
-            <div class="row">
-                <!-- Search Panel -->
-                <div class="col-lg-4 col-md-12 mb-4">
-                    <div class="search-panel">
-                        <div class="panel-header">
-                            <h5><i class="fas fa-search me-2"></i>Búsqueda de Productos</h5>
-                        </div>
-                        
-                        <div class="panel-body">
-                            <!-- Search Input -->
-                            <div class="search-input-wrapper">
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-search"></i>
-                                    </span>
-                                    <input type="text" 
-                                           class="form-control search-input-modern" 
-                                           id="search" 
-                                           name="search" 
-                                           placeholder="Nombre, código o categoría...">
-                                    <button class="btn btn-outline-secondary" type="button" id="clearSearch">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                                <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars($_order_id); ?>">
+        <div class="py-5"></div>
+        <section class="row justify-content-center mt-4">
+          <div class="product-page-header">
+              <div class="container">
+                  <div class="row align-items-center justify-content-center">
+                      <div class="col-md-10">
+                            <div class="page-title">
+                                <h1><i class="fas fa-shopping-cart me-3"></i>Seleccionar Productos</h1>
+                                <p class="page-subtitle">Busca y agrega productos a tu pedido de manera rápida y eficiente</p>
                             </div>
-                            
-                            <!-- Search Stats -->
-                            <div class="search-stats" id="searchStats" style="display: none;">
-                                <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    <span id="resultsCount">0</span> productos encontrados
-                                </small>
+                            <?php if($_order_id): ?>
+                            <div class="order-badge">
+                                <i class="fas fa-receipt me-2"></i>
+                                <span>Pedido #<?php echo htmlspecialchars($_order_id); ?></span>
                             </div>
-                            
-                            <!-- Quick Filters -->
-                            <div class="quick-filters">
-                                <h6>Filtros Rápidos</h6>
-                                <div class="filter-buttons">
-                                    <button class="btn btn-outline-primary btn-sm filter-btn" data-filter="all">
-                                        <i class="fas fa-list me-1"></i>Todos
-                                    </button>
-                                    <button class="btn btn-outline-success btn-sm filter-btn" data-filter="available">
-                                        <i class="fas fa-check-circle me-1"></i>Disponibles
-                                    </button>
-                                    <button class="btn btn-outline-warning btn-sm filter-btn" data-filter="featured">
-                                        <i class="fas fa-star me-1"></i>Destacados
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- Search Tips -->
-                            <div class="search-tips">
-                                <h6>Consejos de Búsqueda</h6>
-                                <ul class="tips-list">
-                                    <li><i class="fas fa-lightbulb me-1"></i>Usa al menos 3 caracteres</li>
-                                    <li><i class="fas fa-lightbulb me-1"></i>Busca por nombre o código</li>
-                                    <li><i class="fas fa-lightbulb me-1"></i>Los filtros ayudan a refinar</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Results Panel -->
-                <div class="col-lg-8 col-md-12">
-                    <div class="results-panel">
-                        <div class="panel-header">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h5><i class="fas fa-box me-2"></i>Productos</h5>
-                                <div class="view-controls">
-                                    <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm view-toggle active" data-view="grid">
-                                            <i class="fas fa-th"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm view-toggle" data-view="list">
-                                            <i class="fas fa-list"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="panel-body">
-                            <div class="results-container" id="result">
-                                <div class="empty-state">
-                                    <div class="empty-state-icon">
-                                        <i class="fas fa-search"></i>
-                                    </div>
-                                    <h4>Busca productos</h4>
-                                    <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
-                                    <div class="empty-state-actions">
-                                        <button class="btn btn-primary" onclick="$('#search').focus()">
-                                            <i class="fas fa-search me-2"></i>Comenzar Búsqueda
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                            <?php endif; ?>
+                      </div>
+                  </div>
+              </div>
+          </div>
+          
+          <!-- Main Content -->
+          <div class="container">
+              <div class="row">
+                  <!-- Search Panel -->
+                  <div class="col-lg-4 col-md-12 mb-4">
+                      <div class="search-panel">
+                          <div class="panel-header">
+                              <h5><i class="fas fa-search me-2"></i>Búsqueda de Productos</h5>
+                          </div>
+                          
+                          <div class="panel-body">
+                              <!-- Search Input -->
+                              <div class="search-input-wrapper">
+                                  <div class="input-group">
+                                      <span class="input-group-text">
+                                          <i class="fas fa-search"></i>
+                                      </span>
+                                      <input type="text" 
+                                            class="form-control search-input-modern" 
+                                            id="search" 
+                                            name="search" 
+                                            placeholder="Nombre, código o categoría...">
+                                      <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                                          <i class="fas fa-times"></i>
+                                      </button>
+                                  </div>
+                                  <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars($_order_id); ?>">
+                              </div>
+                              
+                              <!-- Search Stats -->
+                              <div class="search-stats" id="searchStats" style="display: none;">
+                                  <small class="text-muted">
+                                      <i class="fas fa-info-circle me-1"></i>
+                                      <span id="resultsCount">0</span> productos encontrados
+                                  </small>
+                              </div>
+                              
+                              <!-- Quick Filters -->
+                              <div class="quick-filters">
+                                  <h6>Filtros Rápidos</h6>
+                                  <div class="filter-buttons">
+                                      <button class="btn btn-outline-primary btn-sm filter-btn" data-filter="all">
+                                          <i class="fas fa-list me-1"></i>Todos
+                                      </button>
+                                      <button class="btn btn-outline-success btn-sm filter-btn" data-filter="available">
+                                          <i class="fas fa-check-circle me-1"></i>Disponibles
+                                      </button>
+                                      <button class="btn btn-outline-warning btn-sm filter-btn" data-filter="featured">
+                                          <i class="fas fa-star me-1"></i>Destacados
+                                      </button>
+                                  </div>
+                              </div>
+                              
+                              <!-- Search Tips -->
+                              <div class="search-tips">
+                                  <h6>Consejos de Búsqueda</h6>
+                                  <ul class="tips-list">
+                                      <li><i class="fas fa-lightbulb me-1"></i>Usa al menos 3 caracteres</li>
+                                      <li><i class="fas fa-lightbulb me-1"></i>Busca por nombre o código</li>
+                                      <li><i class="fas fa-lightbulb me-1"></i>Los filtros ayudan a refinar</li>
+                                  </ul>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <!-- Results Panel -->
+                  <div class="col-lg-8 col-md-12">
+                      <div class="results-panel">
+                          <div class="panel-header">
+                              <div class="d-flex justify-content-between align-items-center">
+                                  <h5><i class="fas fa-box me-2"></i>Productos</h5>
+                                  <div class="view-controls">
+                                      <div class="btn-group" role="group">
+                                          <button type="button" class="btn btn-outline-secondary btn-sm view-toggle active" data-view="grid">
+                                              <i class="fas fa-th"></i>
+                                          </button>
+                                          <button type="button" class="btn btn-outline-secondary btn-sm view-toggle" data-view="list">
+                                              <i class="fas fa-list"></i>
+                                          </button>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                          
+                          <div class="panel-body">
+                              <div class="results-container" id="result">
+                                  <div class="empty-state">
+                                      <div class="empty-state-icon">
+                                          <i class="fas fa-search"></i>
+                                      </div>
+                                      <h4>Busca productos</h4>
+                                      <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
+                                      <div class="empty-state-actions">
+                                          <button class="btn btn-primary" onclick="$('#search').focus()">
+                                              <i class="fas fa-search me-2"></i>Comenzar Búsqueda
+                                          </button>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        </section>
     </div>
     <?php include("parts/foot.php"); ?>
     

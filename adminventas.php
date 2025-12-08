@@ -35,6 +35,7 @@ $hoy = date("Y-m-d");
 
 
 
+
 // Verificar si se está procesando una cancelación de venta
 if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
     // Capturar datos de cancelación usando función optimizada

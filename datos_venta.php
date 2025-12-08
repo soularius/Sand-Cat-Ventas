@@ -81,24 +81,11 @@ include("parts/header.php");
 <body>
 <div class="container">
 <?php include("parts/menf.php"); ?>
-<div class="wizard-container"></div>
-<section class="py-5">
-    <div class="container">
-        <!-- Progress Steps -->
-        <div class="step-wizard mb-5">
-            <div class="step active">
-                <i class="fas fa-user"></i> Datos del Cliente
-            </div>
-            <div class="step">
-                <i class="fas fa-shopping-cart"></i> Productos
-            </div>
-            <div class="step">
-                <i class="fas fa-credit-card"></i> Pago
-            </div>
-            <div class="step">
-                <i class="fas fa-check-circle"></i> Confirmación
-            </div>
-        </div>
+<?php 
+// Configurar el paso actual para el wizard
+$current_step = 1; // Paso 1: Datos del Cliente
+include('parts/step_wizard.php'); 
+?>
 
         <div class="row justify-content-center">
             <div class="col-md-10 text-center mb-4">
