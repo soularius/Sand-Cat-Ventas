@@ -29,6 +29,7 @@ if (!((isset($_SESSION['MM_Username'])))) {
   header("Location: ". $MM_restrictGoTo); 
   exit;
 }
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
@@ -39,8 +40,13 @@ $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
-$ellogin = $row_usuario['elnombre'];
-$id_usuarios = $row_usuario['id_ingreso'];
+$ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
+$id_usuarios = isset($row_usuario['id_ingreso']) ? $row_usuario['id_ingreso'] : 0;
+
+// Crear variable compatible para el menú
+if (!isset($row_usuario['nombre']) && isset($row_usuario['elnombre'])) {
+    $row_usuario['nombre'] = $row_usuario['elnombre'];
+}
 $hoy = date("Y-m-d");
 
 
