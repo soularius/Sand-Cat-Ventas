@@ -1,7 +1,7 @@
 :root {
   --primary-color: #276234;
   --secondary-color: #65d27c;
-  --tertiary-color: #3d6845;  
+  --tertiary-color: #3d6845;
   --primary-0015-color: #2762345d;
   --primary-04-color: #276234b2;
 
@@ -10,13 +10,72 @@
   --cuertar-color: #981535;
   --cuertar-0015-color: #9815365d;
 
+  /* Status Colors - Complementary to main palette */
+  --info-color: #4A90B8;
+  --info-0015-color: #4A90B835;
+  --info-light-color: #E3F2FD;
+  
+  --warning-color: #D4A017;
+  --warning-0015-color: #D4A01735;
+  --warning-light-color: #FFF8E1;
+  
+  --error-color: #C53030;
+  --error-0015-color: #C5303035;
+  --error-light-color: #FFEBEE;
+  
+  --success-color: var(--primary-color);
+  --success-0015-color: var(--primary-0015-color);
+  --success-light-color: #E8F5E8;
+
+  /* Additional Status Colors */
+  --completed-color: #2E7D32;
+  --completed-0015-color: #2E7D3235;
+  --completed-light-color: #E8F5E8;
+  
+  --pending-color: #F57C00;
+  --pending-0015-color: #F57C0035;
+  --pending-light-color: #FFF3E0;
+  
+  --processing-color: #7B1FA2;
+  --processing-0015-color: #7B1FA235;
+  --processing-light-color: #F3E5F5;
+  
+  --cancelled-color: #D32F2F;
+  --cancelled-0015-color: #D32F2F35;
+  --cancelled-light-color: #FFEBEE;
+  
+  --draft-color: #616161;
+  --draft-0015-color: #61616135;
+  --draft-light-color: #F5F5F5;
+  
+  --active-color: #1976D2;
+  --active-0015-color: #1976D235;
+  --active-light-color: #E3F2FD;
+  
+  --inactive-color: #757575;
+  --inactive-0015-color: #75757535;
+  --inactive-light-color: #FAFAFA;
+
+  /* Gradient Secondary Colors */
+  --pending-gradient: #FF8F00;
+  --completed-gradient: var(--success-color);
+  --info-gradient: #2196F3;
+  --error-gradient: #F44336;
+  --processing-gradient: #9C27B0;
+  --cancelled-gradient: var(--error-color);
+  --draft-gradient: #9E9E9E;
+  --active-gradient: #03A9F4;
+  --inactive-gradient: #BDBDBD;
+  --success-gradient: var(--secondary-color);
+  --warning-gradient: #FFC107;
+
   --btn-active-color: #fff !;
   --btn-active-bg: var(--cuertar-color);
   --btn-active-border-color: var(--cuertar-color);
   --btn-hover-color: #fff;
   --btn-hover-bg: var(--cuertar-color);
   --btn-hover-border-color: var(--cuertar-color);
-  
+
   --btn-secundary-active-color: #fff !;
   --btn-secundary-active-bg: var(--primary-color);
   --btn-secundary-active-border-color: var(--primary-color);
@@ -27,69 +86,282 @@
 
 /* Enhanced Form Controls */
 .form-control {
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-    padding: 12px 15px;
-    transition: all 0.3s ease;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  padding: 12px 15px;
+  transition: all 0.3s ease;
 }
 
 /* Custom Buttons */
 .btn-custom {
-    padding: 12px 30px;
-    font-weight: 600 !important;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    transition: all 0.3s ease;
-    font-size: 14px;
+  padding: 12px 30px;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  font-size: 14px;
 }
 
 .btn-primary.btn-custom {
-    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-    border: none;
+  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+  border: none;
 }
 
 .btn-primary.btn-custom:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--primary-0015-color);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--primary-0015-color);
 }
 
 .btn-secondary.btn-custom {
-    background: linear-gradient(45deg, var(--cuertar-color), var(--accent-color));
-    border: none;
+  background: linear-gradient(45deg, var(--cuertar-color), var(--accent-color));
+  border: none;
 }
 
 .btn-secondary.btn-custom:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--accent-0015-color);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--accent-0015-color);
 }
 
 .btn-danger.btn-custom {
-    background: linear-gradient(45deg, var(--accent-color), var(--cuertar-color));
-    border: none;
+  background: linear-gradient(45deg, var(--accent-color), var(--cuertar-color));
+  border: none;
 }
 
 .btn-danger.btn-custom:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--cuertar-0015-color);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--cuertar-0015-color);
 }
 
 .btn-success.btn-custom {
-    background: linear-gradient(45deg, var(--cuertar-color), var(--primary-color));
-    border: none;
+  background: linear-gradient(45deg, var(--cuertar-color), var(--primary-color));
+  border: none;
 }
 
 .btn-success.btn-custom:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px var(--cuertar-0015-color);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--cuertar-0015-color);
 }
 
 .text-primary {
   color: var(--primary-color) !important;
 }
 
+/* Status Text Colors */
+.text-info {
+  color: var(--info-color) !important;
+}
+
+.text-warning {
+  color: var(--warning-color) !important;
+}
+
+.text-error {
+  color: var(--error-color) !important;
+}
+
+.text-success {
+  color: var(--success-color) !important;
+}
+
+/* Additional Status Text Colors */
+.text-completed {
+  color: var(--completed-color) !important;
+}
+
+.text-pending {
+  color: var(--pending-color) !important;
+}
+
+.text-processing {
+  color: var(--processing-color) !important;
+}
+
+.text-cancelled {
+  color: var(--cancelled-color) !important;
+}
+
+.text-draft {
+  color: var(--draft-color) !important;
+}
+
+.text-active {
+  color: var(--active-color) !important;
+}
+
+.text-inactive {
+  color: var(--inactive-color) !important;
+}
+
+/* Status Background Colors */
+.bg-info {
+  background-color: var(--info-color) !important;
+  color: white !important;
+}
+
+.bg-warning {
+  background-color: var(--warning-color) !important;
+  color: white !important;
+}
+
+.bg-error {
+  background-color: var(--error-color) !important;
+  color: white !important;
+}
+
+.bg-success {
+  background-color: var(--success-color) !important;
+  color: white !important;
+}
+
+/* Additional Status Background Colors */
+.bg-completed {
+  background-color: var(--completed-color) !important;
+  color: white !important;
+}
+
+.bg-pending {
+  background-color: var(--pending-color) !important;
+  color: white !important;
+}
+
+.bg-processing {
+  background-color: var(--processing-color) !important;
+  color: white !important;
+}
+
+.bg-cancelled {
+  background-color: var(--cancelled-color) !important;
+  color: white !important;
+}
+
+.bg-draft {
+  background-color: var(--draft-color) !important;
+  color: white !important;
+}
+
+.bg-active {
+  background-color: var(--active-color) !important;
+  color: white !important;
+}
+
+.bg-inactive {
+  background-color: var(--inactive-color) !important;
+  color: white !important;
+}
+
+/* Alert Styles */
+.alert-info {
+  background-color: var(--info-light-color);
+  border-color: var(--info-color);
+  color: var(--info-color);
+  border-left: 4px solid var(--info-color);
+}
+
+.alert-warning {
+  background-color: var(--warning-light-color);
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+  border-left: 4px solid var(--warning-color);
+}
+
+.alert-error {
+  background-color: var(--error-light-color);
+  border-color: var(--error-color);
+  color: var(--error-color);
+  border-left: 4px solid var(--error-color);
+}
+
+.alert-success {
+  background-color: var(--success-light-color);
+  border-color: var(--success-color);
+  color: var(--success-color);
+  border-left: 4px solid var(--success-color);
+}
+
+/* Additional Alert Styles */
+.alert-completed {
+  background-color: var(--completed-light-color);
+  border-color: var(--completed-color);
+  color: var(--completed-color);
+  border-left: 4px solid var(--completed-color);
+}
+
+.alert-pending {
+  background-color: var(--pending-light-color);
+  border-color: var(--pending-color);
+  color: var(--pending-color);
+  border-left: 4px solid var(--pending-color);
+}
+
+.alert-processing {
+  background-color: var(--processing-light-color);
+  border-color: var(--processing-color);
+  color: var(--processing-color);
+  border-left: 4px solid var(--processing-color);
+}
+
+.alert-cancelled {
+  background-color: var(--cancelled-light-color);
+  border-color: var(--cancelled-color);
+  color: var(--cancelled-color);
+  border-left: 4px solid var(--cancelled-color);
+}
+
+.alert-draft {
+  background-color: var(--draft-light-color);
+  border-color: var(--draft-color);
+  color: var(--draft-color);
+  border-left: 4px solid var(--draft-color);
+}
+
+.alert-active {
+  background-color: var(--active-light-color);
+  border-color: var(--active-color);
+  color: var(--active-color);
+  border-left: 4px solid var(--active-color);
+}
+
+.alert-inactive {
+  background-color: var(--inactive-light-color);
+  border-color: var(--inactive-color);
+  color: var(--inactive-color);
+  border-left: 4px solid var(--inactive-color);
+}
+
+/* Status Buttons */
+.btn-info.btn-custom {
+  background: linear-gradient(45deg, var(--info-color), #5BA3D0);
+  border: none;
+}
+
+.btn-info.btn-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--info-0015-color);
+}
+
+.btn-warning.btn-custom {
+  background: linear-gradient(45deg, var(--warning-color), #E6B429);
+  border: none;
+}
+
+.btn-warning.btn-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--warning-0015-color);
+}
+
+.btn-error.btn-custom {
+  background: linear-gradient(45deg, var(--error-color), #E53E3E);
+  border: none;
+}
+
+.btn-error.btn-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--error-0015-color);
+}
+
 .form-control:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem var(--primary-0015-color);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem var(--primary-0015-color);
 }
 
 .login-card::before {
@@ -143,12 +415,295 @@ a.a-custom:hover {
   border-radius: 2px;
 }
 
+.order-details-container {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  min-height: 100vh;
+  padding: 20px 0;
+}
+
+.order-card {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.order-header {
+  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  padding: 25px;
+  text-align: center;
+}
+
+.order-header h2 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.8rem;
+}
+
+.order-header .order-number {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin-top: 5px;
+}
+
+.customer-info {
+  padding: 30px;
+}
+
+.info-section {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-left: 4px solid var(--primary-color);
+}
+
+.info-section h5 {
+  color: var(--primary-color);
+  margin-bottom: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.info-section h5 i {
+  margin-right: 10px;
+  width: 20px;
+  text-align: center;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.info-value {
+  color: #212529;
+  text-align: right;
+}
+
+.order-summary {
+  background: linear-gradient(45deg, var(--cuertar-color), var(--accent-color));
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+.order-summary h5 {
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.summary-row.total {
+  border-top: 2px solid rgba(255, 255, 255, 0.3);
+  padding-top: 10px;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
+.status-pending {
+  background: linear-gradient(135deg, var(--pending-color), var(--pending-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--pending-0015-color);
+}
+
+.status-completed {
+  background: linear-gradient(135deg, var(--completed-color), var(--completed-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--completed-0015-color);
+}
+
+.status-info {
+  background: linear-gradient(135deg, var(--info-color), var(--info-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--info-0015-color);
+}
+
+.status-error {
+  background: linear-gradient(135deg, var(--error-color), var(--error-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--error-0015-color);
+}
+
+.status-processing {
+  background: linear-gradient(135deg, var(--processing-color), var(--processing-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--processing-0015-color);
+}
+
+.status-cancelled {
+  background: linear-gradient(135deg, var(--cancelled-color), var(--cancelled-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--cancelled-0015-color);
+}
+
+.status-draft {
+  background: linear-gradient(135deg, var(--draft-color), var(--draft-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--draft-0015-color);
+}
+
+.status-active {
+  background: linear-gradient(135deg, var(--active-color), var(--active-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--active-0015-color);
+}
+
+.status-inactive {
+  background: linear-gradient(135deg, var(--inactive-color), var(--inactive-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--inactive-0015-color);
+}
+
+.status-success {
+  background: linear-gradient(135deg, var(--success-color), var(--success-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--success-0015-color);
+}
+
+.status-warning {
+  background: linear-gradient(135deg, var(--warning-color), var(--warning-gradient));
+  color: white;
+  border: none;
+  box-shadow: 0 2px 8px var(--warning-0015-color);
+}
+
+.action-button {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.action-button:hover {
+  transform: translateY(-5px);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.action-button i {
+  transition: all 0.3s ease;
+}
+
+.action-button:hover i {
+  transform: scale(1.1);
+}
+
+.product-item {
+  transition: all 0.3s ease;
+  border: 1px solid #e9ecef;
+}
+
+.product-item:hover {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+
+.user-info {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 15px;
+  margin: 10px 0;
+}
+
+.user-info p {
+  color: #333;
+  font-size: 1.1em;
+}
+
+.user-info .btn-outline-danger {
+  border-color: var(--cuertar-color);
+  color: var(--cuertar-color);
+  transition: all 0.3s ease;
+}
+
+.user-info .btn-outline-danger:hover {
+  background-color: var(--cuertar-color);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.heading-section {
+  color: var(--primary-color);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
 @media (max-width: 991px) {
   .navbar-nav .nav-link {
     margin: 2px 0;
   }
-  
+
   .navbar-nav .nav-link.active::before {
     display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .info-value {
+    text-align: left;
+    margin-top: 5px;
+  }
+
+  .action-button {
+    margin-bottom: 15px;
+  }
+
+  .order-details-container {
+    padding: 10px 0;
+  }
+
+  .customer-info {
+    padding: 20px 15px;
   }
 }

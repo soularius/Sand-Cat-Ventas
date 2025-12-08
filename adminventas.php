@@ -74,35 +74,6 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
 include("parts/header.php");
 ?>
 <style>
-    .user-info {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-        padding: 15px;
-        margin: 10px 0;
-    }
-
-    .user-info p {
-        color: #333;
-        font-size: 1.1em;
-    }
-
-    .user-info .btn-outline-danger {
-        border-color: #dc3545;
-        color: #dc3545;
-        transition: all 0.3s ease;
-    }
-
-    .user-info .btn-outline-danger:hover {
-        background-color: #dc3545;
-        color: white;
-        transform: translateY(-1px);
-    }
-
-    .heading-section {
-        color: #2c3e50;
-        font-weight: 600;
-        margin-bottom: 10px;
-    }
 </style>
 
 <body>
