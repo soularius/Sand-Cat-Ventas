@@ -828,7 +828,7 @@ a.a-custom:hover {
 }
 
 .order-info {
-  background: linear-gradient(45deg, var(--info-color), var(--info-gradient));
+  background: linear-gradient(45deg, var(--tertiary-color), var(--cuertar-color));
   color: white;
   padding: 15px 25px;
   border-radius: 10px;

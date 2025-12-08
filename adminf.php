@@ -249,10 +249,7 @@ include("parts/header.php");
 </div>
 </div>
 	<?php include("parts/foot.php"); ?>
-    
-<script src="js/jquery-3.4.1.min.js" type="text/javascript"></script>
-<script src="js/popper.min.js" type="text/javascript"></script>
-<script src="js/bootstrap-4.4.1.js" type="text/javascript"></script>
+
 <script>
 $(document).ready(function(){
   $("#busca").on("keyup", function() {

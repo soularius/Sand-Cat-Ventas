@@ -162,11 +162,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="js/jquery-3.4.1.min.js"></script>
-    <script src="js/popper.min.js"></script>
-    <script src="js/bootstrap-4.4.1.js"></script>
-    <script src="js/bproducto.js"></script>
+    <script src="assets/js/bproducto.js"></script>
     
     <script>
         // Quantity control functions
