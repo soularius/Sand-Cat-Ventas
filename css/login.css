@@ -74,9 +74,9 @@
 }
 
 .form-group-enhanced input:focus {
-    border-color: #007bff;
+    border-color: var(--cuertar-color);
     background: white;
-    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.15);
+    box-shadow: 0 0 0 0.2rem var(--cuertar-0015-color);
 }
 
 .form-group-enhanced input:focus + label,
@@ -84,7 +84,7 @@
     top: -8px;
     left: 12px;
     font-size: 0.75em;
-    color: #007bff;
+    color: var(--primary-color);
     background: white;
     padding: 0 5px;
 }
@@ -99,7 +99,7 @@
 }
 
 .btn-login {
-    background: linear-gradient(45deg, #007bff, #0056b3);
+    background: linear-gradient(45deg, var(--accent-color), var(--secondary-color));
     border: none;
     border-radius: 12px;
     padding: 15px;
@@ -113,7 +113,7 @@
 
 .btn-login:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,123,255,0.4);
+    box-shadow: 0 8px 25px var(--primary-04-color);
 }
 
 .alert-enhanced {
@@ -121,7 +121,7 @@
     border-radius: 12px;
     padding: 15px 20px;
     margin-top: 20px;
-    border-left: 4px solid #dc3545;
+    border-left: 4px solid var(--cuertar-color);
 }
 
 @media (max-width: 768px) {

@@ -19,7 +19,7 @@ $menu_items = [
 $active_menu = isset($menu_items[$current_page]) ? $menu_items[$current_page] : '';
 ?>
 
-<nav class="navbar fixed-top navbar-expand-lg navbar-dark shadow-sm" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+<nav class="navbar fixed-top navbar-expand-lg navbar-dark shadow-sm bg-menu">
   <div class="container-fluid">
     <a class="navbar-brand d-flex align-items-center" href="http://localhost/ventas/" title="Ir al inicio">
       <img src="./logo-white.png" 

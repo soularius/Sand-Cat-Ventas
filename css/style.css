@@ -2,8 +2,10 @@
   --primary-color: #276234;
   --secondary-color: #65d27c;
   --tertiary-color: #3d6845;
+  --primary-04-color: #276234b2;
   --accent-color: #E85F81;
   --cuertar-color: #981535;
+  --cuertar-0015-color: #9815365d;
 }
 
 
@@ -15,4 +17,8 @@
 
 .login-card::before {
   background: linear-gradient(45deg, var(--cuertar-color), var(--tertiary-color)) !important;
+}
+
+.bg-menu {
+  background: linear-gradient(135deg, var(--cuertar-color), var(--tertiary-color));
 }
