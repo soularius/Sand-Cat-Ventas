@@ -2,41 +2,14 @@
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
-require_once('conectar.php'); 
+require_once('conectar.php');
+require_once('woocommerce_products.php'); 
 
 if (!isset($_SESSION)) {
   session_start();
 }
 $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
-
-// *** Restrict Access To Page: Grant or deny access to this page
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) { 
-  // For security, start by assuming the visitor is NOT authorized. 
-  $isValid = False; 
-
-  // When a visitor has logged into this site, the Session variable MM_Username set equal to their username. 
-  // Therefore, we know that a user is NOT logged in if that Session variable is blank. 
-  if (!empty($UserName)) { 
-    // Besides being logged in, you may restrict access to only certain users based on an ID established when they login. 
-    // Parse the strings into arrays. 
-    $arrUsers = Explode(",", $strUsers); 
-    $arrGroups = Explode(",", $strGroups); 
-    if (in_array($UserName, $arrUsers)) { 
-      $isValid = true; 
-    } 
-    // Or, you may restrict access to only certain users based on their username. 
-    if (in_array($UserGroup, $arrGroups)) { 
-      $isValid = true; 
-    } 
-    if (($strUsers == "") && false) { 
-      $isValid = true; 
-    } 
-  } 
-  return $isValid; 
-}
-
-
 
 $MM_restrictGoTo = "http://localhost/ventas";
 
@@ -108,10 +81,25 @@ if(isset($_POST['n_productos']) && isset($_POST['n_productos'])) {
 	mysqli_query($sandycat, $query);
 }
 
-$query_articulos = sprintf("SELECT * FROM articulos");
-$articulos = mysqli_query($sandycat, $query_articulos) or die(mysqli_error($sandycat));
-$row_articulos = mysqli_fetch_assoc($articulos);
-$totalRows_articulos = mysqli_num_rows($articulos);
+// Inicializar clase de productos WooCommerce
+$wooProducts = new WooCommerceProducts();
+
+// Obtener productos de WooCommerce
+$search_term = isset($_GET['search']) ? $_GET['search'] : '';
+$category_id = isset($_GET['category']) ? intval($_GET['category']) : 0;
+
+if (!empty($search_term)) {
+    $productos_woo = $wooProducts->searchProducts($search_term);
+} elseif ($category_id > 0) {
+    $productos_woo = $wooProducts->getProductsByCategory($category_id);
+} else {
+    $productos_woo = $wooProducts->getAllProducts(100);
+}
+
+// Obtener categorías para el filtro
+$categorias_woo = $wooProducts->getProductCategories();
+
+$totalRows_articulos = count($productos_woo);
 
 $ellogin = '';
 $ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
@@ -138,167 +126,254 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 <div class="container">
 <?php include("men.php"); ?><br />
 <br />
-  <h2>Productos <a class="btn btn-default" href="#" title="Agregar" data-toggle="modal" data-target="#creapro"><i class="fa fa-plus-circle fa-lg"></i></a></h2>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-box me-2"></i>Productos WooCommerce</h2>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filtrosModal">
+        <i class="fas fa-filter me-1"></i>Filtros
+      </button>
+      <a href="productos.php" class="btn btn-secondary">
+        <i class="fas fa-sync-alt me-1"></i>Actualizar
+      </a>
+    </div>
+  </div>
+
+  <!-- Filtros y búsqueda -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <form method="GET" action="productos.php" class="d-flex">
+        <input type="text" class="form-control me-2" name="search" 
+               placeholder="Buscar por nombre, SKU o descripción..." 
+               value="<?php echo htmlspecialchars($search_term); ?>">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-search"></i>
+        </button>
+      </form>
+    </div>
+    <div class="col-md-6">
+      <form method="GET" action="productos.php">
+        <select name="category" class="form-select" onchange="this.form.submit()">
+          <option value="0">Todas las categorías</option>
+          <?php foreach ($categorias_woo as $categoria): ?>
+            <option value="<?php echo $categoria['id_categoria']; ?>" 
+                    <?php echo ($category_id == $categoria['id_categoria']) ? 'selected' : ''; ?>>
+              <?php echo htmlspecialchars($categoria['nombre']); ?> 
+              (<?php echo $categoria['total_productos']; ?>)
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </form>
+    </div>
+  </div>
+
+  <!-- Información de resultados -->
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    Mostrando <?php echo $totalRows_articulos; ?> productos
+    <?php if (!empty($search_term)): ?>
+      para la búsqueda: "<strong><?php echo htmlspecialchars($search_term); ?></strong>"
+    <?php endif; ?>
+    <?php if ($category_id > 0): ?>
+      en la categoría seleccionada
+    <?php endif; ?>
+  </div>
+
 <div class="tab-content">
   <br />
-		<?php if(!empty($row_articulos['id_articulos'])) { ?>
-	  <input class="form-control" id="busca" type="text" placeholder="Busqueda..">
-  <table class="table table-hover">
-    <thead>
+		<?php if($totalRows_articulos > 0) { ?>
+  <div class="table-responsive">
+  <table class="table table-hover table-striped">
+    <thead class="table-dark">
       <tr>
-        <th>Nombre</th>
-        <th style="text-align: center">Código</th>
-        <th style="text-align: right">Valor</th>
-        <th style="text-align: center">Descuento</th>
-        <th style="text-align: center">Estado</th>
+        <th><i class="fas fa-tag me-1"></i>Producto</th>
+        <th class="text-center"><i class="fas fa-barcode me-1"></i>SKU</th>
+        <th class="text-end"><i class="fas fa-dollar-sign me-1"></i>Precio</th>
+        <th class="text-center"><i class="fas fa-boxes me-1"></i>Stock</th>
+        <th class="text-center"><i class="fas fa-toggle-on me-1"></i>Estado</th>
+        <th class="text-center"><i class="fas fa-cogs me-1"></i>Acciones</th>
       </tr>
     </thead>
     <tbody id="donde">
-		<?php do { 		
-			if($row_articulos['estado']=="a") {
-				$estado = "Activo";
-			} else {
-				$estado = "Inactivo";
-			}
-		?>	
+		<?php foreach ($productos_woo as $producto): ?>
       <tr>
-        <td style="text-align: left"><button type="submit" class="btn btn-link">
-			<a href="#" data-toggle="modal" data-target="#editarprod" data-id_articulos="<?php echo $row_articulos['id_articulos']; ?>" data-nombre="<?php echo $row_articulos['nombre']; ?>" data-codigo="<?php echo $row_articulos['codigo']; ?>" data-valor="<?php echo $row_articulos['valor']; ?>" data-descuento="<?php echo $row_articulos['descuento']; ?>" title="Editar"><?php echo $row_articulos['nombre']; ?></a></button></td>
-        <td style="text-align: center"><?php echo $row_articulos['codigo']; ?></td>
-        <td style="text-align: right"><?php echo number_format($row_articulos['valor']); ?></td>
-        <td style="text-align: center"><?php echo number_format($row_articulos['descuento']); ?></td>
-        <td style="text-align: center">		
-		<form action="productos.php" class="login-form" method="post">
-        <input id="m_estado" type="hidden" name="m_estado" value="1"/>
-        <input id="estado" type="hidden" name="estado" value="<?php echo $row_articulos['estado']; ?>"/>				
-        <input id="id_articulos" class="form-control" type="hidden" name="id_articulos" value="<?php echo $row_articulos['id_articulos']; ?>"/>
-			<button type="submit" class="btn btn-link"><?php echo $estado; ?></button></td>
-			</form>
+        <td>
+          <div class="d-flex flex-column">
+            <strong><?php echo htmlspecialchars($producto['nombre']); ?></strong>
+            <?php if (!empty($producto['descripcion_corta'])): ?>
+              <small class="text-muted"><?php echo substr(strip_tags($producto['descripcion_corta']), 0, 100); ?>...</small>
+            <?php endif; ?>
+          </div>
+        </td>
+        <td class="text-center">
+          <code><?php echo htmlspecialchars($producto['sku'] ?: 'N/A'); ?></code>
+        </td>
+        <td class="text-end">
+          <div class="d-flex flex-column align-items-end">
+            <?php if ($producto['precio_oferta'] > 0 && $producto['precio_oferta'] < $producto['precio_regular']): ?>
+              <span class="text-danger fw-bold">$<?php echo number_format($producto['precio_oferta'], 0, ',', '.'); ?></span>
+              <small class="text-muted text-decoration-line-through">$<?php echo number_format($producto['precio_regular'], 0, ',', '.'); ?></small>
+            <?php else: ?>
+              <span class="fw-bold">$<?php echo number_format($producto['precio'], 0, ',', '.'); ?></span>
+            <?php endif; ?>
+          </div>
+        </td>
+        <td class="text-center">
+          <span class="badge <?php echo $producto['en_stock'] ? 'bg-success' : 'bg-danger'; ?>">
+            <?php echo $producto['stock']; ?> unidades
+          </span>
+        </td>
+        <td class="text-center">
+          <span class="badge <?php echo $producto['en_stock'] ? 'bg-success' : 'bg-warning'; ?>">
+            <?php echo $producto['en_stock'] ? 'Disponible' : 'Agotado'; ?>
+          </span>
+        </td>
+        <td class="text-center">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-info" 
+                    data-bs-toggle="modal" data-bs-target="#verProducto"
+                    data-id="<?php echo $producto['id_producto']; ?>"
+                    data-nombre="<?php echo htmlspecialchars($producto['nombre']); ?>"
+                    data-precio="<?php echo $producto['precio']; ?>"
+                    data-stock="<?php echo $producto['stock']; ?>"
+                    data-sku="<?php echo htmlspecialchars($producto['sku']); ?>"
+                    data-descripcion="<?php echo htmlspecialchars($producto['descripcion_corta']); ?>"
+                    title="Ver detalles">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary" 
+                    onclick="agregarAVenta(<?php echo $producto['id_producto']; ?>)"
+                    title="Agregar a venta">
+              <i class="fas fa-cart-plus"></i>
+            </button>
+          </div>
+        </td>
       </tr>
-    	<?php } while ($row_articulos = mysqli_fetch_assoc($articulos)); ?>
+    	<?php endforeach; ?>
     </tbody>
   </table>
+  </div>
     	<?php } else { ?>
-		      	<h4 class="text-center mb-4">El sistema no encuentra productos en la base de datos.</h3>
+		<div class="text-center py-5">
+			<i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+			<h4 class="text-muted">No se encontraron productos</h4>
+			<p class="text-muted">
+				<?php if (!empty($search_term)): ?>
+					No hay productos que coincidan con tu búsqueda.
+				<?php elseif ($category_id > 0): ?>
+					No hay productos en esta categoría.
+				<?php else: ?>
+					No hay productos disponibles en WooCommerce.
+				<?php endif; ?>
+			</p>
+			<a href="productos.php" class="btn btn-primary">
+				<i class="fas fa-sync-alt me-1"></i>Actualizar lista
+			</a>
+		</div>
 	  <?php } ?>
 </div>
 </div>
-	<?php include("foot.php"); ?>
 
-	
-<!-- Modal -->
-  <div class="modal fade" id="editarprod" role="dialog">
-    <div class="modal-dialog">
-		<!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-body">
-  <h2>Editar producto</h2>
-  <p>Por favor modifique los datos.</p>
-  <form action="productos.php" method="POST">
-        <input id="m_producto" type="hidden" name="m_producto" value="1"/>
-        <input id="id_articulos" class="form-control" type="hidden" name="id_articulos" value=""/>
-    <div class="form-group">
-      <label for="text">Nombre:</label>
-      <input type="text" class="form-control" id="nombre" value="" name="nombre" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Valor:</label>
-      <input type="number" class="form-control" id="valor" name="valor" value="" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Descuento:</label>
-      <input type="number" class="form-control" id="descuento" name="descuento" value="" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Código:</label>
-      <input type="text" class="form-control" id="codigo" name="codigo" value="">
-    </div>
-    <button type="submit" class="btn btn-primary">Continuar</button>
-  </form>
+<!-- Modal para ver detalles del producto -->
+<div class="modal fade" id="verProducto" tabindex="-1" aria-labelledby="verProductoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="verProductoLabel">
+                    <i class="fas fa-eye me-2"></i>Detalles del Producto
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4 id="producto-nombre" class="mb-3"></h4>
+                        <p id="producto-descripcion" class="text-muted"></p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>SKU:</strong> <code id="producto-sku"></code>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Stock:</strong> <span id="producto-stock" class="badge"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h3 id="producto-precio" class="text-primary mb-0"></h3>
+                                <small class="text-muted">Precio</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cerrar
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-agregar-venta">
+                    <i class="fas fa-cart-plus me-1"></i>Agregar a Venta
+                </button>
+            </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-info" data-dismiss="modal">Cerrar</button>
-        </div>
-      </div>
-        </div>
-      </div>
+    </div>
+</div>
 
-		
-<!-- Modal -->
-  <div class="modal fade" id="creapro" role="dialog">
-    <div class="modal-dialog">
-		<!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-body">
-  <h2>Crear producto</h2>
-  <p>Por favor ingrese la información.</p>
-  <form action="productos.php" method="POST">
-        <input id="n_productos" type="hidden" name="n_productos" value="1"/>
-        <input id="nuevo" class="form-control" type="hidden" name="nuevo" value=""/>
-    <div class="form-group">
-      <label for="text">Nombre:</label>
-      <input type="text" class="form-control" id="nombre" value="" name="nombre" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Código:</label>
-      <input type="text" class="form-control" id="codigo" name="codigo" value="" required>
-    </div>
-	  <!--
-    <div class="form-group">
-      <label for="text">Medida:</label>
-      <input type="text" class="form-control" id="medida" name="medida" value="" placeholder="Kg, Caja, Litro, etc" required>
-    </div>
-	-->
-    <div class="form-group">
-      <label for="number">Valor:</label>
-      <input type="text" class="form-control" id="valor" name="valor" value="">
-    </div>
-    <div class="form-group">
-      <label for="number">Descuento:</label>
-      <input type="text" class="form-control" id="descuento" name="descuento" value="0">
-    </div>
-    <button type="submit" class="btn btn-primary">Enviar</button>
-  </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-info" data-dismiss="modal">Cerrar</button>
-        </div>
-      </div>
-        </div>
-      </div>
-
-
-          
-	
-<script src="js/jquery-3.4.1.min.js" type="text/javascript"></script>
-<script src="js/popper.min.js" type="text/javascript"></script>
-<script src="js/bootstrap-4.4.1.js" type="text/javascript"></script>
 <script>
-$(document).ready(function(){
-  $("#busca").on("keyup", function() {
-    var value = $(this).val().toLowerCase();
-    $("#donde tr").filter(function() {
-      $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+// Manejar modal de detalles del producto
+document.addEventListener('DOMContentLoaded', function() {
+    const verProductoModal = document.getElementById('verProducto');
+    
+    verProductoModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const id = button.getAttribute('data-id');
+        const nombre = button.getAttribute('data-nombre');
+        const precio = button.getAttribute('data-precio');
+        const stock = button.getAttribute('data-stock');
+        const sku = button.getAttribute('data-sku');
+        const descripcion = button.getAttribute('data-descripcion');
+        
+        // Actualizar contenido del modal
+        document.getElementById('producto-nombre').textContent = nombre;
+        document.getElementById('producto-descripcion').textContent = descripcion || 'Sin descripción disponible';
+        document.getElementById('producto-sku').textContent = sku || 'N/A';
+        document.getElementById('producto-precio').textContent = '$' + new Intl.NumberFormat('es-CO').format(precio);
+        
+        const stockBadge = document.getElementById('producto-stock');
+        stockBadge.textContent = stock + ' unidades';
+        stockBadge.className = 'badge ' + (stock > 0 ? 'bg-success' : 'bg-danger');
+        
+        // Configurar botón de agregar a venta
+        document.getElementById('btn-agregar-venta').onclick = function() {
+            agregarAVenta(id);
+        };
     });
-  });
 });
-$(document).ready(function(){
-  $("#buscac").on("keyup", function() {
-    var value = $(this).val().toLowerCase();
-    $("#dondec tr").filter(function() {
-      $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-    });
-  });
-});
- $('#editarprod').on('show.bs.modal', function(e) {
-    var id_articulos= $(e.relatedTarget).data('id_articulos');
-	 $(e.currentTarget).find('input[name="id_articulos"]').val(id_articulos);
-    var nombre= $(e.relatedTarget).data('nombre'); $(e.currentTarget).find('input[name="nombre"]').val(nombre);
-    var valor= $(e.relatedTarget).data('valor'); $(e.currentTarget).find('input[name="valor"]').val(valor);
-    var codigo= $(e.relatedTarget).data('codigo');	 $(e.currentTarget).find('input[name="codigo"]').val(codigo);
-    var descuento= $(e.relatedTarget).data('descuento');	 $(e.currentTarget).find('input[name="descuento"]').val(descuento);
+
+// Función para agregar producto a venta
+function agregarAVenta(productId) {
+    // Aquí puedes implementar la lógica para agregar el producto a una venta
+    alert('Funcionalidad de agregar a venta será implementada próximamente.\nProducto ID: ' + productId);
+}
+
+// Búsqueda en tiempo real (opcional)
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                // Implementar búsqueda AJAX si se desea
+            }, 500);
+        });
+    }
 });
 </script>
+
+	<?php include("foot.php"); ?>
+
 
 </body>
 </html>
