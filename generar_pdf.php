@@ -114,25 +114,25 @@ $cuerpo = '
     <td colspan="4" style="text-align: center";>www.sandycat.com.co</td>
   </tr>
   <tr>
-    <td colspan="4" style="text-align: center";>6016378243</td>
+    <td colspan="4" style="text-align: center";><strong>NIT</strong> 6016378243</td>
   </tr>
   <tr>
-    <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center">Cra. 61 No. 78-25</td>
+    <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center"><strong>Dirección</strong> Cra. 61 No. 78-25</td>
   </tr>
   <tr>
-    <td colspan="4" style="text-align: center";>RECIBO DE VENTA</td>
+    <td colspan="4" style="text-align: center";><strong>RECIBO DE VENTA</strong></td>
   </tr>
   <tr>
     <td colspan="4" style="text-align: center">'.$fecha.'</td>
   </tr>
   <tr>
-    <td colspan="4" style="text-align: center">Serie y número: '.$factura_formateada.'</td>
+    <td colspan="4" style="text-align: center"><strong>Serie y número: </strong> '.$factura_formateada.'</td>
   </tr>
   <tr>
-    <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center";>Orden # '.$orden_id.'</td>
+    <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center";><strong>Orden #'.$orden_id.'</strong></td>
   </tr>
   <tr>
-    <td colspan="4" style="word-wrap: break-word; width: 180">Cliente: '.strtoupper($nombre1).' '.strtoupper($nombre2).'</td>
+    <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Cliente: </strong>'.strtoupper($nombre1).' '.strtoupper($nombre2).'</td>
   </tr>
   <tr>
     <td colspan="4">Email: '.$correo.'</td>
@@ -144,10 +144,10 @@ $cuerpo = '
     <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin;"></td>
   </tr>
   <tr>
-    <td style="text-align: center">Cant.</td>
-    <td>Descripción</td>
-    <td style="text-align: center">V Un.</td>
-    <td style="text-align: center">TOTAL</td>
+    <td style="text-align: center"><strong>Cant.</strong></td>
+    <td><strong>Descripción</strong></td>
+    <td style="text-align: center"><strong>V Un.</strong></td>
+    <td style="text-align: center"><strong>TOTAL</strong></td>
   </tr>';
 
 // Agregar productos si existen
@@ -186,7 +186,7 @@ $cuerpo .= '
     <td style="text-align: right"><strong>'.number_format($vtotal).'</strong></td>
   </tr>
   <tr>
-    <td colspan="4" style="text-align: center"><br>No existen devoluciones</td>
+    <td colspan="4" style="text-align: center"><br><strong>No existen devoluciones</strong></td>
   </tr>
   <tr>
     <td colspan="4" style="text-align: center"><barcode code="'.$factura_formateada.'" type="C39" size="0.6" height="1.0" /><br>'.$factura_formateada.'</td>
