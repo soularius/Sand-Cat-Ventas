@@ -1,11 +1,27 @@
 :root {
   --primary-color: #276234;
   --secondary-color: #65d27c;
-  --tertiary-color: #3d6845;
+  --tertiary-color: #3d6845;  
+  --primary-0015-color: #2762345d;
   --primary-04-color: #276234b2;
+
   --accent-color: #E85F81;
   --cuertar-color: #981535;
   --cuertar-0015-color: #9815365d;
+
+  --btn-active-color: #fff !;
+  --btn-active-bg: var(--cuertar-color);
+  --btn-active-border-color: var(--cuertar-color);
+  --btn-hover-color: #fff;
+  --btn-hover-bg: var(--cuertar-color);
+  --btn-hover-border-color: var(--cuertar-color);
+  
+  --btn-secundary-active-color: #fff !;
+  --btn-secundary-active-bg: var(--primary-color);
+  --btn-secundary-active-border-color: var(--primary-color);
+  --btn-secundary-hover-color: #fff;
+  --btn-secundary-hover-bg: var(--primary-color);
+  --btn-secundary-hover-border-color: var(--primary-color);
 }
 
 
@@ -13,6 +29,40 @@
   background: var(--primary-color);
   border: 1px solid var(--primary-color);
   color: #fff;
+  border-radius: 30px;
+}
+
+.btn.btn-secondary {
+  background: var(--cuertar-color);
+  border: 1px solid var(--cuertar-color);
+  color: #fff;
+  border-radius: 30px;
+}
+
+.btn-check:checked + .btn,
+.btn.active,
+.btn.show,
+.btn:first-child:active,
+:not(.btn-check) + .btn:active {
+  color: var(--btn-active-color);
+  background-color: var(--btn-active-bg);
+  border-color: var(--btn-active-border-color);
+}
+
+.btn.btn-primary:hover {
+  color: var(--btn-hover-color);
+  background-color: var(--btn-hover-bg);
+  border-color: var(--btn-hover-border-color);
+  box-shadow: 0 8px 25px var(--primary-0015-color);
+  transform: translateY(-2px);
+}
+
+.btn.btn-secondary:hover {
+  color: var(--btn-hover-color);
+  background-color: var(--btn-secundary-hover-bg);
+  border-color: var(--btn-secundary-hover-border-color);
+  box-shadow: 0 8px 25px var(--cuertar-0015-color);
+  transform: translateY(-2px);
 }
 
 .login-card::before {

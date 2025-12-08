@@ -27,6 +27,8 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/wizard-form.css">
+    <link rel="stylesheet" href="css/login.css">
     
     <!-- Additional styles for modern look -->
     <style>
