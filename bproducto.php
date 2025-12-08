@@ -35,53 +35,136 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
 <?php include("parts/header.php"); ?>
 
 <body class="product-selector-container">
-    <div class="container">
+    <div class="container-fluid">
         <?php include("parts/menf.php"); ?>
-        <div class="py-5 my-5"></div>
-        <section class="row justify-content-center mt-4">
-            <div class="col-lg-10 col-md-12">
-                <!-- Product Selection Card -->
-                <div class="product-card">
-                    <div class="product-header">
-                        <h2><i class="fas fa-shopping-cart me-3"></i>Seleccionar Producto</h2>
-                        <div class="subtitle">Busca y agrega productos a tu pedido</div>
+        
+        <!-- Header Section -->
+        <div class="product-page-header">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="page-title">
+                            <h1><i class="fas fa-shopping-cart me-3"></i>Seleccionar Productos</h1>
+                            <p class="page-subtitle">Busca y agrega productos a tu pedido de manera rápida y eficiente</p>
+                        </div>
                     </div>
-                    
-                    <div class="search-section">
+                    <div class="col-md-4 text-end">
                         <?php if($_order_id): ?>
-                        <div class="order-info">
+                        <div class="order-badge">
                             <i class="fas fa-receipt me-2"></i>
-                            <strong>Pedido ID: <?php echo htmlspecialchars($_order_id); ?></strong>
+                            <span>Pedido #<?php echo htmlspecialchars($_order_id); ?></span>
                         </div>
                         <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="container">
+            <div class="row">
+                <!-- Search Panel -->
+                <div class="col-lg-4 col-md-12 mb-4">
+                    <div class="search-panel">
+                        <div class="panel-header">
+                            <h5><i class="fas fa-search me-2"></i>Búsqueda de Productos</h5>
+                        </div>
                         
-                        <div class="search-container">
-                            <div class="search-input-group">
-                                <input type="text" 
-                                       class="search-input" 
-                                       id="search" 
-                                       name="search" 
-                                       placeholder="Buscar productos por nombre o código...">
-                                <i class="fas fa-search search-icon"></i>
+                        <div class="panel-body">
+                            <!-- Search Input -->
+                            <div class="search-input-wrapper">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" 
+                                           class="form-control search-input-modern" 
+                                           id="search" 
+                                           name="search" 
+                                           placeholder="Nombre, código o categoría...">
+                                    <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
                                 <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars($_order_id); ?>">
                             </div>
-                            <div class="search-help">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Ingresa al menos 3 caracteres para comenzar la búsqueda
+                            
+                            <!-- Search Stats -->
+                            <div class="search-stats" id="searchStats" style="display: none;">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span id="resultsCount">0</span> productos encontrados
+                                </small>
+                            </div>
+                            
+                            <!-- Quick Filters -->
+                            <div class="quick-filters">
+                                <h6>Filtros Rápidos</h6>
+                                <div class="filter-buttons">
+                                    <button class="btn btn-outline-primary btn-sm filter-btn" data-filter="all">
+                                        <i class="fas fa-list me-1"></i>Todos
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm filter-btn" data-filter="available">
+                                        <i class="fas fa-check-circle me-1"></i>Disponibles
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm filter-btn" data-filter="featured">
+                                        <i class="fas fa-star me-1"></i>Destacados
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Search Tips -->
+                            <div class="search-tips">
+                                <h6>Consejos de Búsqueda</h6>
+                                <ul class="tips-list">
+                                    <li><i class="fas fa-lightbulb me-1"></i>Usa al menos 3 caracteres</li>
+                                    <li><i class="fas fa-lightbulb me-1"></i>Busca por nombre o código</li>
+                                    <li><i class="fas fa-lightbulb me-1"></i>Los filtros ayudan a refinar</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Results Panel -->
+                <div class="col-lg-8 col-md-12">
+                    <div class="results-panel">
+                        <div class="panel-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5><i class="fas fa-box me-2"></i>Productos</h5>
+                                <div class="view-controls">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm view-toggle active" data-view="grid">
+                                            <i class="fas fa-th"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm view-toggle" data-view="list">
+                                            <i class="fas fa-list"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="results-container" id="result">
-                            <div class="loading-state">
-                                <i class="fas fa-search"></i>
-                                <h5>Busca productos</h5>
-                                <p>Utiliza el campo de búsqueda para encontrar productos disponibles</p>
+                        <div class="panel-body">
+                            <div class="results-container" id="result">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                    <h4>Busca productos</h4>
+                                    <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
+                                    <div class="empty-state-actions">
+                                        <button class="btn btn-primary" onclick="$('#search').focus()">
+                                            <i class="fas fa-search me-2"></i>Comenzar Búsqueda
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
     </div>
     <?php include("parts/foot.php"); ?>
     
@@ -186,74 +269,83 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
             }
         }
         
-        // Enhanced modal functionality
+        // Enhanced functionality for new design
         $(document).ready(function() {
-            // Modal event handler
-            $('#nuevoprod').on('show.bs.modal', function(e) {
-                const trigger = $(e.relatedTarget);
-                const modal = $(this);
-                
-                // Extract data from trigger element
-                const productName = trigger.data('nombre-id') || '';
-                const productId = trigger.data('paquete-id') || '';
-                const orderId = trigger.data('order-id') || '';
-                const orderIdBn = trigger.data('order-idb') || '';
-                const orderInfo = trigger.data('order-idb') || '';
-                
-                // Populate modal fields
-                modal.find('input[name="product_id"]').val(productId);
-                modal.find('input[name="order_id"]').val(orderId);
-                modal.find('input[name="order_idbn"]').val(orderIdBn);
-                modal.find('textarea[name="order_idb"]').val(orderInfo);
-                
-                // Reset quantity to 1
-                modal.find('input[name="product_qty"]').val(1);
-                
-                // Focus on quantity input
-                setTimeout(() => {
-                    modal.find('input[name="product_qty"]').focus().select();
-                }, 500);
+            // Clear search functionality
+            $('#clearSearch').on('click', function() {
+                $('#search').val('').trigger('keyup').focus();
+                $('#searchStats').hide();
             });
             
-            // Enhanced search functionality
+            // Filter buttons functionality
+            $('.filter-btn').on('click', function() {
+                $('.filter-btn').removeClass('active');
+                $(this).addClass('active');
+                
+                const filter = $(this).data('filter');
+                // Here you can add filter logic based on the filter value
+                console.log('Filter selected:', filter);
+            });
+            
+            // View toggle functionality
+            $('.view-toggle').on('click', function() {
+                $('.view-toggle').removeClass('active');
+                $(this).addClass('active');
+                
+                const view = $(this).data('view');
+                const resultsContainer = $('#result');
+                
+                if (view === 'grid') {
+                    resultsContainer.removeClass('list-view').addClass('grid-view');
+                } else {
+                    resultsContainer.removeClass('grid-view').addClass('list-view');
+                }
+            });
+            
+            // Enhanced search with stats
             let searchTimeout;
             $('#search').on('input', function() {
                 const searchTerm = $(this).val().trim();
                 const resultsContainer = $('#result');
+                const searchStats = $('#searchStats');
                 
-                // Clear previous timeout
                 clearTimeout(searchTimeout);
                 
                 if (searchTerm.length >= 3) {
-                    // Show loading state
                     resultsContainer.html(`
                         <div class="loading-state">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="sr-only">Buscando...</span>
                             </div>
                             <h5 class="mt-3">Buscando productos...</h5>
-                            <p>Por favor espera mientras buscamos "${searchTerm}"</p>
+                            <p>Buscando "${searchTerm}" en el catálogo</p>
                         </div>
                     `);
                     
-                    // Debounce search
+                    searchStats.show();
+                    
                     searchTimeout = setTimeout(() => {
-                        // Trigger search via existing bproducto.js functionality
                         if (typeof performSearch === 'function') {
                             performSearch(searchTerm);
                         }
                     }, 300);
                 } else if (searchTerm.length === 0) {
-                    // Reset to initial state
                     resultsContainer.html(`
-                        <div class="loading-state">
-                            <i class="fas fa-search"></i>
-                            <h5>Busca productos</h5>
-                            <p>Utiliza el campo de búsqueda para encontrar productos disponibles</p>
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <h4>Busca productos</h4>
+                            <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
+                            <div class="empty-state-actions">
+                                <button class="btn btn-primary" onclick="$('#search').focus()">
+                                    <i class="fas fa-search me-2"></i>Comenzar Búsqueda
+                                </button>
+                            </div>
                         </div>
                     `);
+                    searchStats.hide();
                 } else {
-                    // Show help message for short searches
                     resultsContainer.html(`
                         <div class="loading-state">
                             <i class="fas fa-keyboard text-warning"></i>
@@ -261,7 +353,30 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                             <p>Necesitas al menos 3 caracteres para buscar</p>
                         </div>
                     `);
+                    searchStats.hide();
                 }
+            });
+            
+            // Modal functionality
+            $('#nuevoprod').on('show.bs.modal', function(e) {
+                const trigger = $(e.relatedTarget);
+                const modal = $(this);
+                
+                const productName = trigger.data('nombre-id') || '';
+                const productId = trigger.data('paquete-id') || '';
+                const orderId = trigger.data('order-id') || '';
+                const orderIdBn = trigger.data('order-idb') || '';
+                const orderInfo = trigger.data('order-idb') || '';
+                
+                modal.find('input[name="product_id"]').val(productId);
+                modal.find('input[name="order_id"]').val(orderId);
+                modal.find('input[name="order_idbn"]').val(orderIdBn);
+                modal.find('textarea[name="order_idb"]').val(orderInfo);
+                modal.find('input[name="product_qty"]').val(1);
+                
+                setTimeout(() => {
+                    modal.find('input[name="product_qty"]').focus().select();
+                }, 500);
             });
             
             // Form validation
@@ -282,16 +397,29 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     return false;
                 }
                 
-                // Show loading state on submit button
                 const submitBtn = $(this).find('button[type="submit"]');
                 const originalText = submitBtn.html();
                 submitBtn.html('<i class="fas fa-spinner fa-spin me-2"></i>Agregando...').prop('disabled', true);
                 
-                // Re-enable after a delay (in case of errors)
                 setTimeout(() => {
                     submitBtn.html(originalText).prop('disabled', false);
                 }, 5000);
             });
+            
+            // Update results count function
+            window.updateResultsCount = function(count) {
+                $('#resultsCount').text(count);
+                if (count > 0) {
+                    $('#searchStats').show();
+                } else {
+                    $('#searchStats').hide();
+                }
+            };
+            
+            // Focus on search input when page loads
+            setTimeout(() => {
+                $('#search').focus();
+            }, 500);
         });
     </script>
 
