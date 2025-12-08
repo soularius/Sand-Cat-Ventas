@@ -150,6 +150,37 @@ body {
   box-shadow: 0 5px 15px var(--primary-0015-color);
 }
 
+/* Botón en estado de procesamiento */
+.btn-processing {
+  background: linear-gradient(45deg, var(--accent-color), var(--secondary-color)) !important;
+  border: none !important;
+  color: white !important;
+  transform: scale(0.98);
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2) !important;
+}
+
+.btn-processing i {
+  font-size: 1.2em;
+  color: white !important;
+  animation: checkPulse 0.6s ease-in-out;
+}
+
+@keyframes checkPulse {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 
 .btn-secondary.btn-custom {
   background: linear-gradient(45deg, var(--cuertar-color), var(--accent-color));

@@ -137,7 +137,7 @@ include("parts/header.php");
                                         value=""
                                         required
                                         autocomplete="off">
-                                    <button type="button" class="btn btn-outline-primary btn-custom" id="btn-search-customer">
+                                    <button type="button" class="btn btn-primary btn-custom" id="btn-search-customer">
                                         <i class="fas fa-search me-1"></i>Buscar
                                     </button>
                                 </div>
@@ -163,7 +163,8 @@ include("parts/header.php");
 
                             <div class="d-grid">
                                 <button class="btn btn-success btn-custom btn-lg" type="submit" name="venta" id="btn-continue" disabled>
-                                    <i class="fas fa-arrow-right me-2"></i>Continuar con el Pedido
+                                    <i class="fas fa-arrow-right me-2"></i>
+                                    <span class="btn-text">Continuar con el Pedido</span>
                                 </button>
                             </div>
                         </form>
@@ -274,7 +275,7 @@ include("parts/header.php");
                                     </div>
                                 `);
                                 $searchAlert.removeClass('alert-info alert-warning alert-danger').addClass('alert-success');
-                                $btnContinue.prop('disabled', false).html('<i class="fas fa-arrow-right me-2"></i>Continuar con el Pedido');
+                                $btnContinue.prop('disabled', false).html('<i class="fas fa-arrow-right me-2"></i><span class="btn-text">Continuar con el Pedido</span>');
                                 $customerFound.val('true');
                                 $customerData.val(JSON.stringify(customer));
                             } else {
@@ -294,7 +295,7 @@ include("parts/header.php");
                                     </div>
                                 `);
                                 $searchAlert.removeClass('alert-info alert-success alert-danger').addClass('alert-warning');
-                                $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i>Crear Nuevo Cliente');
+                                $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i><span class="btn-text">Crear Nuevo Cliente</span>');
                                 $customerFound.val('false');
                                 $customerData.val('');
                             }
@@ -316,7 +317,7 @@ include("parts/header.php");
                                 </div>
                             `);
                             $searchAlert.removeClass('alert-info alert-success alert-warning').addClass('alert-danger');
-                            $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i>Crear Nuevo Cliente');
+                            $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i><span class="btn-text">Crear Nuevo Cliente</span>');
                             $customerFound.val('false');
                             $customerData.val('');
                         },
@@ -332,6 +333,22 @@ include("parts/header.php");
                     if (e.which === 13 && !$btnSearch.prop('disabled')) {
                         e.preventDefault();
                         $btnSearch.click();
+                    }
+                });
+
+                // Efecto visual al hacer clic en continuar
+                $btnContinue.on('click', function(e) {
+                    if (!$(this).prop('disabled')) {
+                        // Cambiar a icono de check blanco y ocultar texto
+                        $(this).html('<i class="fas fa-check text-white"></i>');
+                        
+                        // Agregar clase para mantener el gradiente
+                        $(this).addClass('btn-processing');
+                        
+                        // Opcional: Pequeño delay para mostrar el efecto antes del submit
+                        setTimeout(() => {
+                            // El formulario se enviará automáticamente después del efecto
+                        }, 200);
                     }
                 });
             });
