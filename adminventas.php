@@ -128,20 +128,41 @@ include("parts/header.php");
                                 <label for="billing_id" class="form-label">
                                     <i class="fas fa-id-card me-2"></i>Documento del Cliente
                                 </label>
-                                <input type="number"
-                                    class="form-control form-control-lg"
-                                    placeholder="Ingrese el documento del cliente"
-                                    id="billing_id"
-                                    name="billing_id"
-                                    value=""
-                                    required>
+                                <div class="input-group">
+                                    <input type="text"
+                                        class="form-control form-control-lg"
+                                        placeholder="Ingrese el documento del cliente"
+                                        id="billing_id"
+                                        name="billing_id"
+                                        value=""
+                                        required
+                                        autocomplete="off">
+                                    <button type="button" class="btn btn-outline-primary btn-custom" id="btn-search-customer">
+                                        <i class="fas fa-search me-1"></i>Buscar
+                                    </button>
+                                </div>
                                 <div class="invalid-feedback">
                                     Por favor ingrese un documento válido.
                                 </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Busque el cliente en la base de datos de WooCommerce
+                                </small>
                             </div>
 
+                            <!-- Área de resultados de búsqueda -->
+                            <div id="customer-search-results" class="mb-3" style="display: none;">
+                                <div class="alert" id="search-alert">
+                                    <div id="customer-preview"></div>
+                                </div>
+                            </div>
+
+                            <!-- Campos ocultos para datos del cliente -->
+                            <input type="hidden" id="customer_found" name="customer_found" value="false">
+                            <input type="hidden" id="customer_data" name="customer_data" value="">
+
                             <div class="d-grid">
-                                <button class="btn btn-success btn-custom btn-lg" type="submit" name="venta" id="venta">
+                                <button class="btn btn-success btn-custom btn-lg" type="submit" name="venta" id="btn-continue" disabled>
                                     <i class="fas fa-arrow-right me-2"></i>Continuar con el Pedido
                                 </button>
                             </div>
@@ -174,6 +195,146 @@ include("parts/header.php");
                     });
                 }, false);
             })();
+
+            // Búsqueda de cliente con botón
+            $(document).ready(function() {
+                const $btnSearch = $('#btn-search-customer');
+                const $btnContinue = $('#btn-continue');
+                const $billingId = $('#billing_id');
+                const $resultsDiv = $('#customer-search-results');
+                const $previewDiv = $('#customer-preview');
+                const $searchAlert = $('#search-alert');
+                const $customerFound = $('#customer_found');
+                const $customerData = $('#customer_data');
+
+                // Habilitar/deshabilitar botón de búsqueda
+                $billingId.on('input', function() {
+                    const documento = $(this).val().trim();
+                    $btnSearch.prop('disabled', documento.length < 3);
+                    
+                    // Ocultar resultados y deshabilitar continuar si cambia el documento
+                    $resultsDiv.hide();
+                    $btnContinue.prop('disabled', true);
+                    $customerFound.val('false');
+                    $customerData.val('');
+                });
+
+                // Búsqueda al hacer clic en el botón
+                $btnSearch.on('click', function() {
+                    const documento = $billingId.val().trim();
+                    
+                    if (documento.length < 3) {
+                        alert('Por favor ingrese al menos 3 caracteres para buscar');
+                        return;
+                    }
+
+                    // Mostrar indicador de búsqueda
+                    $btnSearch.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Buscando...');
+                    $previewDiv.html('<i class="fas fa-spinner fa-spin me-2"></i>Buscando cliente en WooCommerce...');
+                    $searchAlert.removeClass('alert-success alert-warning alert-danger').addClass('alert-info');
+                    $resultsDiv.show();
+
+                    // Realizar búsqueda AJAX
+                    $.ajax({
+                        url: 'class/search_customer.php',
+                        type: 'POST',
+                        data: { 
+                            billing_id: documento,
+                            action: 'search_customer'
+                        },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.success && response.customer) {
+                                // Cliente encontrado
+                                const customer = response.customer;
+                                $previewDiv.html(`
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="fas fa-user-check text-success me-2 fs-4"></i>
+                                        <strong class="text-success">Cliente Encontrado</strong>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Nombre:</strong> ${customer.first_name} ${customer.last_name}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Email:</strong> ${customer.email || 'No registrado'}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Teléfono:</strong> ${customer.phone || 'No registrado'}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Ciudad:</strong> ${customer.city || 'No registrada'}
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Los datos del cliente se cargarán automáticamente en el formulario
+                                        </small>
+                                    </div>
+                                `);
+                                $searchAlert.removeClass('alert-info alert-warning alert-danger').addClass('alert-success');
+                                $btnContinue.prop('disabled', false).html('<i class="fas fa-arrow-right me-2"></i>Continuar con el Pedido');
+                                $customerFound.val('true');
+                                $customerData.val(JSON.stringify(customer));
+                            } else {
+                                // Cliente no encontrado
+                                $previewDiv.html(`
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="fas fa-user-plus text-warning me-2 fs-4"></i>
+                                        <strong class="text-warning">Cliente No Encontrado</strong>
+                                    </div>
+                                    <p class="mb-2">
+                                        No se encontró un cliente con el documento <strong>${documento}</strong> 
+                                        en la base de datos de WooCommerce.
+                                    </p>
+                                    <div class="alert alert-light border">
+                                        <i class="fas fa-plus-circle text-primary me-2"></i>
+                                        Se creará un nuevo registro de cliente con los datos que ingrese en el formulario.
+                                    </div>
+                                `);
+                                $searchAlert.removeClass('alert-info alert-success alert-danger').addClass('alert-warning');
+                                $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i>Crear Nuevo Cliente');
+                                $customerFound.val('false');
+                                $customerData.val('');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            // Error en la búsqueda
+                            $previewDiv.html(`
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fas fa-exclamation-triangle text-danger me-2 fs-4"></i>
+                                    <strong class="text-danger">Error en la Búsqueda</strong>
+                                </div>
+                                <p class="mb-2">
+                                    No se pudo conectar con la base de datos de WooCommerce.
+                                </p>
+                                <div class="alert alert-light border">
+                                    <small class="text-muted">
+                                        Error técnico: ${error || 'Error desconocido'}
+                                    </small>
+                                </div>
+                            `);
+                            $searchAlert.removeClass('alert-info alert-success alert-warning').addClass('alert-danger');
+                            $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i>Crear Nuevo Cliente');
+                            $customerFound.val('false');
+                            $customerData.val('');
+                        },
+                        complete: function() {
+                            // Restaurar botón de búsqueda
+                            $btnSearch.prop('disabled', false).html('<i class="fas fa-search me-1"></i>Buscar');
+                        }
+                    });
+                });
+
+                // Permitir búsqueda con Enter
+                $billingId.on('keypress', function(e) {
+                    if (e.which === 13 && !$btnSearch.prop('disabled')) {
+                        e.preventDefault();
+                        $btnSearch.click();
+                    }
+                });
+            });
         </script>
 
 

@@ -46,30 +46,47 @@ $post_id = '';
 $row_lista = null;
 $lista = null;
 $totalRows_lista = 0;
+$customer_found = false;
+$customer_data = [];
 
 if(isset($_POST['billing_id'])) {
-	$billing_id = $_POST['billing_id'];	
+    $billing_id = $_POST['billing_id'];
+    $customer_found = $_POST['customer_found'] === 'true';
     
-	$query_idlast = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE meta_value = '$billing_id' AND meta_key = 'billing_id ' ORDER BY post_id DESC LIMIT 1");
-	$idlast = mysqli_query($miau, $query_idlast) or die(mysqli_error($miau));
-	$row_idlast = mysqli_fetch_assoc($idlast);
-	$totalRows_idlast = mysqli_num_rows($idlast);
-  $post_id = $row_idlast['post_id'] ?? '';
-    
-    // Solo ejecutar la segunda consulta si se encontró un post_id válido
-    if (!empty($post_id)) {
-        $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$post_id'");
-        $lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
-        $row_lista = mysqli_fetch_assoc($lista);
-        $totalRows_lista = mysqli_num_rows($lista);
+    // Si se encontró el cliente en WooCommerce, usar esos datos
+    if ($customer_found && !empty($_POST['customer_data'])) {
+        $customer_data = json_decode($_POST['customer_data'], true);
+        
+        // Usar los datos del cliente encontrado
+        if ($customer_data) {
+            $post_id = $customer_data['order_id'] ?? '';
+            
+            // Simular el resultado de la consulta con los datos del cliente
+            $lista = null;
+            $row_lista = null;
+            $totalRows_lista = 1; // Indicar que se encontraron datos
+        }
     } else {
-        // Inicializar variables si no se encontró post_id
-        $lista = null;
-        $row_lista = null;
-        $totalRows_lista = 0;
+        // Búsqueda tradicional (mantener por compatibilidad)
+        $query_idlast = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE meta_value = '$billing_id' AND meta_key = '_billing_id' ORDER BY post_id DESC LIMIT 1");
+        $idlast = mysqli_query($miau, $query_idlast) or die(mysqli_error($miau));
+        $row_idlast = mysqli_fetch_assoc($idlast);
+        $totalRows_idlast = mysqli_num_rows($idlast);
+        $post_id = $row_idlast['post_id'] ?? '';
+        
+        // Solo ejecutar la segunda consulta si se encontró un post_id válido
+        if (!empty($post_id)) {
+            $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$post_id'");
+            $lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
+            $row_lista = mysqli_fetch_assoc($lista);
+            $totalRows_lista = mysqli_num_rows($lista);
+        } else {
+            // Inicializar variables si no se encontró post_id
+            $lista = null;
+            $row_lista = null;
+            $totalRows_lista = 0;
+        }
     }
-
-
 }
 
 

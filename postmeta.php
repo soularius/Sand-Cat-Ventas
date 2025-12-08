@@ -8,8 +8,22 @@ $descuento = 0;
 $vtotal = 0;
 $envio = 0;
 
-// Verificar que existan las variables necesarias
-if (isset($lista) && isset($row_lista) && $row_lista !== null) {
+// Si se encontró el cliente en WooCommerce, usar esos datos
+if ($customer_found && !empty($customer_data)) {
+    // Usar datos del cliente encontrado en WooCommerce
+    $nombre1 = $customer_data['first_name'] ?? $customer_data['shipping_first_name'] ?? '';
+    $nombre2 = $customer_data['last_name'] ?? $customer_data['shipping_last_name'] ?? '';
+    $documento = $customer_data['billing_id'] ?? $billing_id;
+    $ciudad = $customer_data['city'] ?? $customer_data['shipping_city'] ?? '';
+    $departamento = $customer_data['state'] ?? $customer_data['shipping_state'] ?? '';
+    $dir1 = $customer_data['address_1'] ?? $customer_data['shipping_address_1'] ?? '';
+    $dir2 = $customer_data['address_2'] ?? $customer_data['shipping_address_2'] ?? '';
+    $celular = $customer_data['phone'] ?? '';
+    $correo = $customer_data['email'] ?? '';
+    $fecha = date("Y-m-d");
+    
+} elseif (isset($lista) && isset($row_lista) && $row_lista !== null) {
+    // Método tradicional - procesar desde base de datos
     do {
         if($row_lista['meta_key']=='_shipping_first_name') {
             $nombre1 = $row_lista['meta_value'];

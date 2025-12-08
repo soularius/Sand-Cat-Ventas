@@ -138,6 +138,19 @@ body {
   box-shadow: 0 5px 15px var(--primary-0015-color);
 }
 
+.btn-outline-primary.btn-custom {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-outline-primary.btn-custom:hover {
+  color: #fff;
+  transform: translateY(-2px);
+  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+  box-shadow: 0 5px 15px var(--primary-0015-color);
+}
+
+
 .btn-secondary.btn-custom {
   background: linear-gradient(45deg, var(--cuertar-color), var(--accent-color));
   border: none;
