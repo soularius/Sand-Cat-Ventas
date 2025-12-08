@@ -113,13 +113,13 @@ $cuerpo = '
     <td colspan="4" style="text-align: center";><strong>SAND Y CAT HUGO ALEJANDRO LOPEZ</strong></td>
   </tr>
   <tr>
-    <td colspan="4" style="text-align: center";>NIT 79690971</td>
+    <td colspan="4" style="text-align: center";><strong>NIT</strong> 79690971</td>
   </tr>
   <tr>
     <td colspan="4" style="text-align: center";>www.sandycat.com.co</td>
   </tr>
   <tr>
-    <td colspan="4" style="text-align: center";><strong>NIT</strong> 6016378243</td>
+    <td colspan="4" style="text-align: center";><strong>Teléfono</strong> 6016378243</td>
   </tr>
   <tr>
     <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center"><strong>Dirección</strong> Cra. 61 No. 78-25</td>
