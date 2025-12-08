@@ -37,6 +37,9 @@ if(isset($_POST['id_ventas'])) {
 	$totalRows_numfact = mysqli_num_rows($numfact);
 	$numfact = $row_numfact['factura'];
 	
+	// Formatear número de factura con 10 dígitos
+	$numfact_formateado = str_pad($numfact, 10, '0', STR_PAD_LEFT);
+	
   	/* $elnuevo = "ventasrrr.php?i=$id_ventas";
     header("Location: $elnuevo"); */
 }
@@ -93,7 +96,7 @@ do {
 					$fecha = $row_datos['post_date'];
 $cuerpo = '
 <html>
-<title>Factura POS '.$numfact.'</title>
+<title>Factura '.$numfact_formateado.'</title>
 	<link rel="shortcut icon" href="https://sandycat.com.co/wp-content/uploads/2020/05/favicon.jpg" type="image/x-icon" />
 	<style>
 	@page { sheet-size: 80mm 297mm; }
@@ -130,7 +133,7 @@ $cuerpo = '
         <td colspan="4" style="text-align: center">'.$fecha.'</td>
       </tr>
       <tr>
-        <td colspan="4" style="text-align: center">Serie y número: POS '.$numfact.'</td>
+        <td colspan="4" style="text-align: center">Serie y número: '.$numfact_formateado.'</td>
       </tr>
       <tr>
         <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center";>Pedido '.$consecutivo.'</td>
@@ -209,19 +212,26 @@ $cuerpo = '
         <td colspan="4" style="text-align: center"><br>No existen devoluciones</td>
       </tr>
       <tr>
-        <td colspan="4" style="text-align: center"><barcode code="POS '.$numfact.'" type="C39" size="0.6" height="1.0" /><br>POS '.$numfact.'</td>
+        <td colspan="4" style="text-align: center"><barcode code="'.$numfact_formateado.'" type="C39" size="0.6" height="1.0" /><br>'.$numfact_formateado.'</td>
       </tr>
         </table>
 </body></html>
 '.mysqli_free_result($productos);
 
-include("pdf/mpdf.php");
-$mpdf=new mPDF("","","8","",2,1,1,1,0,0,"P");/*iso-8859-1*/
-/* $mpdf=new mPDF("utf-8","Letter","8","",10,10,15,10,0,0,"P");*/
-/* $mpdf=new mPDF("","Letter","letra","",marleft,margen r,martop,margen botton,0,0,"portrait");*/
-$mpdf->SetHTMLFooter($pie);
-$mpdf->AliasNbPages('{PageTotal}');
-$mpdf->WriteHTML($stylesheet,1);
+// Usar configuración centralizada de mPDF
+require_once __DIR__ . '/mpdf_config.php';
+$mpdf = createMpdfInstance();
+
+// Configurar footer si existe la variable $pie
+if (isset($pie)) {
+    $mpdf->SetHTMLFooter($pie);
+}
+
+// Configurar CSS si existe la variable $stylesheet
+if (isset($stylesheet)) {
+    $mpdf->WriteHTML($stylesheet, 1); // 1 = CSS mode
+}
+
 $mpdf->WriteHTML($cuerpo);
-$mpdf->Output("Factura POS $numfact.pdf","I");/*nombre del archivo*/
+$mpdf->Output("Factura $numfact_formateado.pdf", "I"); // "I" = Inline
 ?>

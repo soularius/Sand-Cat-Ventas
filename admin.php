@@ -76,6 +76,36 @@ if(isset($_POST['id_ventas']) && isset($_POST['cancelar'])) {
 	mysqli_query($sandycat, $query);
 }
 
+// Procesar facturación de órdenes WooCommerce
+if(isset($_POST['id_ventas']) && isset($_POST['imprimiendo'])) {
+	$id_ventas = $_POST['id_ventas'];
+	$num_factura = $_POST['num'];
+	
+	// Insertar en tabla facturas
+	$query = "INSERT INTO facturas (id_order, factura, estado) VALUES ('$id_ventas', '$num_factura', 'a')";
+	mysqli_query($sandycat, $query);
+	
+	// Actualizar estado en WooCommerce (opcional - ya está completada)
+	// $query = "UPDATE miau_wc_orders SET status = 'wc-completed' WHERE id = '$id_ventas'";
+	// mysqli_query($miau, $query);
+	
+	// Redireccionar para evitar reenvío del formulario
+	header("Location: admin.php?facturada=1&orden=" . $id_ventas);
+	exit;
+}
+
+// API para obtener siguiente número de factura
+if(isset($_GET['get_next_factura'])) {
+	$query = "SELECT COUNT(id_facturas) AS numero FROM facturas";
+	$result = mysqli_query($sandycat, $query);
+	$row = mysqli_fetch_assoc($result);
+	$numero = $row['numero'] + 1;
+	
+	header('Content-Type: application/json');
+	echo json_encode(['numero' => $numero]);
+	exit;
+}
+
 
 // Inicializar clase de órdenes WooCommerce
 $wooOrders = new WooCommerceOrders();
@@ -232,6 +262,15 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
   </div>
   <?php endif; ?>
 
+  <!-- Mensaje de éxito de facturación -->
+  <?php if (isset($_GET['facturada']) && $_GET['facturada'] == '1'): ?>
+  <div class="alert alert-success alert-dismissible fade show">
+    <i class="fas fa-check-circle me-2"></i>
+    <strong>¡Factura creada exitosamente!</strong> La orden #<?php echo htmlspecialchars($_GET['orden']); ?> ha sido facturada.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  <?php endif; ?>
+
   <!-- Pestañas dinámicas por estado -->
   <ul class="nav nav-tabs" role="tablist">
     <?php foreach ($ordenes_por_estado as $estado => $info): ?>
@@ -298,6 +337,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
                   <th class="text-center"><i class="fas fa-calendar me-1"></i>Fecha</th>
                   <th class="text-end"><i class="fas fa-dollar-sign me-1"></i>Total</th>
                   <th class="text-center"><i class="fas fa-tag me-1"></i>Estado</th>
+                  <th class="text-center"><i class="fas fa-tag me-1"></i>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -326,6 +366,43 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
                     <td class="text-center">
                       <span class="badge <?php echo $badge_color; ?>"><?php echo $orden['estado_legible']; ?></span>
                     </td>
+                    <?php if ($estado === 'wc-completed'): ?>
+                    <td class="text-center">
+                      <?php
+                      // Verificar si ya está facturada
+                      $order_id = $orden['order_id'];
+                      $query_factura = "SELECT factura FROM facturas WHERE id_order = '$order_id' AND estado = 'a'";
+                      $result_factura = mysqli_query($sandycat, $query_factura);
+                      $ya_facturada = mysqli_num_rows($result_factura) > 0;
+                      
+                      if ($ya_facturada):
+                        $row_factura = mysqli_fetch_assoc($result_factura);
+                      ?>
+                        <div class="d-flex flex-column gap-1">
+                          <span class="badge bg-info">
+                            <i class="fas fa-check me-1"></i>Facturada #<?php echo $row_factura['factura']; ?>
+                          </span>
+                          <button type="button" class="btn btn-sm btn-outline-danger" 
+                                  data-bs-toggle="modal" 
+                                  data-bs-target="#modalPDF"
+                                  data-order-id="<?php echo $orden['order_id']; ?>"
+                                  data-factura="<?php echo $row_factura['factura']; ?>"
+                                  data-cliente="<?php echo htmlspecialchars($orden['nombre_completo']); ?>">
+                            <i class="fas fa-file-pdf me-1"></i>PDF
+                          </button>
+                        </div>
+                      <?php else: ?>
+                        <button type="button" class="btn btn-sm btn-success" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalFacturar"
+                                data-order-id="<?php echo $orden['order_id']; ?>"
+                                data-cliente="<?php echo htmlspecialchars($orden['nombre_completo']); ?>"
+                                data-total="<?php echo $orden['total']; ?>">
+                          <i class="fas fa-file-invoice me-1"></i>Facturar
+                        </button>
+                      <?php endif; ?>
+                    </td>
+                    <?php endif; ?>
                   </tr>
                 <?php endforeach; ?>
               </tbody>
@@ -348,6 +425,249 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
     <?php endforeach; ?>
   </div>
 </div>
+
+<!-- Modal para Facturar -->
+<div class="modal fade" id="modalFacturar" tabindex="-1" aria-labelledby="modalFacturarLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="modalFacturarLabel">
+          <i class="fas fa-file-invoice me-2"></i>Crear Factura
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="admin.php" id="formFacturar">
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Orden:</strong> #<span id="modalOrderId"></span><br>
+            <strong>Cliente:</strong> <span id="modalCliente"></span><br>
+            <strong>Total:</strong> $<span id="modalTotal"></span>
+          </div>
+          
+          <div class="mb-3">
+            <label for="numeroFactura" class="form-label">
+              <i class="fas fa-hashtag me-1"></i>Número de Factura
+            </label>
+            <div class="input-group">
+              <span class="input-group-text">POS</span>
+              <input type="text" class="form-control" id="numeroFactura" name="num" readonly>
+            </div>
+            <div class="form-text">El número se genera automáticamente</div>
+          </div>
+          
+          <input type="hidden" id="hiddenOrderId" name="id_ventas">
+          <input type="hidden" name="imprimiendo" value="1">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>Cancelar
+          </button>
+          <button type="submit" class="btn btn-success" name="ingfact">
+            <i class="fas fa-file-invoice me-1"></i>Crear Factura
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para PDF de Factura -->
+<div class="modal fade" id="modalPDF" tabindex="-1" aria-labelledby="modalPDFLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="modalPDFLabel">
+          <i class="fas fa-file-pdf me-2"></i>Factura PDF
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>Orden:</strong> #<span id="pdfOrderId"></span><br>
+          <strong>Cliente:</strong> <span id="pdfCliente"></span><br>
+          <strong>Factura:</strong> #<span id="pdfFactura"></span>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="d-grid">
+              <button type="button" class="btn btn-primary btn-lg" id="btnGenerarPDF">
+                <i class="fas fa-file-pdf me-2"></i>Generar PDF
+              </button>
+            </div>
+            <small class="text-muted mt-2 d-block">Genera un nuevo PDF de la factura</small>
+          </div>
+          <div class="col-md-6">
+            <div class="d-grid">
+              <button type="button" class="btn btn-success btn-lg" id="btnAbrirPDF">
+                <i class="fas fa-external-link-alt me-2"></i>Abrir PDF
+              </button>
+            </div>
+            <small class="text-muted mt-2 d-block">Abre el PDF en una nueva pestaña</small>
+          </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row">
+          <div class="col-md-12">
+            <h6><i class="fas fa-cogs me-1"></i>Opciones adicionales:</h6>
+            <div class="btn-group w-100" role="group">
+              <button type="button" class="btn btn-outline-secondary" id="btnDescargarPDF">
+                <i class="fas fa-download me-1"></i>Descargar
+              </button>
+              <button type="button" class="btn btn-outline-info" id="btnEnviarEmail">
+                <i class="fas fa-envelope me-1"></i>Enviar por Email
+              </button>
+              <button type="button" class="btn btn-outline-warning" id="btnImprimir">
+                <i class="fas fa-print me-1"></i>Imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Área para mostrar el PDF -->
+        <div id="pdfViewer" class="mt-3" style="display: none;">
+          <iframe id="pdfFrame" width="100%" height="500px" frameborder="0"></iframe>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Manejar modal de facturación
+document.addEventListener('DOMContentLoaded', function() {
+    const modalFacturar = document.getElementById('modalFacturar');
+    
+    modalFacturar.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const orderId = button.getAttribute('data-order-id');
+        const cliente = button.getAttribute('data-cliente');
+        const total = button.getAttribute('data-total');
+        
+        // Actualizar contenido del modal
+        document.getElementById('modalOrderId').textContent = orderId;
+        document.getElementById('modalCliente').textContent = cliente;
+        document.getElementById('modalTotal').textContent = new Intl.NumberFormat('es-CO').format(total);
+        document.getElementById('hiddenOrderId').value = orderId;
+        
+        // Generar número de factura (simulado - en producción vendría del servidor)
+        fetch('admin.php?get_next_factura=1')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('numeroFactura').value = data.numero;
+            })
+            .catch(() => {
+                // Fallback: generar número basado en timestamp
+                const numero = Date.now().toString().slice(-6);
+                document.getElementById('numeroFactura').value = numero;
+            });
+    });
+    
+    // Manejar modal de PDF
+    const modalPDF = document.getElementById('modalPDF');
+    
+    modalPDF.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const orderId = button.getAttribute('data-order-id');
+        const cliente = button.getAttribute('data-cliente');
+        const factura = button.getAttribute('data-factura');
+        
+        // Actualizar contenido del modal
+        document.getElementById('pdfOrderId').textContent = orderId;
+        document.getElementById('pdfCliente').textContent = cliente;
+        document.getElementById('pdfFactura').textContent = factura;
+        
+        // Ocultar viewer al abrir
+        document.getElementById('pdfViewer').style.display = 'none';
+        
+        // Configurar botones
+        setupPDFButtons(orderId, factura);
+    });
+    
+    function setupPDFButtons(orderId, factura) {
+        // Generar PDF
+        document.getElementById('btnGenerarPDF').onclick = function() {
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generando...';
+            btn.disabled = true;
+            
+            // Simular generación (aquí iría la llamada real)
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showPDFInModal(orderId, factura);
+            }, 2000);
+        };
+        
+        // Abrir PDF en nueva pestaña
+        document.getElementById('btnAbrirPDF').onclick = function() {
+            const url = `generar_pdf.php?orden=${orderId}&factura=${factura}`;
+            window.open(url, '_blank');
+        };
+        
+        // Descargar PDF
+        document.getElementById('btnDescargarPDF').onclick = function() {
+            const url = `generar_pdf.php?orden=${orderId}&factura=${factura}&download=1`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `factura_${factura}.pdf`;
+            link.click();
+        };
+        
+        // Enviar por email
+        document.getElementById('btnEnviarEmail').onclick = function() {
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+            btn.disabled = true;
+            
+            fetch(`enviar_factura.php?orden=${orderId}&factura=${factura}`)
+                .then(response => response.json())
+                .then(data => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    if (data.success) {
+                        alert('Factura enviada por email exitosamente');
+                    } else {
+                        alert('Error al enviar factura: ' + data.message);
+                    }
+                })
+                .catch(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    alert('Error al enviar factura');
+                });
+        };
+        
+        // Imprimir
+        document.getElementById('btnImprimir').onclick = function() {
+            const url = `generar_pdf.php?orden=${orderId}&factura=${factura}&print=1`;
+            const printWindow = window.open(url, '_blank');
+            printWindow.onload = function() {
+                printWindow.print();
+            };
+        };
+    }
+    
+    function showPDFInModal(orderId, factura) {
+        const viewer = document.getElementById('pdfViewer');
+        const frame = document.getElementById('pdfFrame');
+        
+        frame.src = `generar_pdf.php?orden=${orderId}&factura=${factura}&embed=1`;
+        viewer.style.display = 'block';
+    }
+});
+</script>
 
 <?php include("foot.php"); ?>
 
