@@ -243,6 +243,24 @@ class Utils {
     }
 
     /**
+     * Verifica si la petición actual es POST
+     * 
+     * @return bool True si es petición POST
+     */
+    public static function isPostRequest() {
+        return $_SERVER['REQUEST_METHOD'] === 'POST';
+    }
+
+    /**
+     * Verifica si la petición actual es GET
+     * 
+     * @return bool True si es petición GET
+     */
+    public static function isGetRequest() {
+        return $_SERVER['REQUEST_METHOD'] === 'GET';
+    }
+
+    /**
      * Capturar múltiples valores de POST con validación isset
      * @param array $fields - Array de campos a capturar
      * @param bool $sanitize - Si aplicar sanitización básica

@@ -7,15 +7,15 @@
 // Cargar autoloader del sistema
 require_once('autoload.php');
 
-// Verificar que sea una petición AJAX POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['action']) || $_POST['action'] !== 'search_customer') {
+// Verificar que sea una petición AJAX POST usando Utils
+if (!Utils::isPostRequest() || !Utils::hasPostFields(['action']) || Utils::captureValue('action', 'POST') !== 'search_customer') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Petición inválida']);
     exit;
 }
 
-// Capturar y validar el documento
-$billing_id = trim($_POST['billing_id'] ?? '');
+// Capturar y validar el documento usando Utils
+$billing_id = Utils::captureValue('billing_id', 'POST', '');
 
 if (empty($billing_id) || strlen($billing_id) < 3) {
     echo json_encode([
@@ -84,29 +84,29 @@ try {
             '_shipping_postcode', '_shipping_country', '_billing_id'
         ]);
         
-        // Formatear datos del cliente
+        // Formatear datos del cliente usando valores seguros
         $customer = [
             'found' => true,
             'order_id' => $order_id,
             'billing_id' => $customer_data['_billing_id'] ?? $billing_id,
-            'first_name' => $customer_data['_billing_first_name'] ?? '',
-            'last_name' => $customer_data['_billing_last_name'] ?? '',
-            'email' => $customer_data['_billing_email'] ?? '',
-            'phone' => $customer_data['_billing_phone'] ?? '',
-            'address_1' => $customer_data['_billing_address_1'] ?? '',
-            'address_2' => $customer_data['_billing_address_2'] ?? '',
-            'city' => $customer_data['_billing_city'] ?? '',
-            'state' => $customer_data['_billing_state'] ?? '',
-            'postcode' => $customer_data['_billing_postcode'] ?? '',
-            'country' => $customer_data['_billing_country'] ?? '',
-            'shipping_first_name' => $customer_data['_shipping_first_name'] ?? '',
-            'shipping_last_name' => $customer_data['_shipping_last_name'] ?? '',
-            'shipping_address_1' => $customer_data['_shipping_address_1'] ?? '',
-            'shipping_address_2' => $customer_data['_shipping_address_2'] ?? '',
-            'shipping_city' => $customer_data['_shipping_city'] ?? '',
-            'shipping_state' => $customer_data['_shipping_state'] ?? '',
-            'shipping_postcode' => $customer_data['_shipping_postcode'] ?? '',
-            'shipping_country' => $customer_data['_shipping_country'] ?? ''
+            'first_name' => Utils::sanitizeInput($customer_data['_billing_first_name'] ?? ''),
+            'last_name' => Utils::sanitizeInput($customer_data['_billing_last_name'] ?? ''),
+            'email' => filter_var($customer_data['_billing_email'] ?? '', FILTER_SANITIZE_EMAIL),
+            'phone' => Utils::sanitizeInput($customer_data['_billing_phone'] ?? ''),
+            'address_1' => Utils::sanitizeInput($customer_data['_billing_address_1'] ?? ''),
+            'address_2' => Utils::sanitizeInput($customer_data['_billing_address_2'] ?? ''),
+            'city' => Utils::sanitizeInput($customer_data['_billing_city'] ?? ''),
+            'state' => Utils::sanitizeInput($customer_data['_billing_state'] ?? ''),
+            'postcode' => Utils::sanitizeInput($customer_data['_billing_postcode'] ?? ''),
+            'country' => Utils::sanitizeInput($customer_data['_billing_country'] ?? ''),
+            'shipping_first_name' => Utils::sanitizeInput($customer_data['_shipping_first_name'] ?? ''),
+            'shipping_last_name' => Utils::sanitizeInput($customer_data['_shipping_last_name'] ?? ''),
+            'shipping_address_1' => Utils::sanitizeInput($customer_data['_shipping_address_1'] ?? ''),
+            'shipping_address_2' => Utils::sanitizeInput($customer_data['_shipping_address_2'] ?? ''),
+            'shipping_city' => Utils::sanitizeInput($customer_data['_shipping_city'] ?? ''),
+            'shipping_state' => Utils::sanitizeInput($customer_data['_shipping_state'] ?? ''),
+            'shipping_postcode' => Utils::sanitizeInput($customer_data['_shipping_postcode'] ?? ''),
+            'shipping_country' => Utils::sanitizeInput($customer_data['_shipping_country'] ?? '')
         ];
         
         // Respuesta exitosa
@@ -126,8 +126,8 @@ try {
     }
     
 } catch (Exception $e) {
-    // Error en la búsqueda
-    error_log('Error en search_customer.php: ' . $e->getMessage());
+    // Error en la búsqueda - usar Utils para logging
+    Utils::logError('Error en búsqueda de cliente: ' . $e->getMessage(), 'ERROR', 'search_customer.php');
     
     echo json_encode([
         'success' => false,
