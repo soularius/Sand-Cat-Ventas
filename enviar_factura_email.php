@@ -3,8 +3,10 @@
  * Envío de facturas por email usando PHPMailer
  */
 
-// Cargar configuración
-require_once('class/config.php');
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
+
+// 2. Cargar dependencias específicas
 require_once __DIR__ . '/pdf_generator.php';
 require_once __DIR__ . '/vendor/autoload.php';
 

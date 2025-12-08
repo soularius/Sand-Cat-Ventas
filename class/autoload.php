@@ -28,6 +28,9 @@ $miau = DatabaseConfig::getWordPressConnection();
 // Cargar constantes del sistema (está en la carpeta padre)
 require_once(dirname(__DIR__) . '/constants.php');
 
+// Cargar configuración de mPDF
+require_once(dirname(__DIR__) . '/mpdf_config.php');
+
 // Iniciar sesión si no está iniciada
 if (!isset($_SESSION)) {
     session_start();

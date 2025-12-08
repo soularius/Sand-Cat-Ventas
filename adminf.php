@@ -1,22 +1,14 @@
 <?php
-// Cargar configuración desde archivo .env
-require_once('class/config.php');
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
 
-if (!isset($_SESSION)) {
-  session_start();
-}
+// 2. Lógica de autenticación y procesamiento
 $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
-
-// *** Restrict Access To Page: Grant or deny access to this page
-// La función isAuthorized() ahora está disponible desde tools.php
-
-
-
 $MM_restrictGoTo = "http://localhost/ventas/facturacion.php";
 
-
-if (!((isset($_SESSION['MM_Username'])))) { 
+// Verificar autenticación
+if (!isset($_SESSION['MM_Username'])) { 
   $MM_qsChar = "?";
   $MM_referrer = $_SERVER['PHP_SELF'];
   if (strpos($MM_restrictGoTo, "?")) $MM_qsChar = "&";
@@ -27,9 +19,10 @@ if (!((isset($_SESSION['MM_Username'])))) {
   exit;
 }
 
+// Obtener datos del usuario
 $colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
-$colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
+    $colname_usuario = mysqli_real_escape_string($sandycat, $_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
@@ -39,6 +32,12 @@ $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
 $ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
+
+// Crear variable compatible para el menú
+if (!isset($row_usuario['nombre']) && isset($row_usuario['elnombre'])) {
+    $row_usuario['nombre'] = $row_usuario['elnombre'];
+}
+
 $acti1 = 'active';
 $acti2 = 'fade';
 $pes1 = 'active';
@@ -144,8 +143,10 @@ if(!empty($facturas_ids)) {
 }
 $row_pendientesf = mysqli_fetch_assoc($pendientesf);
 $totalRows_pendientesf = mysqli_num_rows($pendientesf);
+
+// 3. DESPUÉS: Cargar presentación
+include("parts/header.php");
 ?>
-<?php include("parts/header.php"); ?>
 <body style="padding-top: 70px">
 <div class="container">
 <?php include("parts/menf.php"); ?><br />

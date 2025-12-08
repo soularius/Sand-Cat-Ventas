@@ -1,10 +1,6 @@
 <?php
-// Cargar configuración desde archivo .env
-require_once('class/config.php');
-
-if (!isset($_SESSION)) {
-  session_start();
-}
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
 $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 

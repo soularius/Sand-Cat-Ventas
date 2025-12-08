@@ -1,10 +1,9 @@
 <?php
-require_once('class/config.php');
-require_once('pdf_generator.php');
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
 
-if (!isset($_SESSION)) {
-    session_start();
-}
+// 2. Cargar dependencias específicas
+require_once('pdf_generator.php');
 
 // Verificar autenticación
 if (!isset($_SESSION['MM_Username'])) {

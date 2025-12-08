@@ -37,7 +37,7 @@ function generarHTMLFactura($datos) {
     $cuerpo = '
     <html>
     <title>Factura POS '.$datos['factura_num'].'</title>
-    <link rel="shortcut icon" href="http://localhost/ventas/logo.png" type="image/x-icon" />
+    <link rel="shortcut icon" href="http://localhost/ventas/assets/img/logo.png" type="image/x-icon" />
     <style>
     @page { 
       sheet-size: 80mm 297mm; 
@@ -47,7 +47,7 @@ function generarHTMLFactura($datos) {
     <body>
     <table border="0"; style="table-layout: fixed; width: 180">
       <tr align: "center">
-        <td colspan="4" style="text-align: center"><img src="http://localhost/ventas/logo.png" width="130"></td>
+        <td colspan="4" style="text-align: center"><img src="http://localhost/ventas/assets/img/logo.png" width="130"></td>
       </tr>
       <tr>
         <td colspan="4" style="text-align: center";><strong>SAND Y CAT HUGO ALEJANDRO LOPEZ</strong></td>
@@ -241,7 +241,6 @@ function generarPDFFactura($datos, $output_mode = 'I', $filename = null) {
     $html = generarHTMLFactura($datos);
     
     // Crear PDF
-    require_once('class/config.php');
     $mpdf = createMpdfInstance();
     
     $mpdf->AliasNbPages('{PageTotal}');

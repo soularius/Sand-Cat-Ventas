@@ -1,13 +1,10 @@
 <?php
-//ini_set('display_errors', 1);
+/* ini_set('display_errors', 1);
 //ini_set('display_startup_errors', 1);
-//error_reporting(E_ALL);
-// Cargar configuración desde archivo .env
-require_once('class/config.php');
+//error_reporting(E_ALL); */
 
-if (!isset($_SESSION)) {
-  session_start();
-}
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
 $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
