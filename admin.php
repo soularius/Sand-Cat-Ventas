@@ -432,7 +432,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 <div class="modal fade" id="modalFacturar" tabindex="-1" aria-labelledby="modalFacturarLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header bg-success text-white">
+      <div class="modal-header bg-success bg-custom text-white">
         <h5 class="modal-title" id="modalFacturarLabel">
           <i class="fas fa-file-invoice me-2"></i>Crear Factura
         </h5>

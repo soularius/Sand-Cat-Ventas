@@ -35,12 +35,12 @@
 
 /* Custom Buttons */
 .btn-custom {
-    border-radius: 25px;
     padding: 12px 30px;
-    font-weight: 600;
+    font-weight: 600 !important;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     transition: all 0.3s ease;
+    font-size: 14px;
 }
 
 .btn-primary.btn-custom {
@@ -73,6 +73,15 @@
     box-shadow: 0 5px 15px var(--cuertar-0015-color);
 }
 
+.btn-success.btn-custom {
+    background: linear-gradient(45deg, var(--cuertar-color), var(--primary-color));
+    border: none;
+}
+
+.btn-success.btn-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px var(--cuertar-0015-color);
+}
 
 .text-primary {
   color: var(--primary-color) !important;
@@ -100,6 +109,10 @@ a.a-custom {
 a.a-custom:hover {
   color: var(--accent-color);
   text-shadow: 0 0 0.2rem var(--cuertar-0015-color);
+}
+
+.bg-success.bg-custom {
+  background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
 }
 
 .navbar-nav .nav-link {

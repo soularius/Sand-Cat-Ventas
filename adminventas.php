@@ -145,7 +145,7 @@ include("parts/header.php");
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <!-- Modal Header -->
-                    <div class="modal-header bg-success text-white">
+                    <div class="modal-header bg-success bg-custom text-white">
                         <h5 class="modal-title text-white" id="myModalLabel">
                             <i class="fas fa-plus-circle me-2"></i>Generar Nuevo Pedido
                         </h5>
@@ -172,7 +172,7 @@ include("parts/header.php");
                             </div>
 
                             <div class="d-grid">
-                                <button class="btn btn-success btn-lg" type="submit" name="venta" id="venta">
+                                <button class="btn btn-success btn-custom btn-lg" type="submit" name="venta" id="venta">
                                     <i class="fas fa-arrow-right me-2"></i>Continuar con el Pedido
                                 </button>
                             </div>
@@ -180,7 +180,7 @@ include("parts/header.php");
                     </div>
 
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <button type="button" class="btn btn-secondary btn-custom" data-bs-dismiss="modal">
                             <i class="fas fa-times me-2"></i>Cancelar
                         </button>
                     </div>
