@@ -387,7 +387,9 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
                                   data-bs-target="#modalPDF"
                                   data-order-id="<?php echo $orden['order_id']; ?>"
                                   data-factura="<?php echo $row_factura['factura']; ?>"
-                                  data-cliente="<?php echo htmlspecialchars($orden['nombre_completo']); ?>">
+                                  data-cliente="<?php echo htmlspecialchars($orden['nombre_completo']); ?>"
+                                  data-telefono="<?php echo htmlspecialchars($orden['telefono'] ?? 'No registrado'); ?>"
+                                  data-email="<?php echo htmlspecialchars($orden['email'] ?? 'No registrado'); ?>">
                             <i class="fas fa-file-pdf me-1"></i>PDF
                           </button>
                         </div>
@@ -487,6 +489,8 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
           <i class="fas fa-info-circle me-2"></i>
           <strong>Orden:</strong> #<span id="pdfOrderId"></span><br>
           <strong>Cliente:</strong> <span id="pdfCliente"></span><br>
+          <strong>Teléfono:</strong> <span id="pdfTelefono"></span><br>
+          <strong>Email:</strong> <span id="pdfEmail"></span><br>
           <strong>Factura:</strong> #<span id="pdfFactura"></span>
         </div>
         
@@ -579,6 +583,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const button = event.relatedTarget;
         const orderId = button.getAttribute('data-order-id');
         const cliente = button.getAttribute('data-cliente');
+        const telefono = button.getAttribute('data-telefono');
+        const email = button.getAttribute('data-email');
         const factura = button.getAttribute('data-factura');
         
         // Formatear número de factura con 10 dígitos
@@ -587,6 +593,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Actualizar contenido del modal
         document.getElementById('pdfOrderId').textContent = orderId;
         document.getElementById('pdfCliente').textContent = cliente;
+        document.getElementById('pdfTelefono').textContent = telefono;
+        document.getElementById('pdfEmail').textContent = email;
         document.getElementById('pdfFactura').textContent = facturaFormateada;
         
         // Ocultar viewer al abrir
@@ -631,21 +639,30 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('btnEnviarEmail').onclick = function() {
             const btn = this;
             const originalText = btn.innerHTML;
+            
             btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
             btn.disabled = true;
             
-            fetch(`enviar_factura.php?orden=${orderId}&factura=${factura}`)
+            // Crear FormData para envío POST (el email se obtiene automáticamente del cliente)
+            const formData = new FormData();
+            formData.append('orden_id', orderId);
+            formData.append('factura_id', factura);
+            
+            fetch('enviar_factura_email.php', {
+                method: 'POST',
+                body: formData
+            })
                 .then(response => response.json())
                 .then(data => {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                     if (data.success) {
-                        alert('Factura enviada por email exitosamente');
+                        alert(`Factura enviada exitosamente a: ${data.email}`);
                     } else {
-                        alert('Error al enviar factura: ' + data.message);
+                        alert('Error al enviar factura: ' + data.error);
                     }
                 })
-                .catch(() => {
+                .catch(error => {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                     alert('Error al enviar factura');
