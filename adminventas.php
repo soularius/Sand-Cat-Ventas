@@ -99,8 +99,12 @@ if(isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
 			<div class="row justify-content-center" style="margin-top: -30px">
 			  <div class="col-md-7 col-lg-5">
 					<div class="login-wrap p-4 p-md-5 justify-content-center">
-                    <a href="adminf.php" class="btn btn-primary btn-block" role="button">FACTURAR</a><br>
-                    <button type="button" class="btn btn-primary btn-block" data-toggle="modal" data-target="#myModal">GENERAR PEDIDO</button>
+                    <a href="adminf.php" class="btn btn-primary w-100 mb-3" role="button">
+                        <i class="fas fa-file-invoice me-2"></i>FACTURAR
+                    </a>
+                    <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#myModal">
+                        <i class="fas fa-plus-circle me-2"></i>GENERAR PEDIDO
+                    </button>
 		      	<!-- <div class="icon d-flex align-items-center justify-content-center">	
 	      		  <span class="fa fa-user-o"></span>
 		      	</div> -->
@@ -111,34 +115,72 @@ if(isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
 </section>
 
  
- <!-- The Modal -->
- <div class="modal fade" id="myModal">
-     <div class="modal-dialog">
-
-
-       <div class="modal-content">
-         <!-- Modal Header -->
-         <div class="modal-header"> 
-           <h4 class="modal-title">Generar pedido</h4>
-           <button type="button" class="close" data-dismiss="modal">×</button>
-         </div>
-         <!-- Modal body -->
-         <div class="modal-body">
-          
-						<form action="datos_venta.php" class="login-form" method="post" target="_self" id="adminventas">
-                  <div class="form-group">
-									  <input type="number" class="form-control" placeholder="Documento cliente" id="billing_id" name="billing_id" value="" required>
-									</div>
-										<button class="btn btn-primary" type="submit" name="venta" id="venta">Continuar</button>
-					 		 </form>
+<!-- Modal para Generar Pedido -->
+<div class="modal fade" id="myModal" tabindex="-1" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title text-white" id="myModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>Generar Nuevo Pedido
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <form action="datos_venta.php" class="needs-validation" method="post" target="_self" id="adminventas" novalidate>
+                    <div class="mb-3">
+                        <label for="billing_id" class="form-label">
+                            <i class="fas fa-id-card me-2"></i>Documento del Cliente
+                        </label>
+                        <input type="number" 
+                               class="form-control form-control-lg" 
+                               placeholder="Ingrese el documento del cliente" 
+                               id="billing_id" 
+                               name="billing_id" 
+                               value="" 
+                               required>
+                        <div class="invalid-feedback">
+                            Por favor ingrese un documento válido.
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button class="btn btn-success btn-lg" type="submit" name="venta" id="venta">
+                            <i class="fas fa-arrow-right me-2"></i>Continuar con el Pedido
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+            </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
-        </div>
-      </div>
-      
     </div>
-  </div>
+</div>
+
+<script>
+// Validación de formulario Bootstrap 5
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+</script>
 
 
   </div> 
