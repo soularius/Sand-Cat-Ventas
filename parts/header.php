@@ -29,33 +29,5 @@
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/wizard-form.css">
     <link rel="stylesheet" href="assets/css/login.css">
-    
-    <!-- Additional styles for modern look -->
-    <style>
-        body {
-            font-family: 'Lato', sans-serif;
-            background-color: #f8f9fa;
-        }
-        .navbar-brand {
-            font-weight: 700;
-        }
-        .card {
-            border: none;
-            border-radius: 10px;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-        }
-        .btn {
-            border-radius: 6px;
-            font-weight: 500;
-        }
-        .heading-section {
-            color: #495057;
-            font-weight: 600;
-            margin-bottom: 2rem;
-        }
-        .container {
-            max-width: 1200px;
-        }
-    </style>
 </head>
 <body>

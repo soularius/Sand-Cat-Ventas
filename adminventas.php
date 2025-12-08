@@ -79,10 +79,8 @@ include("parts/header.php");
 <body>
     <div class="container">
         <?php include("parts/menf.php"); ?>
-        <section class=""><br />
-            <br />
-            <br />
-            <br />
+        <div class="py-5"></div>
+        <section class="">
             <div class="row justify-content-center">
                 <div class="col-md-6 text-center mb-5">
                     <h2 class="heading-section">Ventas Woocomerce</h2>

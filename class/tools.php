@@ -391,11 +391,9 @@ class Utils {
      * @return bool - True si al menos un campo existe
      */
     public static function hasAnyField($fields, $method = 'POST') {
-        $source = null;
-        switch (strtoupper($method)) {
-            case 'POST':
-                $source = $_POST;
-                break;
+        $source = [];
+        
+        switch(strtoupper($method)) {
             case 'GET':
                 $source = $_GET;
                 break;
@@ -408,16 +406,87 @@ class Utils {
             case 'COOKIE':
                 $source = $_COOKIE;
                 break;
+            case 'POST':
             default:
-                return false;
+                $source = $_POST;
+                break;
         }
-
-        foreach ($fields as $field) {
-            if (isset($source[$field])) {
+        
+        foreach($fields as $field) {
+            if(isset($source[$field])) {
                 return true;
             }
         }
+        
         return false;
+    }
+
+    /**
+     * Procesa un array de resultados de base de datos con estructura meta_key/meta_value
+     * y extrae los valores en un array asociativo
+     * 
+     * @param array $rows Array de filas de la base de datos
+     * @param array $keys Array de meta_keys a extraer
+     * @param string $keyColumn Nombre de la columna que contiene las claves (default: 'meta_key')
+     * @param string $valueColumn Nombre de la columna que contiene los valores (default: 'meta_value')
+     * @param array $processors Array asociativo de funciones de procesamiento por clave
+     * @return array Array asociativo con los valores extraídos
+     */
+    public static function processMetaData($rows, $keys = [], $keyColumn = 'meta_key', $valueColumn = 'meta_value', $processors = []) {
+        $result = [];
+        
+        // Inicializar todas las claves con valores vacíos
+        foreach($keys as $key) {
+            $result[$key] = '';
+        }
+        
+        // Procesar cada fila
+        foreach($rows as $row) {
+            if(!isset($row[$keyColumn]) || !isset($row[$valueColumn])) {
+                continue;
+            }
+            
+            $metaKey = $row[$keyColumn];
+            $metaValue = $row[$valueColumn];
+            
+            // Solo procesar si la clave está en la lista de claves deseadas (o si no se especificó lista)
+            if(empty($keys) || in_array($metaKey, $keys)) {
+                // Aplicar procesador específico si existe
+                if(isset($processors[$metaKey]) && is_callable($processors[$metaKey])) {
+                    $result[$metaKey] = $processors[$metaKey]($metaValue);
+                } else {
+                    $result[$metaKey] = $metaValue;
+                }
+            }
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Procesa datos meta desde un resultado de mysqli mientras itera
+     * 
+     * @param mysqli_result $result Resultado de mysqli
+     * @param array $keys Array de meta_keys a extraer
+     * @param string $keyColumn Nombre de la columna que contiene las claves
+     * @param string $valueColumn Nombre de la columna que contiene los valores
+     * @param array $processors Array asociativo de funciones de procesamiento por clave
+     * @return array Array asociativo con los valores extraídos
+     */
+    public static function processMetaFromResult($result, $keys = [], $keyColumn = 'meta_key', $valueColumn = 'meta_value', $processors = []) {
+        $rows = [];
+        
+        // Recopilar todas las filas
+        while($row = mysqli_fetch_assoc($result)) {
+            $rows[] = $row;
+        }
+        
+        // Resetear el puntero del resultado si es posible
+        if(mysqli_num_rows($result) > 0) {
+            mysqli_data_seek($result, 0);
+        }
+        
+        return self::processMetaData($rows, $keys, $keyColumn, $valueColumn, $processors);
     }
 }
 ?>

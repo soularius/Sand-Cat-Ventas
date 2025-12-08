@@ -434,9 +434,9 @@ include("parts/header.php");
 <body class="order-details-container">
     <div class="container">
         <?php include("parts/menf.php"); ?>
-        
-        <div class="row justify-content-center mt-4">
-            <div class="col-lg-8 col-md-10">
+        <div class="py-5"></div>
+        <section class="row justify-content-center mt-4">
+            <div class="col-12">
                 <!-- Order Header -->
                 <div class="order-card">
                     <div class="order-header">
@@ -447,106 +447,118 @@ include("parts/header.php");
                     </div>
                     
                     <div class="customer-info">
-                        <!-- Customer Information -->
-                        <?php if($_shipping_first_name || $_shipping_last_name): ?>
-                        <div class="info-section">
-                            <h5><i class="fas fa-user"></i>Información del Cliente</h5>
-                            <div class="info-row">
-                                <span class="info-label">Nombre Completo:</span>
-                                <span class="info-value"><?php echo strtoupper($_shipping_first_name)." ".strtoupper($_shipping_last_name); ?></span>
+                        <!-- Two Column Layout -->
+                        <div class="row">
+                            <!-- Left Column: Customer & Shipping Info -->
+                            <div class="col-lg-6 col-md-12">
+                                <!-- Customer Information -->
+                                <?php if($_shipping_first_name || $_shipping_last_name): ?>
+                                <div class="info-section">
+                                    <h5><i class="fas fa-user"></i>Información del Cliente</h5>
+                                    <div class="info-row">
+                                        <span class="info-label">Nombre Completo:</span>
+                                        <span class="info-value"><?php echo strtoupper($_shipping_first_name)." ".strtoupper($_shipping_last_name); ?></span>
+                                    </div>
+                                    <?php if($billing_id): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Documento:</span>
+                                        <span class="info-value"><?php echo $billing_id; ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if($_billing_email): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Email:</span>
+                                        <span class="info-value"><?php echo $_billing_email; ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if($_billing_phone): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Teléfono:</span>
+                                        <span class="info-value"><?php echo $_billing_phone; ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
-                            <?php if($billing_id): ?>
-                            <div class="info-row">
-                                <span class="info-label">Documento:</span>
-                                <span class="info-value"><?php echo $billing_id; ?></span>
+                            
+                            <!-- Right Column: Payment & Order Info -->
+                            <div class="col-lg-6 col-md-12">                                
+                                <!-- Shipping Information -->
+                                <?php if($_shipping_address_1 || $_shipping_city): ?>
+                                <div class="info-section">
+                                    <h5><i class="fas fa-map-marker-alt"></i>Dirección de Envío</h5>
+                                    <?php if($_shipping_address_1): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Dirección:</span>
+                                        <span class="info-value"><?php echo $_shipping_address_1." ".$_shipping_address_2." ".$_billing_neighborhood; ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if($_shipping_city): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Ciudad:</span>
+                                        <span class="info-value"><?php echo $_shipping_city." (".$_shipping_state.")"; ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
-                            <?php endif; ?>
-                            <?php if($_billing_email): ?>
-                            <div class="info-row">
-                                <span class="info-label">Email:</span>
-                                <span class="info-value"><?php echo $_billing_email; ?></span>
+                            
+                            <!-- Right Column: Payment & Order Info -->
+                            <div class="col-12">
+                                <!-- Payment Information -->
+                                <div class="info-section">
+                                    <h5><i class="fas fa-credit-card"></i>Información de Pago</h5>
+                                    <?php if($metodo): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Método de Pago:</span>
+                                        <span class="info-value"><?php echo $metodo; ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if(isset($row_obser['post_date']) && $row_obser['post_date']): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Fecha del Pedido:</span>
+                                        <span class="info-value"><?php echo date('d/m/Y H:i', strtotime($row_obser['post_date'])); ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Estado:</span>
+                                        <span class="info-value">
+                                            <span class="status-badge status-pending">Pendiente</span>
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Order Summary -->
+                                <?php if(Utils::captureValue('proceso', 'POST') && isset($vatotal)): ?>
+                                <div class="order-summary">
+                                    <h5><i class="fas fa-calculator me-2"></i>Resumen del Pedido</h5>
+                                    <?php 
+                                        $sindesc = $vatotal + $_cart_discount;
+                                    ?>
+                                    <div class="summary-row">
+                                        <span>Subtotal:</span>
+                                        <span>$<?php echo number_format($sindesc); ?></span>
+                                    </div>
+                                    <?php if($_cart_discount > 0): ?>
+                                    <div class="summary-row">
+                                        <span>Descuento:</span>
+                                        <span>-$<?php echo number_format($_cart_discount); ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <?php if($_order_shipping > 0): ?>
+                                    <div class="summary-row">
+                                        <span>Envío:</span>
+                                        <span>$<?php echo number_format($_order_shipping); ?></span>
+                                    </div>
+                                    <?php endif; ?>
+                                    <div class="summary-row total">
+                                        <span>Total:</span>
+                                        <span>$<?php echo number_format($sindesc - $_cart_discount + ($_order_shipping ?? 0)); ?></span>
+                                    </div>
+                                </div>
+                                <?php endif; ?>
                             </div>
-                            <?php endif; ?>
-                            <?php if($_billing_phone): ?>
-                            <div class="info-row">
-                                <span class="info-label">Teléfono:</span>
-                                <span class="info-value"><?php echo $_billing_phone; ?></span>
-                            </div>
-                            <?php endif; ?>
                         </div>
-                        <?php endif; ?>
-                        
-                        <!-- Shipping Information -->
-                        <?php if($_shipping_address_1 || $_shipping_city): ?>
-                        <div class="info-section">
-                            <h5><i class="fas fa-map-marker-alt"></i>Dirección de Envío</h5>
-                            <?php if($_shipping_address_1): ?>
-                            <div class="info-row">
-                                <span class="info-label">Dirección:</span>
-                                <span class="info-value"><?php echo $_shipping_address_1." ".$_shipping_address_2." ".$_billing_neighborhood; ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <?php if($_shipping_city): ?>
-                            <div class="info-row">
-                                <span class="info-label">Ciudad:</span>
-                                <span class="info-value"><?php echo $_shipping_city." (".$_shipping_state.")"; ?></span>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <!-- Payment Information -->
-                        <div class="info-section">
-                            <h5><i class="fas fa-credit-card"></i>Información de Pago</h5>
-                            <?php if($metodo): ?>
-                            <div class="info-row">
-                                <span class="info-label">Método de Pago:</span>
-                                <span class="info-value"><?php echo $metodo; ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <?php if(isset($row_obser['post_date']) && $row_obser['post_date']): ?>
-                            <div class="info-row">
-                                <span class="info-label">Fecha del Pedido:</span>
-                                <span class="info-value"><?php echo date('d/m/Y H:i', strtotime($row_obser['post_date'])); ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <div class="info-row">
-                                <span class="info-label">Estado:</span>
-                                <span class="info-value">
-                                    <span class="status-badge status-pending">Pendiente</span>
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <!-- Order Summary -->
-                        <?php if(Utils::captureValue('proceso', 'POST') && isset($vatotal)): ?>
-                        <div class="order-summary">
-                            <h5><i class="fas fa-calculator me-2"></i>Resumen del Pedido</h5>
-                            <?php 
-                                $sindesc = $vatotal + $_cart_discount;
-                            ?>
-                            <div class="summary-row">
-                                <span>Subtotal:</span>
-                                <span>$<?php echo number_format($sindesc); ?></span>
-                            </div>
-                            <?php if($_cart_discount > 0): ?>
-                            <div class="summary-row">
-                                <span>Descuento:</span>
-                                <span>-$<?php echo number_format($_cart_discount); ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <?php if($_order_shipping > 0): ?>
-                            <div class="summary-row">
-                                <span>Envío:</span>
-                                <span>$<?php echo number_format($_order_shipping); ?></span>
-                            </div>
-                            <?php endif; ?>
-                            <div class="summary-row total">
-                                <span>Total:</span>
-                                <span>$<?php echo number_format($sindesc - $_cart_discount + ($_order_shipping ?? 0)); ?></span>
-                            </div>
-                        </div>
-                        <?php endif; ?>
                     </div>
                 </div>
                 
@@ -575,7 +587,7 @@ include("parts/header.php");
                                 <form action="adminf.php" method="post" class="h-100">
                                     <input type="hidden" name="fin_pedido" value="<?php echo $elid; ?>">
                                     <button type="submit" class="btn btn-success btn-custom action-button w-100 d-flex align-items-center justify-content-center">
-                                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                                        <i class="fas fa-check-circle fa-2x mx-2"></i>
                                         <span>Finalizar Pedido</span>
                                     </button>
                                 </form>
@@ -587,7 +599,7 @@ include("parts/header.php");
                                 <form action="bproducto.php" method="post" class="h-100">
                                     <input type="hidden" name="_order_id" value="<?php echo $elid; ?>">
                                     <button type="submit" class="btn btn-primary btn-custom action-button w-100 d-flex align-items-center justify-content-center">
-                                        <i class="fas fa-plus-circle fa-2x mb-2"></i>
+                                        <i class="fas fa-plus-circle fa-2x mx-2"></i>
                                         <span>Agregar Producto</span>
                                     </button>
                                 </form>
@@ -600,7 +612,7 @@ include("parts/header.php");
                                     <input type="hidden" name="id_ventas" value="<?php echo $elid; ?>">
                                     <input type="hidden" name="cancela" value="si">
                                     <button type="submit" class="btn btn-danger btn-custom action-button w-100 d-flex align-items-center justify-content-center">
-                                        <i class="fas fa-times-circle fa-2x mb-2"></i>
+                                        <i class="fas fa-times-circle fa-2x mx-2"></i>
                                         <span>Cancelar Pedido</span>
                                     </button>
                                 </form>
@@ -658,7 +670,7 @@ include("parts/header.php");
                 <?php endif; ?>
                 
             </div>
-        </div>
+        </section>
         
         <?php include("parts/foot.php"); ?>
     </div>
