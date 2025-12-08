@@ -449,13 +449,11 @@ if (!empty($elid)) {
     $post_excerpt = '';
 }
 
-
-
 ?>
-<?php include("parst/header.php"); ?>
+<?php include("parts/header.php"); ?>
 <body>
     <div class="container">
-            <?php include("parst/menf.php"); ?>
+            <?php include("parts/menf.php"); ?>
         <section class=""><br />
             <br />
             <br />
@@ -549,7 +547,7 @@ if (!empty($elid)) {
                     </div>
 			    </div>
 	        </div>
-	                    <?php include("parst/foot.php"); ?>
+	                    <?php include("parts/foot.php"); ?>
     </section>
   </div>   
 </body>

@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-	<?php include("parst/foot.php"); ?>
+	<?php include("parts/foot.php"); ?>
 
 
 </body>

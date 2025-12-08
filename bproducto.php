@@ -41,10 +41,10 @@ if(isset($_POST['_order_id'])) {
 }
 
 ?>
-<?php include("parst/header.php"); ?>
+<?php include("parts/header.php"); ?>
 <body>
 <div class="container">
-  <?php include("parst/menf.php"); ?>
+  <?php include("parts/menf.php"); ?>
   <section class=""><br />
   <br />
   <br />
@@ -67,7 +67,7 @@ if(isset($_POST['_order_id'])) {
     </div>
 
 </div>
-	<?php include("parst/foot.php"); ?>
+	<?php include("parts/foot.php"); ?>
   
    <!-- The Modal -->
    <div class="modal fade" id="nuevoprod" role="dialog">

@@ -73,13 +73,14 @@ if(isset($_POST['billing_id'])) {
 }
 
 
+// 3. DESPUÉS: Cargar presentación
+include("parts/header.php");
 ?>
-<?php include("parst/header.php"); ?>
-<link rel="stylesheet" href="css/wizard-form.css">
+<link rel="stylesheet" href="assets/css/wizard-form.css">
 
 <body>
 <div class="container">
-<?php include("parst/menf.php"); ?>
+<?php include("parts/menf.php"); ?>
 <div class="wizard-container"></div>
 <section class="py-5">
     <div class="container">
@@ -249,7 +250,7 @@ if(isset($_POST['billing_id'])) {
         </form>
     </div>
 </section>
-<?php include("parst/foot.php"); ?>
+<?php include("parts/foot.php"); ?>
 </div>
 </body>
 </html>

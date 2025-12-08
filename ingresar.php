@@ -65,7 +65,7 @@ $ellogin = '';
 $ellogin = $row_usuario['documento'];
 
 ?>
-<?php include("parst/header.php"); ?>
+<?php include("parts/header.php"); ?>
 <?php if(!empty($ellogin)) { 
 	if($row_usuario['rol']=="v") {
 		$permiso = "venta.php"; } 

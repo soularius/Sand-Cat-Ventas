@@ -96,10 +96,10 @@ if(isset($_POST['id_ventas'])) {
 
 
 ?>
-<?php include("parst/header.php"); ?>
+<?php include("parts/header.php"); ?>
 <body>
 <div class="container">
-<?php include("parst/men.php"); ?>
+<?php include("parts/men.php"); ?>
 <section class=""><br />
 <br />
 <br />
@@ -166,7 +166,7 @@ if(isset($_POST['id_ventas'])) {
 	        </div>
 			  </div>
 	        </div>
-	<?php include("parst/foot.php"); ?>
+	<?php include("parts/foot.php"); ?>
 </section>
   </div>
     

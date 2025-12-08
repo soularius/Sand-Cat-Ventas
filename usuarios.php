@@ -135,10 +135,10 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 }
 
 ?>
-<?php include("parst/header.php"); ?>
+<?php include("parts/header.php"); ?>
 <body style="padding-top: 70px">
 <div class="container">
-<?php include("parst/men.php"); ?><br />
+<?php include("parts/men.php"); ?><br />
 <br />
   <h2>Usuarios del sistema <a class="btn btn-default" href="#" title="Agregar" data-toggle="modal" data-target="#creausu"><i class="fa fa-plus-circle fa-lg"></i></a></h2>
 <div class="tab-content">
@@ -193,7 +193,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 	  <?php } ?>
 </div>
 </div>
-	<?php include("parst/foot.php"); ?>
+	<?php include("parts/foot.php"); ?>
 
 	
 <!-- Modal -->

@@ -86,7 +86,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 }
 
 ?>
-<?php include("parst/header.php"); ?>
+<?php include("parts/header.php"); ?>
 <body>
 
 <div class="container">
@@ -147,7 +147,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 	        </div>
   </div>
   </div>
-	<?php include("parst/foot.php"); ?>
+	<?php include("parts/foot.php"); ?>
 </section>
   </div>
     
