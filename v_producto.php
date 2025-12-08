@@ -199,7 +199,7 @@ $totalRows_articulos = mysqli_num_rows($articulos);
 
 
 ?>
-<?php include("header.php"); ?>
+<?php include("parst/header.php"); ?>
 <script LANGUAGE="JavaScript">
 
 var cuenta=0;
@@ -327,7 +327,7 @@ return false;
 	        </div>
 			  </div>
 	        </div>
-	<?php include("foot.php"); ?>
+	<?php include("parst/foot.php"); ?>
 </section>
   </div>
     

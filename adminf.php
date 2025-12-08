@@ -1,6 +1,6 @@
 <?php
 // Cargar configuración desde archivo .env
-require_once('config.php');
+require_once('class/config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -145,10 +145,10 @@ if(!empty($facturas_ids)) {
 $row_pendientesf = mysqli_fetch_assoc($pendientesf);
 $totalRows_pendientesf = mysqli_num_rows($pendientesf);
 ?>
-<?php include("header.php"); ?>
+<?php include("parts/header.php"); ?>
 <body style="padding-top: 70px">
 <div class="container">
-<?php include("menf.php"); ?><br />
+<?php include("parts/menf.php"); ?><br />
 <br />
   <h2>Ventas Woocommerce</h2>
 	<ul class="nav nav-tabs">
@@ -247,7 +247,7 @@ $totalRows_pendientesf = mysqli_num_rows($pendientesf);
   <div class="tab-pane container fade" id="menu2">...</div>
 </div>
 </div>
-	<?php include("foot.php"); ?>
+	<?php include("parts/foot.php"); ?>
     
 <script src="js/jquery-3.4.1.min.js" type="text/javascript"></script>
 <script src="js/popper.min.js" type="text/javascript"></script>

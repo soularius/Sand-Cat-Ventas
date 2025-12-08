@@ -3,7 +3,7 @@
 //ini_set('display_startup_errors', 1);
 //error_reporting(E_ALL);
 // Cargar configuración desde archivo .env
-require_once('config.php');
+require_once('class/config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -77,12 +77,12 @@ if(isset($_POST['billing_id'])) {
 
 
 ?>
-<?php include("header.php"); ?>
+<?php include("parst/header.php"); ?>
 <link rel="stylesheet" href="css/wizard-form.css">
 
 <body>
 <div class="container">
-<?php include("menf.php"); ?>
+<?php include("parst/menf.php"); ?>
 <div class="wizard-container"></div>
 <section class="py-5">
     <div class="container">
@@ -252,7 +252,7 @@ if(isset($_POST['billing_id'])) {
         </form>
     </div>
 </section>
-<?php include("foot.php"); ?>
+<?php include("parst/foot.php"); ?>
 </div>
 </body>
 </html>

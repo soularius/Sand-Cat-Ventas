@@ -125,7 +125,7 @@ if(isset($_POST['id_ventas']) && isset($_POST['id_articulos']) && isset($_POST['
 }
 
 ?>
-<?php include("header.php"); ?>
+<?php include("parst/header.php"); ?>
 <body>
 <div class="container">
   <div class="row">
@@ -182,7 +182,7 @@ if(isset($_POST['id_ventas']) && isset($_POST['id_articulos']) && isset($_POST['
 	        </div>
   </div>
   </div>
-	<?php include("foot.php"); ?>
+	<?php include("parst/foot.php"); ?>
 </section>
   </div>
     

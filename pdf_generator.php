@@ -241,7 +241,7 @@ function generarPDFFactura($datos, $output_mode = 'I', $filename = null) {
     $html = generarHTMLFactura($datos);
     
     // Crear PDF
-    require_once __DIR__ . '/mpdf_config.php';
+    require_once('class/config.php');
     $mpdf = createMpdfInstance();
     
     $mpdf->AliasNbPages('{PageTotal}');

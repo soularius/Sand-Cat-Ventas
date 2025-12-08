@@ -1,6 +1,6 @@
 <?php
 // Cargar configuración desde archivo .env
-require_once('config.php');
+require_once('class/config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -45,10 +45,10 @@ if(isset($_POST['_order_id'])) {
 }
 
 ?>
-<?php include("header.php"); ?>
+<?php include("parst/header.php"); ?>
 <body>
 <div class="container">
-  <?php include("menf.php"); ?>
+  <?php include("parst/menf.php"); ?>
   <section class=""><br />
   <br />
   <br />
@@ -71,7 +71,7 @@ if(isset($_POST['_order_id'])) {
     </div>
 
 </div>
-	<?php include("foot.php"); ?>
+	<?php include("parst/foot.php"); ?>
   
    <!-- The Modal -->
    <div class="modal fade" id="nuevoprod" role="dialog">

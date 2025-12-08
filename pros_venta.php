@@ -3,7 +3,7 @@
 // ini_set('display_startup_errors', 1);
 // error_reporting(E_ALL);
 // Cargar configuración desde archivo .env
-require_once('config.php');
+require_once('class/config.php');
 
 if (!isset($_SESSION)) {
   session_start();
@@ -452,10 +452,10 @@ if (!empty($elid)) {
 
 
 ?>
-<?php include("header.php"); ?>
+<?php include("parst/header.php"); ?>
 <body>
     <div class="container">
-            <?php include("menf.php"); ?>
+            <?php include("parst/menf.php"); ?>
         <section class=""><br />
             <br />
             <br />
@@ -549,7 +549,7 @@ if (!empty($elid)) {
                     </div>
 			    </div>
 	        </div>
-	                    <?php include("foot.php"); ?>
+	                    <?php include("parst/foot.php"); ?>
     </section>
   </div>   
 </body>

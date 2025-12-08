@@ -1,6 +1,6 @@
 <?php
 // Cargar configuración desde archivo .env
-require_once('config.php');
+require_once('class/config.php');
 if (!isset($_SESSION)) {
   session_start();
 }

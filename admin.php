@@ -2,12 +2,12 @@
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
-require_once('config.php');
-require_once('woocommerce_orders.php'); 
 
-if (!isset($_SESSION)) {
-  session_start();
-}
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
+
+// 2. Cargar clases específicas
+require_once('class/woocommerce_orders.php');
 $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
@@ -209,10 +209,10 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 }
 
 ?>
-<?php include("header.php"); ?>
+<?php include("parts/header.php"); ?>
 <body style="padding-top: 70px">
 <div class="container">
-<?php include("men.php"); ?><br />
+<?php include("parts/men.php"); ?><br />
 <br />
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -689,7 +689,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php include("foot.php"); ?>
+<?php include("parts/foot.php"); ?>
 
 </body>
 </html>

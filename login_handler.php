@@ -2,15 +2,9 @@
 /**
  * Login Handler - Lógica común de autenticación
  * Este archivo contiene la lógica de login que se puede reutilizar en múltiples páginas
+ * 
+ * NOTA: Este archivo asume que el autoloader ya fue cargado desde el archivo principal
  */
-
-// Asegurar que config.php esté incluido
-if (!isset($sandycat)) {
-    require_once('config.php');
-}
-
-// Incluir tools.php que contiene isLoggedIn() y otras funciones útiles
-require_once('tools.php');
 
 // Asegurar que la sesión esté iniciada
 if (!isset($_SESSION)) {

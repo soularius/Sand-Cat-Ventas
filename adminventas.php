@@ -3,9 +3,13 @@
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
 
-// Incluir el sistema de login dinámico
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
+
+// 2. Incluir el sistema de login dinámico
 require_once('login_handler.php');
 
+// 3. Lógica de autenticación y procesamiento
 // Requerir autenticación - redirige a index.php si no está logueado
 requireLogin('index.php');
 
@@ -67,8 +71,9 @@ if (isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
     } while ($row_vcancel = mysqli_fetch_assoc($vcancel));
 }
 
+// 4. DESPUÉS: Cargar presentación
+include("parts/header.php");
 ?>
-<?php include("header.php"); ?>
 <style>
     .user-info {
         background: rgba(255, 255, 255, 0.1);
@@ -103,7 +108,7 @@ if (isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
 
 <body>
     <div class="container">
-        <?php include("menf.php"); ?>
+        <?php include("parts/menf.php"); ?>
         <section class=""><br />
             <br />
             <br />
@@ -131,7 +136,7 @@ if (isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
                     </div>
                 </div>
             </div>
-            <?php include("foot.php"); ?>
+            <?php include("parts/foot.php"); ?>
         </section>
 
 

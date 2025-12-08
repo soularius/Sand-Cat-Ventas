@@ -1,5 +1,5 @@
 <?php
-require_once('config.php');
+require_once('class/config.php');
 require_once('pdf_generator.php');
 
 if (!isset($_SESSION)) {

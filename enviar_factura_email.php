@@ -4,7 +4,7 @@
  */
 
 // Cargar configuración
-require_once __DIR__ . '/config.php';
+require_once('class/config.php');
 require_once __DIR__ . '/pdf_generator.php';
 require_once __DIR__ . '/vendor/autoload.php';
 

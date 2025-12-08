@@ -4,7 +4,7 @@
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
 // Cargar configuración desde archivo .env
-require_once('config.php');
+require_once('class/config.php');
 
 /* if(isset($_POST['id_ventas']) && isset($_POST['valor'])) { */
 if(isset($_POST['id_ventas'])) {

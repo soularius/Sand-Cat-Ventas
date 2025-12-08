@@ -26,9 +26,9 @@
             integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/wizard-form.css">
-    <link rel="stylesheet" href="css/login.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/wizard-form.css">
+    <link rel="stylesheet" href="assets/css/login.css">
     
     <!-- Additional styles for modern look -->
     <style>

@@ -74,7 +74,7 @@ if (isLoggedIn()) {
 // Procesar login
 processLogin("dashboard.php");
 ?>
-<?php include("header.php"); ?>
+<?php include("parts/header.php"); ?>
 <body>
 <?php renderLoginForm(isset($_GET['error'])); ?>
 <?php include("footer.php"); ?>

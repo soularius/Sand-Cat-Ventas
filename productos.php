@@ -2,12 +2,16 @@
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
-require_once('conectar.php');
-require_once('woocommerce_products.php'); 
 
-if (!isset($_SESSION)) {
-  session_start();
-}
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
+
+// 2. Establecer codificación UTF-8
+header('Content-Type: text/html; charset=utf-8');
+mysqli_set_charset($sandycat, "utf8mb4");
+
+// 3. Cargar clases específicas
+require_once('class/woocommerce_products.php');
 $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
@@ -29,10 +33,15 @@ if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
-$query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario'");
+$query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
 $usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
+
+// Crear variable compatible para el menú
+if (!isset($row_usuario['nombre']) && isset($row_usuario['elnombre'])) {
+    $row_usuario['nombre'] = $row_usuario['elnombre'];
+}
 
 if(isset($_POST['id_articulos']) && isset($_POST['m_producto'])) {
 	$_POST['id_articulos'];
@@ -102,11 +111,12 @@ $categorias_woo = $wooProducts->getProductCategories();
 $totalRows_articulos = count($productos_woo);
 
 $ellogin = '';
-$ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
-$id_usuarios = isset($row_usuario['id_usuarios']) ? $row_usuario['id_usuarios'] : 0;
+$ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
+$id_usuarios = isset($row_usuario['id']) ? $row_usuario['id'] : 0;
+$hoy = date("Y-m-d");
 
 
-if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
+if(isset($_POST['iniciando']) && $_POST['iniciando'] == "si") {
 	$_POST['doc_cliente'];
 	$_POST['nom_cliente'];
 	$doc_cliente = $_POST['doc_cliente'];
@@ -120,11 +130,12 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
     header("Location: $elnuevo");
 }
 
+// 4. DESPUÉS: Cargar presentación
+include("parts/header.php");
 ?>
-<?php include("header.php"); ?>
 <body style="padding-top: 70px">
 <div class="container">
-<?php include("men.php"); ?><br />
+<?php include("parts/men.php"); ?><br />
 <br />
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-box me-2"></i>Productos WooCommerce</h2>
@@ -372,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-	<?php include("foot.php"); ?>
+	<?php include("parst/foot.php"); ?>
 
 
 </body>
