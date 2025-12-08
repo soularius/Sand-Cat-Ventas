@@ -7,7 +7,7 @@ error_reporting(E_ALL); */
 require_once('class/autoload.php');
 
 // 2. Incluir el sistema de login dinámico
-require_once('login_handler.php');
+require_once('parts/login_handler.php');
 
 // 3. Lógica de autenticación y procesamiento
 // Requerir autenticación - redirige a index.php si no está logueado
@@ -127,10 +127,10 @@ include("parts/header.php");
             <div class="row justify-content-center" style="margin-top: -30px">
                 <div class="col-md-7 col-lg-5">
                     <div class="login-wrap p-4 p-md-5 justify-content-center">
-                        <a href="adminf.php" class="btn btn-primary w-100 mb-3" role="button">
+                        <a href="adminf.php" class="btn btn-primary btn-custom w-100 mb-3" role="button">
                             <i class="fas fa-file-invoice me-2"></i>FACTURAR
                         </a>
-                        <button type="button" class="btn btn-secondary w-100" data-bs-toggle="modal" data-bs-target="#myModal">
+                        <button type="button" class="btn btn-secondary btn-custom w-100" data-bs-toggle="modal" data-bs-target="#myModal">
                             <i class="fas fa-plus-circle me-2"></i>GENERAR PEDIDO
                         </button>
                     </div>

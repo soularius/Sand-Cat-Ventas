@@ -6,6 +6,7 @@
   --primary-04-color: #276234b2;
 
   --accent-color: #E85F81;
+  --accent-0015-color: #E85F8135;
   --cuertar-color: #981535;
   --cuertar-0015-color: #9815365d;
 
@@ -24,45 +25,62 @@
   --btn-secundary-hover-border-color: var(--primary-color);
 }
 
-
-.btn.btn-primary {
-  background: var(--primary-color);
-  border: 1px solid var(--primary-color);
-  color: #fff;
-  border-radius: 30px;
+/* Enhanced Form Controls */
+.form-control {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    padding: 12px 15px;
+    transition: all 0.3s ease;
 }
 
-.btn.btn-secondary {
-  background: var(--cuertar-color);
-  border: 1px solid var(--cuertar-color);
-  color: #fff;
-  border-radius: 30px;
+/* Custom Buttons */
+.btn-custom {
+    border-radius: 25px;
+    padding: 12px 30px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
 }
 
-.btn-check:checked + .btn,
-.btn.active,
-.btn.show,
-.btn:first-child:active,
-:not(.btn-check) + .btn:active {
-  color: var(--btn-active-color);
-  background-color: var(--btn-active-bg);
-  border-color: var(--btn-active-border-color);
+.btn-primary.btn-custom {
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    border: none;
 }
 
-.btn.btn-primary:hover {
-  color: var(--btn-hover-color);
-  background-color: var(--btn-hover-bg);
-  border-color: var(--btn-hover-border-color);
-  box-shadow: 0 8px 25px var(--primary-0015-color);
-  transform: translateY(-2px);
+.btn-primary.btn-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px var(--primary-0015-color);
 }
 
-.btn.btn-secondary:hover {
-  color: var(--btn-hover-color);
-  background-color: var(--btn-secundary-hover-bg);
-  border-color: var(--btn-secundary-hover-border-color);
-  box-shadow: 0 8px 25px var(--cuertar-0015-color);
-  transform: translateY(-2px);
+.btn-secondary.btn-custom {
+    background: linear-gradient(45deg, var(--cuertar-color), var(--accent-color));
+    border: none;
+}
+
+.btn-secondary.btn-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px var(--accent-0015-color);
+}
+
+.btn-danger.btn-custom {
+    background: linear-gradient(45deg, var(--accent-color), var(--cuertar-color));
+    border: none;
+}
+
+.btn-danger.btn-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px var(--cuertar-0015-color);
+}
+
+
+.text-primary {
+  color: var(--primary-color) !important;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-0015-color);
 }
 
 .login-card::before {
@@ -73,6 +91,16 @@
   background: linear-gradient(135deg, var(--cuertar-color), var(--tertiary-color));
 }
 
+a.a-custom {
+  color: var(--accent-color);
+  text-decoration: none;
+  animation: underline 0.3s ease-in-out;
+}
+
+a.a-custom:hover {
+  color: var(--accent-color);
+  text-shadow: 0 0 0.2rem var(--cuertar-0015-color);
+}
 
 .navbar-nav .nav-link {
   transition: all 0.3s ease;

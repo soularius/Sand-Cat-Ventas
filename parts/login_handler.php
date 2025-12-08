@@ -167,7 +167,7 @@ function renderLoginForm($show_error = false, $button_text = "Ingresar al Sistem
                                     <label for="clave">Contraseña</label>
                                 </div>
                                 
-                                <button type="submit" class="btn btn-primary btn-login">
+                                <button type="submit" class="btn btn-primary btn-custom btn-login">
                                     <i class="fas fa-sign-in-alt"></i> <?php echo $button_text; ?>
                                 </button>
                                 

@@ -37,12 +37,12 @@
 }
 
 .step-wizard .step.active {
-    background: #007bff;
+    background: var(--accent-color);
     color: white;
 }
 
 .step-wizard .step.completed {
-    background: #28a745;
+    background: var(--cuertar-color);
     color: white;
 }
 
@@ -60,11 +60,11 @@
 }
 
 .step-wizard .step.active::after {
-    border-left-color: #007bff;
+    border-left-color: var(--accent-color);
 }
 
 .step-wizard .step.completed::after {
-    border-left-color: #28a745;
+    border-left-color: var(--cuertar-color);
 }
 
 .step-wizard .step:last-child::after {
@@ -78,11 +78,11 @@
     padding: 25px;
     margin-bottom: 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    border-left: 4px solid #007bff;
+    border-left: 4px solid var(--primary-color);
 }
 
 .form-section h5 {
-    color: #007bff;
+    color: var(--primary-color);
     margin-bottom: 20px;
     font-weight: 600;
     display: flex;
@@ -92,49 +92,6 @@
 .form-section h5 i {
     margin-right: 10px;
     font-size: 1.2em;
-}
-
-/* Enhanced Form Controls */
-.form-control {
-    border-radius: 8px;
-    border: 1px solid #dee2e6;
-    padding: 12px 15px;
-    transition: all 0.3s ease;
-}
-
-.form-control:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-}
-
-/* Custom Buttons */
-.btn-custom {
-    border-radius: 25px;
-    padding: 12px 30px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    transition: all 0.3s ease;
-}
-
-.btn-primary.btn-custom {
-    background: linear-gradient(45deg, #007bff, #0056b3);
-    border: none;
-}
-
-.btn-primary.btn-custom:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,123,255,0.4);
-}
-
-.btn-danger.btn-custom {
-    background: linear-gradient(45deg, #dc3545, #c82333);
-    border: none;
-}
-
-.btn-danger.btn-custom:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(220,53,69,0.4);
 }
 
 /* Responsive Design */
@@ -170,7 +127,7 @@
 }
 
 .section-title {
-    color: #007bff;
+    color: var(--primary-color);
     font-weight: 600;
     margin-bottom: 15px;
 }
@@ -186,7 +143,7 @@
 }
 
 .form-control.is-valid {
-    border-color: #28a745;
+    border-color: var(--primary-color);
 }
 
 .invalid-feedback {
@@ -198,7 +155,7 @@
 
 .valid-feedback {
     display: block;
-    color: #28a745;
+    color: var(--primary-color);
     font-size: 0.875em;
     margin-top: 5px;
 }
