@@ -13,11 +13,10 @@ require_once('parts/login_handler.php');
 // Requerir autenticación - redirige a index.php si no está logueado
 requireLogin('index.php');
 
-$MM_authorizedUsers = "a,v";
-$MM_donotCheckaccess = "false";
-$colname_usuario = '';
-if (isset($_SESSION['MM_Username'])) {
-    $colname_usuario = mysqli_real_escape_string($sandycat, $_SESSION['MM_Username']);
+// Obtener datos del usuario actual
+$colname_usuario = Utils::captureValue('MM_Username', 'SESSION', '');
+if ($colname_usuario) {
+    $colname_usuario = mysqli_real_escape_string($sandycat, $colname_usuario);
 }
 
 $query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
@@ -25,9 +24,8 @@ $usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
-$ellogin = '';
-$ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
-$id_usuarios = isset($row_usuario['id_ingreso']) ? $row_usuario['id_ingreso'] : 0;
+$ellogin = $row_usuario['elnombre'] ?? '';
+$id_usuarios = $row_usuario['id_ingreso'] ?? 0;
 
 // Crear variable compatible para el menú
 if (!isset($row_usuario['nombre']) && isset($row_usuario['elnombre'])) {
@@ -37,11 +35,12 @@ $hoy = date("Y-m-d");
 
 
 
-if (isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
-    $_POST['id_ventas'];
-    $_POST['num'];
-    $venta = $_POST['id_ventas'];
-    $factu = $_POST['num'];
+// Verificar si se está procesando una cancelación de venta
+if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
+    // Capturar datos de cancelación usando función optimizada
+    $cancelData = Utils::capturePostData(['id_ventas', 'num']);
+    $venta = $cancelData['id_ventas'];
+    $factu = $cancelData['num'];
     $query = "UPDATE miau_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
     mysqli_query($miau, $query);
     $query = "UPDATE miau_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$venta'";

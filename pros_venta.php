@@ -2,35 +2,21 @@
 // ini_set('display_errors', 1);
 // ini_set('display_startup_errors', 1);
 // error_reporting(E_ALL);
-// Cargar configuración desde archivo .env
-require_once('class/config.php');
 
-if (!isset($_SESSION)) {
-  session_start();
-}
-$MM_authorizedUsers = "a,v";
-$MM_donotCheckaccess = "false";
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
 
-// *** Restrict Access To Page: Grant or deny access to this page
-// La función isAuthorized() ahora está disponible desde tools.php
+// 2. Incluir el manejador de login común
+require_once('parts/login_handler.php');
 
+// 3. Lógica de autenticación y procesamiento
+// Requerir autenticación - redirige a index.php si no está logueado
+requireLogin("index.php");
 
-
-$MM_restrictGoTo = "http://localhost/ventas";
-
-
-if (!((isset($_SESSION['MM_Username'])))) { 
-  $MM_qsChar = "?";
-  $MM_referrer = $_SERVER['PHP_SELF'];
-  if (strpos($MM_restrictGoTo, "?")) $MM_qsChar = "&";
-  if (isset($QUERY_STRING) && strlen($QUERY_STRING) > 0) 
-  $MM_referrer .= "?" . $QUERY_STRING;
-  $MM_restrictGoTo = $MM_restrictGoTo. $MM_qsChar . "accesscheck=" . urlencode($MM_referrer);
-  header("Location: ". $MM_restrictGoTo); 
-  exit;
-}
+// Obtener datos del usuario actual
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
-$colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
+    $colname_usuario = mysqli_real_escape_string($sandycat, $_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
@@ -40,59 +26,46 @@ $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
 $ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
+
+// Crear variable compatible para el menú
+if (!isset($row_usuario['nombre']) && isset($row_usuario['elnombre'])) {
+    $row_usuario['nombre'] = $row_usuario['elnombre'];
+}
 $id_usuarios = isset($row_usuario['id_ingreso']) ? $row_usuario['id_ingreso'] : 0;
 $hoy = date("Y-m-d");
 
 
 
-if(isset($_POST['nombre1'])) {
-    $_shipping_first_name = $_POST['nombre1'];
-    $metodo = $_POST['_payment_method_title'];
-}
+// Capturar datos del formulario usando la nueva función optimizada
+$formFields = [
+    'nombre1', 'nombre2', 'billing_id', '_billing_email', '_billing_phone',
+    '_shipping_address_1', '_shipping_address_2', '_billing_neighborhood',
+    '_shipping_city', '_shipping_state', 'post_expcerpt', '_order_shipping',
+    '_cart_discount', '_payment_method_title'
+];
 
-if(isset($_POST['_payment_method_title'])) {
-    $_payment_method_title = $_POST['_payment_method_title'];
-}
-if(isset($_POST['nombre2'])) {
-    $_shipping_last_name = $_POST['nombre2'];
-}
-if(isset($_POST['billing_id'])) {
-    $billing_id = $_POST['billing_id'];
-}
-if(isset($_POST['_billing_email'])) {
-    $_billing_email = $_POST['_billing_email'];
-}
-if(isset($_POST['_billing_phone'])) {
-    $_billing_phone = $_POST['_billing_phone'];
-}
-if(isset($_POST['_shipping_address_1'])) {
-    $_shipping_address_1 = $_POST['_shipping_address_1'];
-}
-if(isset($_POST['_shipping_address_2'])) {
-    $_shipping_address_2 = $_POST['_shipping_address_2'];
-}
-if(isset($_POST['_billing_neighborhood'])) {
-    $_billing_neighborhood = $_POST['_billing_neighborhood'];
-}
-if(isset($_POST['_shipping_city'])) {
-    $_shipping_city = $_POST['_shipping_city'];
-}
-if(isset($_POST['_shipping_state'])) {
-    $_shipping_state = $_POST['_shipping_state'];
-}
-if(isset($_POST['post_expcerpt'])) {
-    $post_expcerpt = $_POST['post_expcerpt'];
-}
-if(isset($_POST['_order_shipping'])) {
-    $_order_shipping = $_POST['_order_shipping'];
-}
-if(isset($_POST['_cart_discount'])) {
-    $_cart_discount = $_POST['_cart_discount'];
-}
+$formData = Utils::capturePostData($formFields);
+
+// Asignar variables para compatibilidad con código existente
+$_shipping_first_name = $formData['nombre1'];
+$_shipping_last_name = $formData['nombre2'];
+$billing_id = $formData['billing_id'];
+$_billing_email = $formData['_billing_email'];
+$_billing_phone = $formData['_billing_phone'];
+$_shipping_address_1 = $formData['_shipping_address_1'];
+$_shipping_address_2 = $formData['_shipping_address_2'];
+$_billing_neighborhood = $formData['_billing_neighborhood'];
+$_shipping_city = $formData['_shipping_city'];
+$_shipping_state = $formData['_shipping_state'];
+$post_expcerpt = $formData['post_expcerpt'];
+$_order_shipping = $formData['_order_shipping'];
+$_cart_discount = $formData['_cart_discount'];
+$_payment_method_title = $formData['_payment_method_title'];
+$metodo = $formData['_payment_method_title'];
 date_default_timezone_set('America/Bogota');
 $hoy = date('Y-m-d H:i:s');
 
-if(isset($_POST['nombre1'])) {
+if(Utils::captureValue('nombre1', 'POST')) {
     
 	$query = "INSERT INTO miau_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_excerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
 	mysqli_query($miau, $query);
@@ -268,11 +241,15 @@ if(isset($_POST['nombre1'])) {
 
 }
 
-if(isset($_POST['proceso'])) {
-    $elid = $_POST['order_id'];
-    $product_id = $_POST['product_id'];
-    $product_qty = $_POST['product_qty'];
-    $order_item_name = $_POST['order_idbn'];
+if(Utils::captureValue('proceso', 'POST')) {
+    // Capturar datos del proceso usando la función optimizada
+    $processFields = ['order_id', 'product_id', 'product_qty', 'order_idbn'];
+    $processData = Utils::capturePostData($processFields);
+    
+    $elid = $processData['order_id'];
+    $product_id = $processData['product_id'];
+    $product_qty = $processData['product_qty'];
+    $order_item_name = $processData['order_idbn'];
     
     $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$elid'");
 	$lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
@@ -449,8 +426,9 @@ if (!empty($elid)) {
     $post_excerpt = '';
 }
 
+// 3. DESPUÉS: Cargar presentación
+include("parts/header.php");
 ?>
-<?php include("parts/header.php"); ?>
 <body>
     <div class="container">
             <?php include("parts/menf.php"); ?>
@@ -484,7 +462,7 @@ if (!empty($elid)) {
 							<?php echo "Teléfono: ".$_billing_phone; ?><br />
 							<?php echo "Email: ".$_billing_email; ?><br />
 							<?php   ?>
-                            <?php if(isset($_POST['proceso'])) {
+                            <?php if(Utils::captureValue('proceso', 'POST')) {
 							    $sindesc = $vatotal + $_cart_discount;
                                 echo "Subtotal: ".number_format($sindesc)."<br />Descuento: ".number_format($_cart_discount)."<br />Total: ".number_format($sindesc - $_cart_discount)."<br />";
                                  }  ?>

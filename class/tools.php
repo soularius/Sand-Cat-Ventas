@@ -241,5 +241,183 @@ class Utils {
             }
         }
     }
+
+    /**
+     * Capturar múltiples valores de POST con validación isset
+     * @param array $fields - Array de campos a capturar
+     * @param bool $sanitize - Si aplicar sanitización básica
+     * @return array - Array asociativo con los valores capturados
+     */
+    public static function capturePostData($fields, $sanitize = true) {
+        $data = [];
+        foreach ($fields as $field) {
+            if (isset($_POST[$field])) {
+                $value = $_POST[$field];
+                if ($sanitize) {
+                    $value = self::sanitizeInput($value);
+                }
+                $data[$field] = $value;
+            } else {
+                $data[$field] = null;
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Capturar múltiples valores de GET con validación isset
+     * @param array $fields - Array de campos a capturar
+     * @param bool $sanitize - Si aplicar sanitización básica
+     * @return array - Array asociativo con los valores capturados
+     */
+    public static function captureGetData($fields, $sanitize = true) {
+        $data = [];
+        foreach ($fields as $field) {
+            if (isset($_GET[$field])) {
+                $value = $_GET[$field];
+                if ($sanitize) {
+                    $value = self::sanitizeInput($value);
+                }
+                $data[$field] = $value;
+            } else {
+                $data[$field] = null;
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Capturar valores de REQUEST (POST o GET) con validación isset
+     * @param array $fields - Array de campos a capturar
+     * @param bool $sanitize - Si aplicar sanitización básica
+     * @return array - Array asociativo con los valores capturados
+     */
+    public static function captureRequestData($fields, $sanitize = true) {
+        $data = [];
+        foreach ($fields as $field) {
+            if (isset($_REQUEST[$field])) {
+                $value = $_REQUEST[$field];
+                if ($sanitize) {
+                    $value = self::sanitizeInput($value);
+                }
+                $data[$field] = $value;
+            } else {
+                $data[$field] = null;
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Capturar un solo valor con validación isset y valor por defecto
+     * @param string $field - Campo a capturar
+     * @param string $method - Método: 'POST', 'GET', o 'REQUEST'
+     * @param mixed $default - Valor por defecto si no existe
+     * @param bool $sanitize - Si aplicar sanitización básica
+     * @return mixed - Valor capturado o valor por defecto
+     */
+    public static function captureValue($field, $method = 'POST', $default = null, $sanitize = true) {
+        $source = null;
+        switch (strtoupper($method)) {
+            case 'POST':
+                $source = $_POST;
+                break;
+            case 'GET':
+                $source = $_GET;
+                break;
+            case 'REQUEST':
+                $source = $_REQUEST;
+                break;
+            case 'SESSION':
+                $source = $_SESSION;
+                break;
+            case 'COOKIE':
+                $source = $_COOKIE;
+                break;
+            default:
+                return $default;
+        }
+
+        if (isset($source[$field])) {
+            $value = $source[$field];
+            if ($sanitize) {
+                $value = self::sanitizeInput($value);
+            }
+            return $value;
+        }
+        return $default;
+    }
+
+    /**
+     * Verificar si existen múltiples campos en POST
+     * @param array $fields - Array de campos a verificar
+     * @return bool - True si todos los campos existen
+     */
+    public static function hasPostFields($fields) {
+        foreach ($fields as $field) {
+            if (!isset($_POST[$field])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Capturar múltiples valores de SESSION con validación isset
+     * @param array $fields - Array de campos a capturar
+     * @param bool $sanitize - Si aplicar sanitización básica
+     * @return array - Array asociativo con los valores capturados
+     */
+    public static function captureSessionData($fields, $sanitize = true) {
+        $data = [];
+        foreach ($fields as $field) {
+            if (isset($_SESSION[$field])) {
+                $value = $_SESSION[$field];
+                if ($sanitize) {
+                    $value = self::sanitizeInput($value);
+                }
+                $data[$field] = $value;
+            } else {
+                $data[$field] = null;
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Verificar si existe al menos uno de los campos especificados
+     * @param array $fields - Array de campos a verificar
+     * @param string $method - Método: 'POST', 'GET', 'REQUEST', 'SESSION'
+     * @return bool - True si al menos un campo existe
+     */
+    public static function hasAnyField($fields, $method = 'POST') {
+        $source = null;
+        switch (strtoupper($method)) {
+            case 'POST':
+                $source = $_POST;
+                break;
+            case 'GET':
+                $source = $_GET;
+                break;
+            case 'REQUEST':
+                $source = $_REQUEST;
+                break;
+            case 'SESSION':
+                $source = $_SESSION;
+                break;
+            case 'COOKIE':
+                $source = $_COOKIE;
+                break;
+            default:
+                return false;
+        }
+
+        foreach ($fields as $field) {
+            if (isset($source[$field])) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 ?>
