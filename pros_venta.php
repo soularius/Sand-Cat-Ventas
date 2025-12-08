@@ -254,7 +254,7 @@ if(isset($_POST['nombre1'])) {
             '_shipping_address_2',
             '$_shipping_address_2'
         )";
-	mysqli_query($sandycat, $query2);
+	mysqli_query($miau, $query2);
 
     $query_cliente = sprintf("SELECT customer_id, email FROM miau_wc_customer_lookup WHERE email = '$_billing_email'");
 	$cliente = mysqli_query($miau, $query_cliente) or die(mysqli_error($miau));
@@ -350,7 +350,7 @@ if(isset($_POST['proceso'])) {
      }
  
     $query2 = "INSERT INTO miau_wc_order_product_lookup (order_item_id, order_id, product_id, variation_id, customer_id, date_created, product_qty, product_net_revenue, coupon_amount, tax_amount, shipping_tax_amount) VALUES ('$order_item_id', '$elid', '$product_id', '$variation_id', '$customer_id', '$hoy', '$product_qty', '$prodvalor', '$coupon_amount', '0', '0')";
-	mysqli_query($sandycat, $query2);
+	mysqli_query($miau, $query2);
     
     $query_vrtotal = sprintf("SELECT SUM(product_net_revenue) AS total FROM miau_wc_order_product_lookup WHERE order_id = '$elid'");
 	$vrtotal = mysqli_query($miau, $query_vrtotal) or die(mysqli_error($miau));
@@ -370,11 +370,11 @@ if(isset($_POST['proceso'])) {
 	mysqli_query($sandycat, $query6); */
 
 	$query6 = "UPDATE miau_postmeta SET meta_value = '$vatotal' WHERE post_id = '$elid' AND meta_key = '_order_total'";
-	mysqli_query($sandycat, $query6);
+	mysqli_query($miau, $query6);
 
 
 	$query8 = "UPDATE miau_postmeta SET meta_value = '$vrdesc' WHERE post_id = '$elid' AND meta_key = '_cart_discount'";
-	mysqli_query($sandycat, $query8);
+	mysqli_query($miau, $query8);
 
     $query_listavr = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$elid' AND meta_key = '_order_total'");
 	$listavr = mysqli_query($miau, $query_listavr) or die(mysqli_error($miau));
@@ -398,10 +398,10 @@ if(isset($_POST['proceso'])) {
 
     if(isset($row_consulorderstats['order_id'])) {
         $query7 = "UPDATE miau_wc_order_stats SET num_items_sold = '$num_items_sold', total_sales = '$vtotal', net_total = '$net_sales' WHERE order_id = '$elid'";
-        mysqli_query($sandycat, $query7);
+        mysqli_query($miau, $query7);
     } else {    
     $query2 = "INSERT INTO miau_wc_order_stats (order_id, date_created, date_created_gmt, num_items_sold, total_sales, tax_total, shipping_total, net_total, returning_customer, status, customer_id) VALUES ('$elid', '$hoy', '$hoy', '$num_items_sold', '$vatotal', '0', '$_order_shipping', '$vtotal', '1', 'wc-processing', '$customer_id')";
-	mysqli_query($sandycat, $query2);
+	mysqli_query($miau, $query2);
     }
 
 
@@ -411,17 +411,43 @@ if(isset($_POST['proceso'])) {
 
 }
 
-            
-	$query_productos = sprintf("SELECT I.order_item_id, order_item_name, I.order_id, L.order_id, order_item_type, product_qty, product_net_revenue, coupon_amount, shipping_amount, L.order_item_id FROM miau_woocommerce_order_items I RIGHT JOIN miau_wc_order_product_lookup L ON I.order_item_id = L.order_item_id WHERE I.order_id = '$elid' AND order_item_type='line_item'");
-	$productos = mysqli_query($miau, $query_productos) or die(mysqli_error($miau));
-	$row_productos = mysqli_fetch_assoc($productos);
-	$totalRows_productos = mysqli_num_rows($productos);
+// Inicializar variables para evitar warnings
+$elid = $elid ?? '';
+$_shipping_first_name = $_shipping_first_name ?? '';
+$_shipping_last_name = $_shipping_last_name ?? '';
+$billing_id = $billing_id ?? '';
+$_shipping_address_1 = $_shipping_address_1 ?? '';
+$_shipping_address_2 = $_shipping_address_2 ?? '';
+$_billing_neighborhood = $_billing_neighborhood ?? '';
+$_shipping_city = $_shipping_city ?? '';
+$_shipping_state = $_shipping_state ?? '';
+$_billing_phone = $_billing_phone ?? '';
+$_billing_email = $_billing_email ?? '';
+$metodo = $metodo ?? '';
+$_order_shipping = $_order_shipping ?? 0;
+$_cart_discount = $_cart_discount ?? 0;
+$vatotal = $vatotal ?? 0;
+
+// Solo ejecutar consultas si tenemos un ID válido
+if (!empty($elid)) {
+    $query_productos = sprintf("SELECT I.order_item_id, order_item_name, I.order_id, L.order_id, order_item_type, product_qty, product_net_revenue, coupon_amount, shipping_amount, L.order_item_id FROM miau_woocommerce_order_items I RIGHT JOIN miau_wc_order_product_lookup L ON I.order_item_id = L.order_item_id WHERE I.order_id = '$elid' AND order_item_type='line_item'");
+    $productos = mysqli_query($miau, $query_productos) or die(mysqli_error($miau));
+    $row_productos = mysqli_fetch_assoc($productos);
+    $totalRows_productos = mysqli_num_rows($productos);
 
     $query_obser = sprintf("SELECT ID, post_excerpt, post_date FROM miau_posts WHERE ID = '$elid'");
-	$obser = mysqli_query($miau, $query_obser) or die(mysqli_error($miau));
-	$row_obser = mysqli_fetch_assoc($obser);
-	$totalRows_obser = mysqli_num_rows($obser);
-    $post_excerpt = $row_obser['post_excerpt'];
+    $obser = mysqli_query($miau, $query_obser) or die(mysqli_error($miau));
+    $row_obser = mysqli_fetch_assoc($obser);
+    $totalRows_obser = mysqli_num_rows($obser);
+    $post_excerpt = $row_obser['post_excerpt'] ?? '';
+} else {
+    // Inicializar variables por defecto si no hay elid
+    $productos = null;
+    $row_productos = [];
+    $totalRows_productos = 0;
+    $row_obser = ['post_date' => '', 'post_excerpt' => ''];
+    $post_excerpt = '';
+}
 
 
 

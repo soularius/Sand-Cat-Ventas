@@ -5,6 +5,7 @@
 
 // Cargar configuración
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/pdf_generator.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
@@ -71,21 +72,9 @@ try {
 
     $email_destino = $orden['email_cliente'];
 
-    // Generar PDF directamente en memoria usando el mismo código que generar_pdf.php
-    ob_start();
-    
-    // Incluir la lógica de generación de PDF
+    // Generar PDF usando la función centralizada
     $factura_num = $factura_id;
-    
-    // Usar el mismo formato de PDF que el sistema existente
     $fecha = date('d/m/Y H:i', strtotime($orden['fecha_orden']));
-    $nombre1 = $orden['nombre_cliente'];
-    $nombre2 = $orden['apellido_cliente'];
-    $correo = $orden['email_cliente'];
-    $celular = $orden['telefono_cliente'];
-    $vtotal = $orden['total'];
-
-    // Formatear número de factura con 10 dígitos
     $factura_formateada = str_pad($factura_num, 10, '0', STR_PAD_LEFT);
 
     // Generar URL para el QR del pedido de WooCommerce usando variables del .env
@@ -105,122 +94,33 @@ try {
     $stmt_productos = $miau->prepare($query_productos);
     $stmt_productos->bind_param("i", $orden_id);
     $stmt_productos->execute();
-    $productos = $stmt_productos->get_result();
-
-    // Generar HTML para PDF
-    $cuerpo = '
-    <html>
-    <title>Factura POS '.$factura_num.'</title>
-    <link rel="shortcut icon" href="http://localhost/ventas/logo.png" type="image/x-icon" />
-    <style>
-    @page { 
-      sheet-size: 80mm 297mm; 
-      size: auto;
-    }
-    </style>
-    <body>
-    <table border="0"; style="table-layout: fixed; width: 180">
-      <tr align: "center">
-        <td colspan="4" style="text-align: center"><img src="http://localhost/ventas/logo.png" width="130"></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";><strong>SAND Y CAT HUGO ALEJANDRO LOPEZ</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";><strong>NIT</strong> 79690971</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";>www.sandycat.com.co</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";><strong>Teléfono</strong> 6016378243</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center"><strong>Dirección</strong> Cra. 61 No. 78-25</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";><strong>RECIBO DE VENTA</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center">'.$fecha.'</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center"><strong>Serie y número: </strong> '.$factura_formateada.'</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center";><strong>Orden #'.$orden_id.'</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Cliente: </strong>'.strtoupper($nombre1).' '.strtoupper($nombre2).'</td>
-      </tr>
-      <tr>
-        <td colspan="4">Email: '.$correo.'</td>
-      </tr>
-      <tr>
-        <td colspan="4">Teléfono: '.$celular.'</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin;"></td>
-      </tr>
-      <tr>
-        <td style="text-align: center"><strong>Cant.</strong></td>
-        <td><strong>Descripción</strong></td>
-        <td style="text-align: center"><strong>V Un.</strong></td>
-        <td style="text-align: center"><strong>TOTAL</strong></td>
-      </tr>';
-
-    // Agregar productos si existen
-    if ($productos && $productos->num_rows > 0) {
-        while ($producto = $productos->fetch_assoc()) {
-            $precio_unitario = $producto['total_producto'] / $producto['cantidad'];
-            $cuerpo .= '
-            <tr>
-                <td style="text-align: center">'.$producto['cantidad'].'</td>
-                <td style="word-wrap: break-word; width: 120">'.htmlspecialchars($producto['nombre_producto']).'</td>
-                <td style="text-align: center">'.number_format($precio_unitario).'</td>
-                <td style="text-align: center">'.number_format($producto['total_producto']).'</td>
-            </tr>';
+    $productos_result = $stmt_productos->get_result();
+    
+    // Convertir productos a array para la función centralizada
+    $productos_array = [];
+    if ($productos_result && $productos_result->num_rows > 0) {
+        while ($producto = $productos_result->fetch_assoc()) {
+            $productos_array[] = $producto;
         }
     }
 
-    $cuerpo .= '
-      <tr>
-        <td colspan="4" align: "center"; style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin;"></td>
-      </tr>
-      <tr> 
-        <td colspan="3" style="text-align: right; vertical-align: right;word-wrap: break-word; width: 120"><strong>TOTAL:</strong></td>
-        <td style="text-align: right"><strong>'.number_format($vtotal).'</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center"><br><strong>No existen devoluciones</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center"><barcode code="'.$factura_formateada.'" type="C39" size="0.6" height="1.0" /><br><small>'.$factura_formateada.'</small></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center; padding-top: 5mm;">
-          <div style="text-align: center;">
-            <barcode code="'.$woocommerce_url.'" type="QR" class="barcode" size="0.8" error="M" />
-            <br>
-            <br>
-            <p style=""><small>Escanea para ver el pedido</small></p>
-          </div>
-        </td>
-      </tr>
-    </table>
-    </body></html>';
+    // Preparar datos para el generador centralizado
+    $datos_pdf = [
+        'fecha' => $fecha,
+        'nombre1' => $orden['nombre_cliente'],
+        'nombre2' => $orden['apellido_cliente'],
+        'correo' => $orden['email_cliente'],
+        'celular' => $orden['telefono_cliente'],
+        'vtotal' => $orden['total'],
+        'factura_formateada' => $factura_formateada,
+        'factura_num' => $factura_num,
+        'orden_id' => $orden_id,
+        'woocommerce_url' => $woocommerce_url,
+        'productos' => $productos_array
+    ];
 
-    // Usar configuración centralizada de mPDF
-    require_once __DIR__ . '/mpdf_config.php';
-    $mpdf = createMpdfInstance();
-
-    $mpdf->AliasNbPages('{PageTotal}');
-    $mpdf->WriteHTML($cuerpo);
-    
-    // Obtener PDF como string
-    $pdf_content = $mpdf->Output('', 'S'); // 'S' = String
-    
-    ob_end_clean();
+    // Generar PDF como string para adjuntar al email
+    $pdf_content = generarPDFFactura($datos_pdf, 'S');
 
     // Configurar PHPMailer
     $mail = new PHPMailer(true);
