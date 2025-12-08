@@ -56,7 +56,7 @@ $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario' AND rol = 'v'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
@@ -66,7 +66,7 @@ $id_usuarios = $row_usuario['id_usuarios'];
 $hoy = date("Y-m-d");
 
 $query_preventa = sprintf("SELECT ventas.id_ventas, consecutivo, doc_cliente, nom_cliente, fecha, SUM((valor-detalle.descuento)*cantidad) AS eltotal FROM ventas LEFT JOIN detalle ON ventas.id_ventas = detalle.id_ventas WHERE id_usuarios = '$id_usuarios' AND estado = 'a' GROUP BY ventas.id_ventas ORDER BY id_ventas DESC LIMIT 3");
-$preventa = mysqli_query($sandycat, $query_preventa) or die(mysqli_error());
+$preventa = mysqli_query($sandycat, $query_preventa) or die(mysqli_error($sandycat));
 $row_preventa = mysqli_fetch_assoc($preventa);
 $totalRows_preventa = mysqli_num_rows($preventa);
 
@@ -86,20 +86,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 }
 
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8'" />
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>Sand&Cat</title>
-<meta charset="utf-8'">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<link rel="shortcut icon" href="https://sandycat.com.co/wp-content/uploads/2020/05/favicon.jpg" type="image/x-icon" />
-	<link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
-    <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
-    <link href="css/bootstrap-4.4.1.css" rel="stylesheet" type="text/css" />
-    <link rel="stylesheet" href="css/style.css">
-</head>
+<?php include("header.php"); ?>
 <body>
 
 <div class="container">

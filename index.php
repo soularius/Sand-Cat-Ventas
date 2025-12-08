@@ -50,21 +50,8 @@ if (isset($_POST['usuario']) && !empty($_POST['usuario'])) {
 
 		}
  ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//ES" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8'" />
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>Sand&Cat</title>
-<meta charset="utf-8'">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<link rel="shortcut icon" href="https://sandycat.com.co/wp-content/uploads/2020/05/favicon.jpg" type="image/x-icon" />
-	<link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
-    <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
-    <link href="css/bootstrap-4.4.1.css" rel="stylesheet" type="text/css" />
-    <link rel="stylesheet" href="css/style.css">
-</head>
-	<body>
+<?php include("header.php"); ?>
+<body>
 <section class="ftco-section">
 	<div class="container">
 			<!-- <div class="row justify-content-center">

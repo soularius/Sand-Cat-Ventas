@@ -56,7 +56,7 @@ $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
@@ -65,12 +65,8 @@ $ellogin = '';
 $ellogin = $row_usuario['documento'];
 
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title></title>
- <?php if(!empty($ellogin)) { 
+<?php include("header.php"); ?>
+<?php if(!empty($ellogin)) { 
 	if($row_usuario['rol']=="v") {
 		$permiso = "venta.php"; } 
 	elseif($row_usuario['rol']=="a") {
@@ -84,8 +80,6 @@ $ellogin = $row_usuario['documento'];
   location.href='http://localhost/ventas';
   </SCRIPT>
         <?php }  ?>
-</head>
-
 <body>
 
     

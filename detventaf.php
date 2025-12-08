@@ -51,35 +51,36 @@ if (!((isset($_SESSION['MM_Username'])))) {
   header("Location: ". $MM_restrictGoTo); 
   exit;
 }
+$colname_usuario = '';
 if (isset($_SESSION['MM_Username'])) {
 $colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
 }
 
 $query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error());
+$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
 $row_usuario = mysqli_fetch_assoc($usuario);
 $totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
-$ellogin = $row_usuario['documento'];
-$id_usuarios = $row_usuario['id_usuarios'];
+$ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
+$id_usuarios = isset($row_usuario['id_usuarios']) ? $row_usuario['id_usuarios'] : 0;
 $hoy = date("Y-m-d");
 
 /*if(isset($_POST['id_ventas']) && isset($_POST['valor'])) { */
 if(isset($_POST['id_ventas'])) {
 	$id_ventas = $_POST['id_ventas'];	
 	$query_preventa = sprintf("SELECT * FROM ventas WHERE id_ventas = '$id_ventas'");
-	$preventa = mysqli_query($sandycat, $query_preventa) or die(mysqli_error());
+	$preventa = mysqli_query($sandycat, $query_preventa) or die(mysqli_error($sandycat));
 	$row_preventa = mysqli_fetch_assoc($preventa);
 	$totalRows_preventa = mysqli_num_rows($preventa);
 	
 	$query_artpreventa = sprintf("SELECT detalle.id_detalle, detalle.id_articulos, articulos.nombre, id_ventas, detalle.valor, cantidad, detalle.descuento FROM detalle LEFT JOIN articulos ON detalle.id_articulos = articulos.id_articulos WHERE id_ventas = '$id_ventas' ORDER BY detalle.id_detalle ASC");
-	$artpreventa = mysqli_query($sandycat, $query_artpreventa) or die(mysqli_error());
+	$artpreventa = mysqli_query($sandycat, $query_artpreventa) or die(mysqli_error($sandycat));
 	$row_artpreventa = mysqli_fetch_assoc($artpreventa);
 	$totalRows_artpreventa = mysqli_num_rows($artpreventa);
 	
 	$query_totalpreventa = sprintf("SELECT SUM((valor-descuento)*cantidad) AS eltotal FROM detalle WHERE id_ventas= '$id_ventas'");
-	$totalpreventa = mysqli_query($sandycat, $query_totalpreventa) or die(mysqli_error());
+	$totalpreventa = mysqli_query($sandycat, $query_totalpreventa) or die(mysqli_error($sandycat));
 	$row_totalpreventa = mysqli_fetch_assoc($totalpreventa);
 	$totalRows_totalpreventa = mysqli_num_rows($totalpreventa);
   	/* $elnuevo = "ventasrrr.php?i=$id_ventas";
@@ -88,21 +89,7 @@ if(isset($_POST['id_ventas'])) {
 
 
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" lang="es">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8'" />
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>Sand&Cat</title>
-<meta charset="utf-8'">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<link rel="shortcut icon" href="https://sandycat.com.co/wp-content/uploads/2020/05/favicon.jpg" type="image/x-icon" />
-	<link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
-    <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
-    <link href="css/bootstrap-4.4.1.css" rel="stylesheet" type="text/css" />
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+<?php include("header.php"); ?>
 <div class="container">
 <?php include("men.php"); ?>
 <section class=""><br />

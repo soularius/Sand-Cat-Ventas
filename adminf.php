@@ -145,19 +145,7 @@ if(!empty($facturas_ids)) {
 $row_pendientesf = mysqli_fetch_assoc($pendientesf);
 $totalRows_pendientesf = mysqli_num_rows($pendientesf);
 ?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<title>Sand&Cat</title>
-<meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<link rel="shortcut icon" href="https://sandycat.com.co/wp-content/uploads/2020/05/favicon.jpg" type="image/x-icon" />
-	<link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
-    <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"> -->
-    <link href="css/bootstrap-4.4.1.css" rel="stylesheet" type="text/css" />
-    <link rel="stylesheet" href="css/style.css">
-</head>
+<?php include("header.php"); ?>
 <body style="padding-top: 70px">
 <div class="container">
 <?php include("menf.php"); ?><br />
