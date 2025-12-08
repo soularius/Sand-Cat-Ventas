@@ -40,6 +40,13 @@ if(isset($_POST['id_ventas'])) {
 	// Formatear número de factura con 10 dígitos
 	$numfact_formateado = str_pad($numfact, 10, '0', STR_PAD_LEFT);
 	
+	// Generar URL para el QR del pedido de WooCommerce usando variables del .env
+	$woocommerce_base_url = $_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU';
+	$woocommerce_order_path = $_ENV['WOOCOMMERCE_ORDER_PATH'] ?? '/mi-cuenta/ver-pedido/{id_pedido}/';
+	
+	// Reemplazar {id_pedido} con el ID real de la orden
+	$woocommerce_url = $woocommerce_base_url . str_replace('{id_pedido}', $id_ventas, $woocommerce_order_path);
+	
   	/* $elnuevo = "ventasrrr.php?i=$id_ventas";
     header("Location: $elnuevo"); */
 }
@@ -99,12 +106,10 @@ $cuerpo = '
 <title>Factura '.$numfact_formateado.'</title>
 	<link rel="shortcut icon" href="https://sandycat.com.co/wp-content/uploads/2020/05/favicon.jpg" type="image/x-icon" />
 	<style>
-	@page { sheet-size: 80mm 297mm; }
-    @page {
-      size: auto;
-      odd-header-name: html_MyHeader1;
-      odd-footer-name: html_MyFooter1;
-    }
+	@page { 
+	  sheet-size: 80mm 297mm; 
+	  size: auto;
+	}
 </style>
 <body>
 <table border="0"; style="table-layout: fixed; width: 180">
@@ -212,7 +217,15 @@ $cuerpo = '
         <td colspan="4" style="text-align: center"><br>No existen devoluciones</td>
       </tr>
       <tr>
-        <td colspan="4" style="text-align: center"><barcode code="'.$numfact_formateado.'" type="C39" size="0.6" height="1.0" /><br>'.$numfact_formateado.'</td>
+        <td colspan="4" style="text-align: center"><barcode code="'.$numfact_formateado.'" type="C39" size="0.6" height="1.0" /><br><small>'.$numfact_formateado.'</small></td>
+      </tr>
+      <tr>
+        <td colspan="4" style="text-align: center; padding-top: 5mm;">
+          <div style="text-align: center;">
+            <barcode code="'.$woocommerce_url.'" type="QR" class="barcode" size="0.8" error="M" />
+            <br><small>Escanea para ver el pedido</small>
+          </div>
+        </td>
       </tr>
         </table>
 </body></html>

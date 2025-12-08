@@ -86,23 +86,28 @@ $vtotal = $orden['total'];
 // Formatear número de factura con 10 dígitos
 $factura_formateada = str_pad($factura_num, 10, '0', STR_PAD_LEFT);
 
+// Generar URL para el QR del pedido de WooCommerce usando variables del .env
+$woocommerce_base_url = $_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU';
+$woocommerce_order_path = $_ENV['WOOCOMMERCE_ORDER_PATH'] ?? '/mi-cuenta/ver-pedido/{id_pedido}/';
+
+// Reemplazar {id_pedido} con el ID real de la orden
+$woocommerce_url = $woocommerce_base_url . str_replace('{id_pedido}', $orden_id, $woocommerce_order_path);
+
 // Generar HTML para PDF usando el mismo formato que fact.php
 $cuerpo = '
 <html>
 <title>Factura POS '.$factura_num.'</title>
-<link rel="shortcut icon" href="https://sandycat.com.co/wp-content/uploads/2020/05/favicon.jpg" type="image/x-icon" />
+<link rel="shortcut icon" href="http://localhost/ventas/logo.png" type="image/x-icon" />
 <style>
-@page { sheet-size: 80mm 297mm; }
-@page {
+@page { 
+  sheet-size: 80mm 297mm; 
   size: auto;
-  odd-header-name: html_MyHeader1;
-  odd-footer-name: html_MyFooter1;
 }
 </style>
 <body>
 <table border="0"; style="table-layout: fixed; width: 180">
   <tr align: "center">
-    <td colspan="4" style="text-align: center"><img src="https://sandycat.com.co/wp-content/uploads/2019/09/Logo-sandycat-200px-01.png" width="130"></td>
+    <td colspan="4" style="text-align: center"><img src="http://localhost/ventas/logo.png" width="130"></td>
   </tr>
   <tr>
     <td colspan="4" style="text-align: center";><strong>SAND Y CAT HUGO ALEJANDRO LOPEZ</strong></td>
@@ -189,7 +194,17 @@ $cuerpo .= '
     <td colspan="4" style="text-align: center"><br><strong>No existen devoluciones</strong></td>
   </tr>
   <tr>
-    <td colspan="4" style="text-align: center"><barcode code="'.$factura_formateada.'" type="C39" size="0.6" height="1.0" /><br>'.$factura_formateada.'</td>
+    <td colspan="4" style="text-align: center"><barcode code="'.$factura_formateada.'" type="C39" size="0.6" height="1.0" /><br><small>'.$factura_formateada.'</small></td>
+  </tr>
+  <tr>
+    <td colspan="4" style="text-align: center; padding-top: 5mm;">
+      <div style="text-align: center;">
+        <barcode code="'.$woocommerce_url.'" type="QR" class="barcode" size="0.8" error="M" />
+        <br>
+        <br>
+        <p style=""><small>Escanea para ver el pedido</small></p>
+      </div>
+    </td>
   </tr>
 </table>
 </body></html>';

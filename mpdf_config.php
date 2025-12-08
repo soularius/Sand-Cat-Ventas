@@ -26,7 +26,10 @@ function createMpdfInstance($config = []) {
         'fontDir' => [
             __DIR__ . '/vendor/mpdf/mpdf/ttfonts',
             __DIR__ . '/ttfonts'
-        ]
+        ],
+        // Habilitar soporte para códigos QR y de barras
+        'enableBarcodes' => true,
+        'debug' => false
     ];
     
     // Combinar configuración por defecto con la personalizada

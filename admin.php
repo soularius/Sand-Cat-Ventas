@@ -477,7 +477,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-danger text-white">
-        <h5 class="modal-title" id="modalPDFLabel">
+        <h5 class="modal-title text-white" id="modalPDFLabel">
           <i class="fas fa-file-pdf me-2"></i>Factura PDF
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -581,15 +581,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const cliente = button.getAttribute('data-cliente');
         const factura = button.getAttribute('data-factura');
         
+        // Formatear número de factura con 10 dígitos
+        const facturaFormateada = factura.toString().padStart(10, '0');
+        
         // Actualizar contenido del modal
         document.getElementById('pdfOrderId').textContent = orderId;
         document.getElementById('pdfCliente').textContent = cliente;
-        document.getElementById('pdfFactura').textContent = factura;
+        document.getElementById('pdfFactura').textContent = facturaFormateada;
         
         // Ocultar viewer al abrir
         document.getElementById('pdfViewer').style.display = 'none';
         
-        // Configurar botones
+        // Configurar botones (usar número original para URLs)
         setupPDFButtons(orderId, factura);
     });
     
