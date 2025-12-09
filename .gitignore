@@ -29,3 +29,5 @@ Thumbs.db
 # Archivos de dependencias (si usas Composer en el futuro)
 vendor/
 composer.lock
+
+plugins/
