@@ -1321,14 +1321,315 @@ a.a-custom:hover {
     margin-right: 5px;
 }
 
-/* Animación para campos restaurados */
-@keyframes fieldRestored {
-    0% { background-color: rgba(40, 167, 69, 0.2); }
-    100% { background-color: transparent; }
+/* Estilos para el buscador de productos */
+.products-grid {
+    gap: 1.5rem;
 }
 
-.field-restored {
-    animation: fieldRestored 2s ease-out;
+.product-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    overflow: unset;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border-color: #007bff;
+}
+
+.product-card .card-img-top {
+    transition: transform 0.3s ease;
+    background: #f8f9fa;
+}
+
+.product-card:hover .card-img-top {
+    transform: scale(1.05);
+}
+
+.product-card .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    line-height: 1.3;
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.product-card .card-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.product-sku {
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    background: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #495057;
+}
+
+.price {
+    margin: 0.75rem 0;
+}
+
+.current-price, .sale-price {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.regular-price {
+    font-size: 0.9rem;
+    text-decoration: line-through;
+}
+
+.stock-status {
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.stock-status i {
+    margin-right: 0.25rem;
+}
+
+.add-product-btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.add-product-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.empty-state, .loading-state, .error-state {
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.empty-state-icon, .loading-icon, .error-icon {
+    margin-bottom: 1rem;
+    opacity: 0.6;
+}
+
+.loading-state .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.search-stats {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.filter-btn.active {
+    background-color: #007bff !important;
+    border-color: #007bff !important;
+    color: white !important;
+}
+
+.search-input-modern {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    transition: border-color 0.2s ease;
+}
+
+.search-input-modern:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+}
+
+.search-panel, .results-panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.panel-header {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    padding: 1rem 1.25rem;
+    border-radius: 12px 12px 0 0;
+    font-weight: 600;
+}
+
+.panel-body {
+    padding: 1.25rem;
+}
+
+.quick-filters .filter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.search-tips .tips-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+}
+
+.search-tips .tips-list li {
+    padding: 0.25rem 0;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* Botón circular para agregar productos */
+.btn-circular {
+    width: 60px;
+    height: 60px;
+    border-radius: 50% !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    border: none;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-circular:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.btn-circular:active {
+    transform: scale(0.95);
+}
+
+.btn-circular.btn-success {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.btn-circular.btn-success:hover {
+    background: linear-gradient(135deg, #218838, #1ea085);
+}
+
+.btn-circular:disabled {
+    background: #6c757d;
+    transform: none;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* Mejoras para el modal del producto */
+.product-modal .modal-content {
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+.product-modal .modal-header {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border-radius: 20px 20px 0 0;
+    padding: 1.5rem 2rem;
+}
+
+.product-modal .modal-body {
+    padding: 2rem;
+}
+
+.product-form .form-label {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.product-form .form-control {
+    border-radius: 12px;
+    border: 2px solid #e9ecef;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.product-form .form-control:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.quantity-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.quantity-buttons {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.quantity-buttons .btn {
+    width: 30px;
+    height: 25px;
+    padding: 0;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-product-btn {
+  left: -20px;
+  top: -20px;
+}
+
+@media (max-width: 768px) {
+    .products-grid {
+        gap: 1rem;
+    }
+    
+    .product-card .card-title {
+        font-size: 0.9rem;
+    }
+    
+    .current-price, .sale-price {
+        font-size: 1.1rem;
+    }
+    
+    .btn-circular {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
 }
 
 @media (max-width: 991px) {

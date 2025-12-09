@@ -171,13 +171,14 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
     </div>
     <?php include("parts/foot.php"); ?>
     
-    <!-- Product Selection Modal -->
-    <div class="modal fade" id="nuevoprod" tabindex="-1" role="dialog" aria-labelledby="productModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg" role="document">
+    <!-- Modal para agregar producto -->
+    <div class="modal fade product-modal" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
+                
                 <!-- Modal Header -->
-                <div class="modal-header" style="background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); color: white;">
-                    <h4 class="modal-title" id="productModalLabel">
+                <div class="modal-header">
+                    <h4 class="modal-title fw-bold" id="productModalLabel">
                         <i class="fas fa-plus-circle me-2"></i>Agregar Producto al Pedido
                     </h4>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -191,8 +192,8 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 </div>
                 
                 <!-- Modal Body -->
-                <div class="modal-body" style="padding: 30px;">
-                    <form action="pros_venta.php" method="post" id="newproduct" class="product-form position-relative">
+                <div class="modal-body">
+                    <form action="pros_venta.php" method="post" id="newproduct" class="product-form">
                         <!-- Hidden Fields -->
                         <input id="proceso" type="hidden" name="proceso" value="s">
                         <input id="order_id" type="hidden" name="order_id" value="">
@@ -204,21 +205,20 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                             <label for="product_qty" class="form-label" style="font-weight: 600; color: var(--primary-color); margin-bottom: 10px;">
                                 <i class="fas fa-calculator me-2"></i>Cantidad
                             </label>
-                            <div class="quantity-input-group" style="position: relative;">
-                                <input id="product_qty" 
+                            <div class="quantity-input-container">
+                                <input type="number" 
+                                       class="form-control text-center" 
+                                       id="product_qty" 
                                        name="product_qty" 
-                                       type="number" 
-                                       class="form-control form-control-lg" 
                                        value="1" 
                                        min="1" 
                                        max="999"
-                                       required
-                                       style="border-radius: 10px; border: 2px solid #e9ecef; padding: 15px 20px; font-size: 1.1rem; text-align: center;">
-                                <div class="quantity-buttons" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column;">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="incrementQuantity()" style="border: none; padding: 2px 8px; margin-bottom: 2px;">
+                                       required>
+                                <div class="quantity-buttons">
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="incrementQuantity()">
                                         <i class="fas fa-plus"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="decrementQuantity()" style="border: none; padding: 2px 8px;">
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="decrementQuantity()">
                                         <i class="fas fa-minus"></i>
                                     </button>
                                 </div>
@@ -230,10 +230,15 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         </div>
                         
                         <!-- Action Buttons -->
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-success btn-lg btn-custom" type="submit" name="venta" id="venta" style="border-radius: 10px; padding: 15px;">
-                                <i class="fas fa-cart-plus me-2"></i>Agregar al Pedido
-                            </button>
+                        <div class="d-flex justify-content-center gap-3 align-items-center">
+                            <div class="text-center">
+                                <button class="btn btn-success btn-circular" type="submit" name="venta" id="venta" title="Agregar al Pedido">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <div class="mt-2">
+                                    <small class="text-muted fw-medium">Agregar al Pedido</small>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -374,7 +379,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     
                     html += `
                         <div class="col-md-6 col-lg-4 mb-4">
-                            <div class="card product-card h-100 shadow-sm ${product.card_border_class}" data-product-id="${product.id}">
+                            <div class="card product-card shadow-sm ${product.card_border_class}" data-product-id="${product.id}">
                                 <div class="position-relative overflow-hidden">
                                     <img src="${product.image_url}" 
                                          class="card-img-top" 
@@ -394,15 +399,16 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                     ${descriptionText}
                                     ${priceHtml}
                                     ${stockHtml}
-                                    <button class="btn ${product.is_available ? 'btn-primary' : 'btn-outline-secondary'} btn-sm mt-auto add-product-btn shadow-sm" 
-                                            data-product-id="${product.id}" 
-                                            data-product-name="${product.title}"
-                                            data-product-price="${product.price.replace(/[.,]/g, '')}"
-                                            ${!product.is_available ? 'disabled' : ''}
-                                            style="border-radius: 8px; font-weight: 600; padding: 0.6rem 1rem;">
-                                        <i class="${product.is_available ? 'fas fa-cart-plus' : 'fas fa-ban'} me-2"></i>
-                                        ${product.is_available ? 'Agregar al Pedido' : 'No Disponible'}
-                                    </button>
+                                    <div class="d-flex justify-content-center mt-auto">
+                                        <button class="btn ${product.is_available ? 'btn-success btn-circular' : 'btn-outline-secondary btn-circular'} add-product-btn position-absolute text-white" 
+                                                data-product-id="${product.id}" 
+                                                data-product-name="${product.title}"
+                                                data-product-price="${product.price.replace(/[.,]/g, '')}"
+                                                ${!product.is_available ? 'disabled' : ''}
+                                                title="${product.is_available ? 'Agregar al Pedido' : 'No Disponible'}">
+                                            <i class="text-white ${product.is_available ? 'fas fa-plus' : 'fas fa-xmark'}"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
