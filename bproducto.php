@@ -134,16 +134,6 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                     <h5 class="text-white">
                                         <i class="fas fa-box me-2"></i>Productos
                                     </h5>
-                                    <div class="view-controls">
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-outline-secondary btn-sm view-toggle active" data-view="grid">
-                                                <i class="fas fa-th"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm view-toggle" data-view="list">
-                                                <i class="fas fa-list"></i>
-                                            </button>
-                                        </div>
-                                    </div>
                               </div>
                           </div>
                           
@@ -371,12 +361,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     const skuBadge = product.sku ? 
                         `<div class="mb-2">
                             <span class="product-sku badge bg-light text-dark">SKU: ${product.sku}</span>
-                        </div>` : '';
-                    
-                    const descriptionText = product.short_description ? 
-                        `<p class="card-text text-muted small flex-grow-1 mb-3" style="line-height: 1.4;">${product.short_description.substring(0, 100)}${product.short_description.length > 100 ? '...' : ''}</p>` : 
-                        '<div class="flex-grow-1"></div>';
-                    
+                        </div>` : '';                    
                     html += `
                         <div class="col-md-6 col-lg-4 mb-4">
                             <div class="card product-card shadow-sm ${product.card_border_class}" data-product-id="${product.id}">
@@ -393,10 +378,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                         '<div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.6);"><span class="badge bg-warning text-dark fs-6 px-3 py-2">Agotado</span></div>' : 
                                         ''}
                                 </div>
-                                <div class="card-body d-flex flex-column p-3">
+                                <div class="card-body d-flex flex-column p-3 card-body-product">
                                     <h6 class="card-title fw-bold mb-2" style="color: #2c3e50; line-height: 1.3;">${product.title}</h6>
                                     ${skuBadge}
-                                    ${descriptionText}
                                     ${priceHtml}
                                     ${stockHtml}
                                     <div class="d-flex justify-content-center mt-auto">
