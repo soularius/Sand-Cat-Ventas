@@ -6,7 +6,23 @@ class WooCommerceProducts {
     private $wp_connection;
     
     public function __construct() {
-        $this->wp_connection = DatabaseConfig::getWordPressConnection();
+        // Intentar usar la conexión de DatabaseConfig primero
+        try {
+            $this->wp_connection = DatabaseConfig::getWordPressConnection();
+        } catch (Exception $e) {
+            // Si falla, usar la conexión global
+            global $miau;
+            if ($miau) {
+                $this->wp_connection = $miau;
+            } else {
+                throw new Exception('No se pudo establecer conexión a la base de datos');
+            }
+        }
+        
+        // Verificar que la conexión sea válida
+        if (!$this->wp_connection) {
+            throw new Exception('Conexión a base de datos no válida');
+        }
     }
     
     /**
@@ -53,7 +69,7 @@ class WooCommerceProducts {
         $result = mysqli_query($this->wp_connection, $query);
         
         if (!$result) {
-            die("Error en consulta de productos: " . mysqli_error($this->wp_connection));
+            throw new Exception("Error en consulta de productos: " . mysqli_error($this->wp_connection));
         }
         
         $products = [];
@@ -109,7 +125,7 @@ class WooCommerceProducts {
         $result = mysqli_query($this->wp_connection, $query);
         
         if (!$result) {
-            die("Error en búsqueda de productos: " . mysqli_error($this->wp_connection));
+            throw new Exception("Error en búsqueda de productos: " . mysqli_error($this->wp_connection));
         }
         
         $products = [];
@@ -159,25 +175,147 @@ class WooCommerceProducts {
             LEFT JOIN miau_postmeta pm_weight ON p.ID = pm_weight.post_id AND pm_weight.meta_key = '_weight'
             WHERE p.ID = $product_id 
             AND p.post_type = 'product'
+            LIMIT 1
         ";
         
         $result = mysqli_query($this->wp_connection, $query);
         
         if (!$result) {
-            die("Error al obtener producto: " . mysqli_error($this->wp_connection));
+            die("Error en consulta de producto: " . mysqli_error($this->wp_connection));
         }
         
         $product = mysqli_fetch_assoc($result);
         
         if ($product) {
-            $product['precio'] = floatval($product['precio']);
-            $product['precio_regular'] = floatval($product['precio_regular']);
-            $product['precio_oferta'] = $product['precio_oferta'] ? floatval($product['precio_oferta']) : null;
-            $product['stock'] = intval($product['stock']);
+            // Formatear datos para compatibilidad
+            $product['precio'] = floatval($product['precio'] ?? 0);
+            $product['precio_regular'] = floatval($product['precio_regular'] ?? 0);
+            $product['precio_oferta'] = !empty($product['precio_oferta']) ? floatval($product['precio_oferta']) : 0;
+            $product['stock'] = intval($product['stock'] ?? 0);
             $product['en_stock'] = ($product['estado_stock'] === 'instock');
+            $product['sku'] = $product['sku'] ?? '';
+            $product['descripcion_corta'] = $product['descripcion_corta'] ?? '';
+            $product['descripcion'] = $product['descripcion'] ?? '';
+            
+            return $product;
         }
         
-        return $product;
+        return null;
+    }
+    
+    /**
+     * Obtener imagen del producto desde WordPress
+     */
+    public function getProductImage($product_id) {
+        $product_id = intval($product_id);
+        
+        // Obtener thumbnail_id del producto
+        $query = "
+            SELECT meta_value as thumbnail_id 
+            FROM miau_postmeta 
+            WHERE post_id = $product_id 
+            AND meta_key = '_thumbnail_id'
+        ";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        if (!$result || mysqli_num_rows($result) == 0) {
+            return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+        }
+        
+        $row = mysqli_fetch_assoc($result);
+        $thumbnail_id = $row['thumbnail_id'];
+        
+        if (!$thumbnail_id) {
+            return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+        }
+        
+        // Obtener URL de la imagen
+        $image_query = "
+            SELECT guid 
+            FROM miau_posts 
+            WHERE ID = $thumbnail_id 
+            AND post_type = 'attachment'
+        ";
+        
+        $image_result = mysqli_query($this->wp_connection, $image_query);
+        if ($image_result && $image_row = mysqli_fetch_assoc($image_result)) {
+            return $image_row['guid'];
+        }
+        
+        return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+    }
+    
+    /**
+     * Obtener múltiples imágenes de productos de una vez (optimizado)
+     */
+    public function getProductImages($product_ids) {
+        if (empty($product_ids)) {
+            return [];
+        }
+        
+        $product_ids = array_map('intval', $product_ids);
+        $ids_string = implode(',', $product_ids);
+        
+        // Obtener todos los thumbnail_ids de una vez
+        $query = "
+            SELECT post_id, meta_value as thumbnail_id 
+            FROM miau_postmeta 
+            WHERE post_id IN ($ids_string) 
+            AND meta_key = '_thumbnail_id'
+            AND meta_value != ''
+        ";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        if (!$result) {
+            return [];
+        }
+        
+        $thumbnail_map = [];
+        $thumbnail_ids = [];
+        
+        while ($row = mysqli_fetch_assoc($result)) {
+            $thumbnail_map[$row['post_id']] = $row['thumbnail_id'];
+            $thumbnail_ids[] = $row['thumbnail_id'];
+        }
+        
+        if (empty($thumbnail_ids)) {
+            // Retornar placeholders para todos los productos
+            $images = [];
+            foreach ($product_ids as $product_id) {
+                $images[$product_id] = 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+            }
+            return $images;
+        }
+        
+        // Obtener URLs de todas las imágenes de una vez
+        $thumbnail_ids_string = implode(',', $thumbnail_ids);
+        $image_query = "
+            SELECT ID, guid 
+            FROM miau_posts 
+            WHERE ID IN ($thumbnail_ids_string) 
+            AND post_type = 'attachment'
+        ";
+        
+        $image_result = mysqli_query($this->wp_connection, $image_query);
+        $image_urls = [];
+        
+        if ($image_result) {
+            while ($image_row = mysqli_fetch_assoc($image_result)) {
+                $image_urls[$image_row['ID']] = $image_row['guid'];
+            }
+        }
+        
+        // Mapear imágenes a productos
+        $product_images = [];
+        foreach ($product_ids as $product_id) {
+            if (isset($thumbnail_map[$product_id]) && isset($image_urls[$thumbnail_map[$product_id]])) {
+                $product_images[$product_id] = $image_urls[$thumbnail_map[$product_id]];
+            } else {
+                $product_images[$product_id] = 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+            }
+        }
+        
+        return $product_images;
     }
     
     /**

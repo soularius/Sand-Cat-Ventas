@@ -19,16 +19,21 @@ $default_steps = [
         'page' => 'datos_venta.php'
     ],
     2 => [
-        'label' => 'Productos',
-        'icon' => 'fas fa-shopping-cart',
+        'label' => 'Resumen Cliente',
+        'icon' => 'fas fa-user-check',
         'page' => 'pros_venta.php'
     ],
     3 => [
-        'label' => 'Pago',
+        'label' => 'Productos',
+        'icon' => 'fas fa-shopping-cart',
+        'page' => 'bproducto.php'
+    ],
+    4 => [
+        'label' => 'Facturación',
         'icon' => 'fas fa-credit-card',
         'page' => 'pago_venta.php'
     ],
-    4 => [
+    5 => [
         'label' => 'Confirmación',
         'icon' => 'fas fa-check-circle',
         'page' => 'confirmar_venta.php'

@@ -38,26 +38,25 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
     <div class="container-fluid">
         <?php include("parts/menf.php"); ?>
         
-        <div class="py-5"></div>
-        <section class="row justify-content-center mt-4">
-          <div class="product-page-header">
-              <div class="container">
-                  <div class="row align-items-center justify-content-center">
-                      <div class="col-md-10">
-                            <div class="page-title">
-                                <h1><i class="fas fa-shopping-cart me-3"></i>Seleccionar Productos</h1>
-                                <p class="page-subtitle">Busca y agrega productos a tu pedido de manera rápida y eficiente</p>
-                            </div>
-                            <?php if($_order_id): ?>
-                            <div class="order-badge">
-                                <i class="fas fa-receipt me-2"></i>
-                                <span>Pedido #<?php echo htmlspecialchars($_order_id); ?></span>
-                            </div>
-                            <?php endif; ?>
-                      </div>
-                  </div>
-              </div>
-          </div>
+        <?php
+        // Configurar el paso actual para el wizard
+        $current_step = 3; // Paso 3: Productos
+        include('parts/step_wizard.php');
+        ?>
+        
+        <!-- Product Header -->
+        <div class="row justify-content-center">
+            <div class="col-md-10 text-center mb-4">
+                <h2 class="heading-section text-primary">
+                    <i class="fas fa-shopping-cart me-2"></i>Selección de Productos
+                </h2>
+                <?php if($_order_id): ?>
+                    <p class="text-muted">Pedido #<?php echo htmlspecialchars($_order_id); ?> - Busca y agrega productos a tu pedido</p>
+                <?php else: ?>
+                    <p class="text-muted">Busca y agrega productos de manera rápida y eficiente</p>
+                <?php endif; ?>
+            </div>
+        </div>
           
           <!-- Main Content -->
           <div class="container">
@@ -65,8 +64,10 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                   <!-- Search Panel -->
                   <div class="col-lg-4 col-md-12 mb-4">
                       <div class="search-panel">
-                          <div class="panel-header">
-                              <h5><i class="fas fa-search me-2"></i>Búsqueda de Productos</h5>
+                          <div class="panel-header bg-success bg-custom">
+                                <h5 class="text-white">
+                                    <i class="fas fa-search me-2"></i> Búsqueda de Productos
+                                </h5>
                           </div>
                           
                           <div class="panel-body">
@@ -128,19 +129,21 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                   <!-- Results Panel -->
                   <div class="col-lg-8 col-md-12">
                       <div class="results-panel">
-                          <div class="panel-header">
+                          <div class="panel-header bg-success bg-custom">
                               <div class="d-flex justify-content-between align-items-center">
-                                  <h5><i class="fas fa-box me-2"></i>Productos</h5>
-                                  <div class="view-controls">
-                                      <div class="btn-group" role="group">
-                                          <button type="button" class="btn btn-outline-secondary btn-sm view-toggle active" data-view="grid">
-                                              <i class="fas fa-th"></i>
-                                          </button>
-                                          <button type="button" class="btn btn-outline-secondary btn-sm view-toggle" data-view="list">
-                                              <i class="fas fa-list"></i>
-                                          </button>
-                                      </div>
-                                  </div>
+                                    <h5 class="text-white">
+                                        <i class="fas fa-box me-2"></i>Productos
+                                    </h5>
+                                    <div class="view-controls">
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm view-toggle active" data-view="grid">
+                                                <i class="fas fa-th"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm view-toggle" data-view="list">
+                                                <i class="fas fa-list"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                               </div>
                           </div>
                           
@@ -189,7 +192,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 
                 <!-- Modal Body -->
                 <div class="modal-body" style="padding: 30px;">
-                    <form action="pros_venta.php" method="post" id="newproduct" class="product-form">
+                    <form action="pros_venta.php" method="post" id="newproduct" class="product-form position-relative">
                         <!-- Hidden Fields -->
                         <input id="proceso" type="hidden" name="proceso" value="s">
                         <input id="order_id" type="hidden" name="order_id" value="">
@@ -268,142 +271,237 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 qtyInput.value = currentValue - 1;
             }
         }
-        
-        // Enhanced functionality for new design
+
         $(document).ready(function() {
-            // Clear search functionality
-            $('#clearSearch').on('click', function() {
-                $('#search').val('').trigger('keyup').focus();
-                $('#searchStats').hide();
+            let searchTimeout;
+            let currentFilter = 'all';
+            
+            // Función para realizar búsqueda de productos
+            function searchProducts() {
+                const searchTerm = $('#search').val().trim();
+                
+                // Mostrar loading
+                $('#result').html(`
+                    <div class="loading-state text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <h5>Buscando productos...</h5>
+                        <p class="text-muted">Por favor espere</p>
+                    </div>
+                `);
+                
+                // Realizar petición AJAX
+                $.ajax({
+                    url: 'search_products_ajax.php',
+                    method: 'POST',
+                    data: {
+                        search: searchTerm,
+                        filter: currentFilter,
+                        limit: 20
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            displayProducts(response.products);
+                            updateResultsCount(response.total);
+                        } else {
+                            showError('Error al buscar productos: ' + response.error);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error AJAX:', error);
+                        showError('Error de conexión al buscar productos');
+                    }
+                });
+            }
+            
+            // Función para mostrar productos
+            function displayProducts(products) {
+                if (products.length === 0) {
+                    $('#result').html(`
+                        <div class="empty-state text-center py-5">
+                            <div class="empty-state-icon mb-3">
+                                <i class="fas fa-box-open fa-3x text-muted"></i>
+                            </div>
+                            <h4>No se encontraron productos</h4>
+                            <p class="text-muted">Intenta con otros términos de búsqueda</p>
+                        </div>
+                    `);
+                    return;
+                }
+                
+                let html = '<div class="row">';
+                
+                products.forEach(function(product) {
+                    const priceHtml = product.has_sale ? 
+                        `<div class="price mb-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span class="sale-price text-danger fw-bold fs-5">$${product.sale_price}</span>
+                                    <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${product.regular_price}</span>
+                                </div>
+                                <span class="badge ${product.price_badge_class} rounded-pill">Oferta</span>
+                            </div>
+                        </div>` :
+                        `<div class="price mb-3">
+                            <span class="current-price text-primary fw-bold fs-5">$${product.price}</span>
+                        </div>`;
+                    
+                    const stockHtml = product.is_available ?
+                        `<div class="stock-info d-flex align-items-center justify-content-between mb-2">
+                            <span class="stock-status ${product.stock_status_class} d-flex align-items-center">
+                                <i class="${product.availability_icon} me-1"></i>
+                                <span class="fw-medium">${product.availability_text}</span>
+                            </span>
+                            ${product.stock_quantity > 0 ? `<small class="text-muted">${product.stock_quantity} unidades</small>` : ''}
+                        </div>` :
+                        `<div class="stock-info mb-2">
+                            <span class="stock-status ${product.stock_status_class} d-flex align-items-center">
+                                <i class="${product.availability_icon} me-1"></i>
+                                <span class="fw-medium">${product.availability_text}</span>
+                            </span>
+                        </div>`;
+                    
+                    const skuBadge = product.sku ? 
+                        `<div class="mb-2">
+                            <span class="product-sku badge bg-light text-dark">SKU: ${product.sku}</span>
+                        </div>` : '';
+                    
+                    const descriptionText = product.short_description ? 
+                        `<p class="card-text text-muted small flex-grow-1 mb-3" style="line-height: 1.4;">${product.short_description.substring(0, 100)}${product.short_description.length > 100 ? '...' : ''}</p>` : 
+                        '<div class="flex-grow-1"></div>';
+                    
+                    html += `
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card product-card h-100 shadow-sm ${product.card_border_class}" data-product-id="${product.id}">
+                                <div class="position-relative overflow-hidden">
+                                    <img src="${product.image_url}" 
+                                         class="card-img-top" 
+                                         alt="${product.title}" 
+                                         style="height: 220px; object-fit: cover; transition: transform 0.3s ease;"
+                                         loading="lazy">
+                                    ${product.has_sale ? 
+                                        '<div class="position-absolute top-0 end-0 m-3"><span class="badge bg-danger fs-6 px-3 py-2 rounded-pill shadow">¡Oferta!</span></div>' : 
+                                        ''}
+                                    ${!product.is_available ? 
+                                        '<div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.6);"><span class="badge bg-warning text-dark fs-6 px-3 py-2">Agotado</span></div>' : 
+                                        ''}
+                                </div>
+                                <div class="card-body d-flex flex-column p-3">
+                                    <h6 class="card-title fw-bold mb-2" style="color: #2c3e50; line-height: 1.3;">${product.title}</h6>
+                                    ${skuBadge}
+                                    ${descriptionText}
+                                    ${priceHtml}
+                                    ${stockHtml}
+                                    <button class="btn ${product.is_available ? 'btn-primary' : 'btn-outline-secondary'} btn-sm mt-auto add-product-btn shadow-sm" 
+                                            data-product-id="${product.id}" 
+                                            data-product-name="${product.title}"
+                                            data-product-price="${product.price.replace(/[.,]/g, '')}"
+                                            ${!product.is_available ? 'disabled' : ''}
+                                            style="border-radius: 8px; font-weight: 600; padding: 0.6rem 1rem;">
+                                        <i class="${product.is_available ? 'fas fa-cart-plus' : 'fas fa-ban'} me-2"></i>
+                                        ${product.is_available ? 'Agregar al Pedido' : 'No Disponible'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                $('#result').html(html);
+            }
+            
+            // Función para mostrar errores
+            function showError(message) {
+                $('#result').html(`
+                    <div class="error-state text-center py-5">
+                        <div class="error-icon text-danger mb-4">
+                            <i class="fas fa-exclamation-triangle fa-4x opacity-75"></i>
+                        </div>
+                        <h4 class="text-danger mb-3">¡Oops! Algo salió mal</h4>
+                        <p class="text-muted mb-4 mx-auto" style="max-width: 400px;">${message}</p>
+                        <div class="d-flex gap-2 justify-content-center">
+                            <button class="btn btn-outline-primary" onclick="location.reload()">
+                                <i class="fas fa-redo me-2"></i>Reintentar
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="$('#search').val('').focus()">
+                                <i class="fas fa-search me-2"></i>Nueva Búsqueda
+                            </button>
+                        </div>
+                    </div>
+                `);
+            }
+            
+            // Event listeners
+            $('#search').on('input', function() {
+                clearTimeout(searchTimeout);
+                const searchTerm = $(this).val().trim();
+                
+                if (searchTerm.length >= 3) {
+                    searchTimeout = setTimeout(searchProducts, 500);
+                } else if (searchTerm.length === 0) {
+                    $('#result').html(`
+                        <div class="empty-state text-center py-5">
+                            <div class="empty-state-icon mb-3">
+                                <i class="fas fa-search fa-3x text-muted"></i>
+                            </div>
+                            <h4>Busca productos</h4>
+                            <p class="text-muted">Utiliza el panel de búsqueda para encontrar productos disponibles</p>
+                        </div>
+                    `);
+                    updateResultsCount(0);
+                }
             });
             
-            // Filter buttons functionality
+            // Filtros rápidos
             $('.filter-btn').on('click', function() {
                 $('.filter-btn').removeClass('active');
                 $(this).addClass('active');
+                currentFilter = $(this).data('filter');
                 
-                const filter = $(this).data('filter');
-                // Here you can add filter logic based on the filter value
-                console.log('Filter selected:', filter);
-            });
-            
-            // View toggle functionality
-            $('.view-toggle').on('click', function() {
-                $('.view-toggle').removeClass('active');
-                $(this).addClass('active');
-                
-                const view = $(this).data('view');
-                const resultsContainer = $('#result');
-                
-                if (view === 'grid') {
-                    resultsContainer.removeClass('list-view').addClass('grid-view');
-                } else {
-                    resultsContainer.removeClass('grid-view').addClass('list-view');
-                }
-            });
-            
-            // Enhanced search with stats
-            let searchTimeout;
-            $('#search').on('input', function() {
-                const searchTerm = $(this).val().trim();
-                const resultsContainer = $('#result');
-                const searchStats = $('#searchStats');
-                
-                clearTimeout(searchTimeout);
-                
+                const searchTerm = $('#search').val().trim();
                 if (searchTerm.length >= 3) {
-                    resultsContainer.html(`
-                        <div class="loading-state">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="sr-only">Buscando...</span>
-                            </div>
-                            <h5 class="mt-3">Buscando productos...</h5>
-                            <p>Buscando "${searchTerm}" en el catálogo</p>
-                        </div>
-                    `);
-                    
-                    searchStats.show();
-                    
-                    searchTimeout = setTimeout(() => {
-                        if (typeof performSearch === 'function') {
-                            performSearch(searchTerm);
-                        }
-                    }, 300);
-                } else if (searchTerm.length === 0) {
-                    resultsContainer.html(`
-                        <div class="empty-state">
-                            <div class="empty-state-icon">
-                                <i class="fas fa-search"></i>
-                            </div>
-                            <h4>Busca productos</h4>
-                            <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
-                            <div class="empty-state-actions">
-                                <button class="btn btn-primary" onclick="$('#search').focus()">
-                                    <i class="fas fa-search me-2"></i>Comenzar Búsqueda
-                                </button>
-                            </div>
-                        </div>
-                    `);
-                    searchStats.hide();
-                } else {
-                    resultsContainer.html(`
-                        <div class="loading-state">
-                            <i class="fas fa-keyboard text-warning"></i>
-                            <h5>Continúa escribiendo...</h5>
-                            <p>Necesitas al menos 3 caracteres para buscar</p>
-                        </div>
-                    `);
-                    searchStats.hide();
+                    searchProducts();
                 }
             });
             
-            // Modal functionality
-            $('#nuevoprod').on('show.bs.modal', function(e) {
-                const trigger = $(e.relatedTarget);
-                const modal = $(this);
-                
-                const productName = trigger.data('nombre-id') || '';
-                const productId = trigger.data('paquete-id') || '';
-                const orderId = trigger.data('order-id') || '';
-                const orderIdBn = trigger.data('order-idb') || '';
-                const orderInfo = trigger.data('order-idb') || '';
-                
-                modal.find('input[name="product_id"]').val(productId);
-                modal.find('input[name="order_id"]').val(orderId);
-                modal.find('input[name="order_idbn"]').val(orderIdBn);
-                modal.find('textarea[name="order_idb"]').val(orderInfo);
-                modal.find('input[name="product_qty"]').val(1);
-                
-                setTimeout(() => {
-                    modal.find('input[name="product_qty"]').focus().select();
-                }, 500);
+            // Clear search functionality
+            $('#clearSearch').on('click', function() {
+                $('#search').val('').focus();
+                $('#result').html(`
+                    <div class="empty-state text-center py-5">
+                        <div class="empty-state-icon mb-3">
+                            <i class="fas fa-search fa-3x text-muted"></i>
+                        </div>
+                        <h4>Busca productos</h4>
+                        <p class="text-muted">Utiliza el panel de búsqueda para encontrar productos disponibles</p>
+                    </div>
+                `);
+                updateResultsCount(0);
             });
             
-            // Form validation
-            $('#newproduct').on('submit', function(e) {
-                const qty = parseInt($('#product_qty').val());
-                const productId = $('#product_id').val();
+            // Manejar click en agregar producto
+            $(document).on('click', '.add-product-btn', function() {
+                const btn = $(this);
+                const prodId = btn.data('product-id');
+                const prodName = btn.data('product-name');
+                const prodPrice = btn.data('product-price');
                 
-                if (!productId) {
-                    e.preventDefault();
-                    alert('Error: No se ha seleccionado ningún producto.');
-                    return false;
-                }
+                // Cambiar estado del botón
+                const origText = btn.html();
+                btn.html('<i class="fas fa-spinner fa-spin me-1"></i>Agregando...').prop('disabled', true);
                 
-                if (!qty || qty < 1) {
-                    e.preventDefault();
-                    alert('Error: La cantidad debe ser mayor a 0.');
-                    $('#product_qty').focus();
-                    return false;
-                }
-                
-                const submitBtn = $(this).find('button[type="submit"]');
-                const originalText = submitBtn.html();
-                submitBtn.html('<i class="fas fa-spinner fa-spin me-2"></i>Agregando...').prop('disabled', true);
-                
+                // Simular agregado (aquí iría la lógica real)
                 setTimeout(() => {
-                    submitBtn.html(originalText).prop('disabled', false);
-                }, 5000);
+                    btn.html('<i class="fas fa-check me-1"></i>Agregado').removeClass('btn-primary').addClass('btn-success');
+                    
+                    // Restaurar después de 2 segundos
+                    setTimeout(() => {
+                        btn.html(origText).removeClass('btn-success').addClass('btn-primary').prop('disabled', false);
+                    }, 2000);
+                }, 1000);
             });
             
             // Update results count function
