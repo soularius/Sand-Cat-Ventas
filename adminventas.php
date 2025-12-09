@@ -255,38 +255,79 @@ include("parts/header.php");
                                 // Cliente encontrado
                                 const customer = response.customer;
                                 $previewDiv.html(`
-                                    <div class="d-flex align-items-center mb-3">
-                                        <i class="fas fa-user-check text-success me-2 fs-4"></i>
-                                        <strong class="text-success">Cliente Encontrado</strong>
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <strong>DNI:</strong> ${customer.dni || 'No registrado'}
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-cuertar bg-custom text-white d-flex align-items-center">
+                                            <i class="fas fa-user-check me-2"></i>
+                                            <strong>Cliente Encontrado</strong>
                                         </div>
-                                        <div class="col-md-6">
-                                            <strong>Nombre:</strong> ${customer.first_name} ${customer.last_name}
+                                        <div class="card-body">
+                                            <!-- Información Personal -->
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-id-card text-muted me-2"></i>
+                                                        <span class="text-muted small">DNI:</span>
+                                                        <strong class="ms-2">${customer.dni || 'No registrado'}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-user text-muted me-2"></i>
+                                                        <span class="text-muted small">Nombre:</span>
+                                                        <strong class="ms-2">${customer.first_name} ${customer.last_name}</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Contacto -->
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-envelope text-muted me-2"></i>
+                                                        <span class="text-muted small">Email:</span>
+                                                        <span class="ms-2 text-truncate">${customer.email || 'No registrado'}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-phone text-muted me-2"></i>
+                                                        <span class="text-muted small">Teléfono:</span>
+                                                        <strong class="ms-2">${customer.phone || 'No registrado'}</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Ubicación -->
+                                            <div class="border-top pt-3">
+                                                <h6 class="text-muted mb-2 border-bottom pb-3">
+                                                    <i class="fas fa-map-marker-alt me-1"></i>Ubicación
+                                                </h6>
+                                                <div class="row">
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted d-block">Departamento</small>
+                                                        <strong>${customer.state || 'No registrado'}</strong>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted d-block">Ciudad</small>
+                                                        <strong>${customer.city || 'No registrada'}</strong>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <small class="text-muted d-block">Barrio</small>
+                                                        <strong>${customer.barrio || 'No registrado'}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <small class="text-muted d-block">Dirección</small>
+                                                    <span>${customer.address_1 || 'No registrada'}${customer.address_2 ? ' - ' + customer.address_2 : ''}</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <strong>Email:</strong> ${customer.email || 'No registrado'}
+                                        <div class="card-footer bg-light text-center">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Los datos se cargarán automáticamente en el formulario
+                                            </small>
                                         </div>
-                                        <div class="col-md-6">
-                                            <strong>Teléfono:</strong> ${customer.phone || 'No registrado'}
-                                        </div>
-                                        <div class="col-md-6">
-                                            <strong>Ciudad:</strong> ${customer.city || 'No registrada'}
-                                        </div>
-                                        <div class="col-md-6">
-                                            <strong>Barrio:</strong> ${customer.barrio || 'No registrado'}
-                                        </div>
-                                        <div class="col-md-6">
-                                            <strong>Dirección:</strong> ${customer.address_1 || 'No registrada'}
-                                        </div>
-                                    </div>
-                                    <div class="mt-2">
-                                        <small class="text-muted">
-                                            <i class="fas fa-info-circle me-1"></i>
-                                            Los datos del cliente se cargarán automáticamente en el formulario
-                                        </small>
                                     </div>
                                 `);
                                 $searchAlert.removeClass('alert-info alert-warning alert-danger').addClass('alert-success');

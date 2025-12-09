@@ -116,6 +116,11 @@ include('parts/step_wizard.php');
         <?php						 
             include("postmeta.php");
             $documento = !empty($billing_id) ? $billing_id : $documento;
+            
+            // Debug: Mostrar valores cargados
+            if (!empty($ciudad) || !empty($departamento)) {
+                echo "<!-- DEBUG: Ciudad='$ciudad', Departamento='$departamento' -->";
+            }
         ?>
 
         <form action="pros_venta.php" method="post" id="d_usuario">
@@ -352,6 +357,9 @@ $(document).ready(function() {
         const departamento = $(this).find('option:selected').data('code');
         const citySelect = $('#_shipping_city');
         
+        // Guardar la ciudad actualmente seleccionada para preservarla
+        const currentCity = citySelect.val();
+        
         // Limpiar ciudades
         citySelect.html('<option value="">Cargando ciudades...</option>');
         citySelect.prop('disabled', true);
@@ -370,14 +378,38 @@ $(document).ready(function() {
                     citySelect.html('<option value="">Seleccione una ciudad</option>');
                     
                     if (response.success && response.data) {
+                        let cityFound = false;
+                        
                         response.data.forEach(function(ciudad) {
-                            citySelect.append(`<option value="${ciudad.name}">${ciudad.name}</option>`);
+                            const isSelected = (currentCity && 
+                                (ciudad.name.toLowerCase() === currentCity.toLowerCase() ||
+                                 ciudad.name.toUpperCase() === currentCity.toUpperCase()));
+                            
+                            if (isSelected) {
+                                cityFound = true;
+                                citySelect.append(`<option value="${ciudad.name}" selected>${ciudad.name}</option>`);
+                            } else {
+                                citySelect.append(`<option value="${ciudad.name}">${ciudad.name}</option>`);
+                            }
                         });
+                        
+                        // Si no se encontró la ciudad en las opciones, pero hay una ciudad preseleccionada
+                        // (por ejemplo, desde datos del cliente), agregarla como opción
+                        if (!cityFound && currentCity && currentCity !== '') {
+                            citySelect.append(`<option value="${currentCity}" selected>${currentCity}</option>`);
+                            console.log('Ciudad del cliente agregada:', currentCity);
+                        }
+                        
                     } else {
                         citySelect.append('<option value="">No se encontraron ciudades</option>');
                     }
                     
                     citySelect.prop('disabled', false);
+                    
+                    // Trigger change event para que la persistencia guarde el valor
+                    if (citySelect.val()) {
+                        citySelect.trigger('change');
+                    }
                 },
                 error: function() {
                     citySelect.html('<option value="">Error cargando ciudades</option>');
@@ -390,9 +422,63 @@ $(document).ready(function() {
         }
     });
     
+    // Función para cargar ciudades con ciudad preseleccionada
+    function loadCitiesWithPreselection() {
+        const departamento = $('#_shipping_state').val();
+        const ciudadPreseleccionada = $('#_shipping_city option:selected').val();
+        
+        console.log('Función loadCitiesWithPreselection:', {
+            departamento: departamento,
+            ciudadPreseleccionada: ciudadPreseleccionada
+        });
+        
+        if (departamento && ciudadPreseleccionada) {
+            console.log('Cargando ciudades con preselección:', ciudadPreseleccionada);
+            $('#_shipping_state').trigger('change');
+        } else if (departamento) {
+            $('#_shipping_state').trigger('change');
+        }
+    }
+    
+    // Función para inicializar datos del cliente
+    function initializeClientData() {
+        // Verificar si hay datos del cliente cargados desde PHP
+        <?php if (!empty($ciudad) && !empty($departamento)): ?>
+        const clientCity = '<?php echo addslashes($ciudad); ?>';
+        const clientState = '<?php echo addslashes($departamento); ?>';
+        
+        console.log('Datos del cliente detectados:', {
+            ciudad: clientCity,
+            departamento: clientState
+        });
+        
+        // Si hay datos del cliente, asegurar que estén seleccionados
+        if (clientState) {
+            $('#_shipping_state').val(clientState);
+        }
+        
+        if (clientCity) {
+            // Agregar la ciudad como opción temporal si no existe
+            const citySelect = $('#_shipping_city');
+            if (citySelect.find(`option[value="${clientCity}"]`).length === 0) {
+                citySelect.append(`<option value="${clientCity}" selected>${clientCity}</option>`);
+                console.log('Ciudad del cliente agregada temporalmente:', clientCity);
+            } else {
+                citySelect.val(clientCity);
+            }
+        }
+        <?php endif; ?>
+    }
+    
+    // Inicializar datos del cliente primero
+    initializeClientData();
+    
     // Si ya hay un departamento seleccionado al cargar la página, cargar sus ciudades
     if ($('#_shipping_state').val()) {
-        $('#_shipping_state').trigger('change');
+        // Usar setTimeout para asegurar que el DOM esté completamente cargado
+        setTimeout(function() {
+            loadCitiesWithPreselection();
+        }, 200);
     }
 });
 </script>

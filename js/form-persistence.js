@@ -170,9 +170,21 @@ class FormPersistence {
                     }
                 }
                 
-                // Trigger change event para selects dependientes
+                // Manejo especial para selects dependientes (departamento/ciudad)
                 if (element.tagName === 'SELECT') {
-                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (element.id === '_shipping_state') {
+                        // Para el departamento, trigger change después de un delay
+                        // para permitir que se carguen las ciudades
+                        setTimeout(() => {
+                            element.dispatchEvent(new Event('change', { bubbles: true }));
+                        }, 50);
+                    } else if (element.id === '_shipping_city') {
+                        // Para la ciudad, no trigger inmediato, se manejará después de cargar opciones
+                        console.log('Ciudad restaurada desde persistencia:', value);
+                    } else {
+                        // Para otros selects, trigger normal
+                        element.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                 }
                 break;
         }

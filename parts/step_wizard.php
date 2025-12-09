@@ -111,9 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
             step.addEventListener('click', function() {
                 if (page) {
                     // Navegación con confirmación para pasos completados
-                    if (confirm('¿Desea regresar a: ' + step.querySelector('.step-label').textContent + '?')) {
-                        window.location.href = page;
-                    }
+                    showStepNavigationModal(step.querySelector('.step-label').textContent, page);
                 }
             });
             
@@ -159,6 +157,72 @@ document.addEventListener('DOMContentLoaded', function() {
                 circle.textContent = stepNumber;
             }
         });
+    };
+    
+    // Función para mostrar modal de confirmación de navegación
+    window.showStepNavigationModal = function(stepName, targetPage) {
+        // Crear modal dinámicamente si no existe
+        let modal = document.getElementById('stepNavigationModal');
+        if (!modal) {
+            const modalHTML = `
+                <div class="modal fade" id="stepNavigationModal" tabindex="-1" aria-labelledby="stepNavigationModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header bg-cuertar bg-custom text-white">
+                                <h5 class="modal-title" id="stepNavigationModalLabel">
+                                    <i class="fas fa-route me-2"></i>Confirmar Navegación
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center py-4">
+                                <div class="mb-3">
+                                    <i class="fas fa-question-circle text-warning" style="font-size: 3rem;"></i>
+                                </div>
+                                <h6 class="mb-3">¿Desea regresar al paso anterior?</h6>
+                                <p class="text-muted mb-0">
+                                    <i class="fas fa-arrow-left me-1"></i>
+                                    Ir a: <strong id="stepNameTarget"></strong>
+                                </p>
+                                <div class="alert alert-warning mt-3 mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <small>Los datos del paso actual se guardarán automáticamente</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer justify-content-center">
+                                <button type="button" class="btn btn-secondary btn-custom" data-bs-dismiss="modal">
+                                    <i class="fas fa-times me-2"></i>Cancelar
+                                </button>
+                                <button type="button" class="btn btn-primary btn-custom" id="confirmNavigationBtn">
+                                    <i class="fas fa-arrow-left me-2"></i>Regresar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            modal = document.getElementById('stepNavigationModal');
+        }
+        
+        // Actualizar contenido del modal
+        document.getElementById('stepNameTarget').textContent = stepName;
+        
+        // Configurar botón de confirmación
+        const confirmBtn = document.getElementById('confirmNavigationBtn');
+        confirmBtn.onclick = function() {
+            // Cerrar modal
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            modalInstance.hide();
+            
+            // Navegar después de cerrar el modal
+            setTimeout(() => {
+                window.location.href = targetPage;
+            }, 300);
+        };
+        
+        // Mostrar modal
+        const modalInstance = new bootstrap.Modal(modal);
+        modalInstance.show();
     };
 });
 </script>

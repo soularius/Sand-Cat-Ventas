@@ -262,63 +262,6 @@ body {
   color: var(--inactive-color) !important;
 }
 
-/* Status Background Colors */
-.bg-info {
-  background-color: var(--info-color) !important;
-  color: white !important;
-}
-
-.bg-warning {
-  background-color: var(--warning-color) !important;
-  color: white !important;
-}
-
-.bg-error {
-  background-color: var(--error-color) !important;
-  color: white !important;
-}
-
-.bg-success {
-  background-color: var(--success-color) !important;
-  color: white !important;
-}
-
-/* Additional Status Background Colors */
-.bg-completed {
-  background-color: var(--completed-color) !important;
-  color: white !important;
-}
-
-.bg-pending {
-  background-color: var(--pending-color) !important;
-  color: white !important;
-}
-
-.bg-processing {
-  background-color: var(--processing-color) !important;
-  color: white !important;
-}
-
-.bg-cancelled {
-  background-color: var(--cancelled-color) !important;
-  color: white !important;
-}
-
-.bg-draft {
-  background-color: var(--draft-color) !important;
-  color: white !important;
-}
-
-.bg-active {
-  background-color: var(--active-color) !important;
-  color: white !important;
-}
-
-.bg-inactive {
-  background-color: var(--inactive-color) !important;
-  color: white !important;
-}
-
 /* Alert Styles */
 .alert-info {
   background-color: var(--info-light-color);
@@ -463,6 +406,10 @@ a.a-custom:hover {
 
 .bg-secondary.bg-custom {
   background: linear-gradient(45deg, var(--secondary-color), var(--tertiary-color));
+}
+
+.bg-cuertar.bg-custom {
+  background: linear-gradient(45deg, var(--cuertar-color), var(--tertiary-color));
 }
 
 .bg-danger.bg-custom {
