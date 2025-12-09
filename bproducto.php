@@ -8,16 +8,13 @@ require_once('parts/login_handler.php');
 // 3. Lógica de autenticación y procesamiento
 requireLogin('facturacion.php');
 
-// Obtener datos del usuario actual
-$colname_usuario = Utils::captureValue('MM_Username', 'SESSION', '');
-if ($colname_usuario) {
-    $colname_usuario = mysqli_real_escape_string($sandycat, $colname_usuario);
+// Obtener datos del usuario actual usando función centralizada
+$row_usuario = getCurrentUserFromDB();
+if (!$row_usuario) {
+    // Si no se pueden obtener los datos del usuario, redirigir al login
+    Header("Location: index.php");
+    exit();
 }
-
-$query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
-$row_usuario = mysqli_fetch_assoc($usuario);
-$totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = $row_usuario['elnombre'] ?? '';
 $id_usuarios = $row_usuario['id_ingreso'] ?? 0;
@@ -101,7 +98,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                               <div class="quick-filters">
                                   <h6>Filtros Rápidos</h6>
                                   <div class="filter-buttons">
-                                      <button class="btn btn-outline-primary btn-sm filter-btn" data-filter="all">
+                                      <button class="btn btn-outline-primary btn-sm filter-btn active" data-filter="all">
                                           <i class="fas fa-list me-1"></i>Todos
                                       </button>
                                       <button class="btn btn-outline-success btn-sm filter-btn" data-filter="available">
@@ -121,6 +118,25 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                       <li><i class="fas fa-lightbulb me-1"></i>Busca por nombre o código</li>
                                       <li><i class="fas fa-lightbulb me-1"></i>Los filtros ayudan a refinar</li>
                                   </ul>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <!-- Cart Panel -->
+                      <div class="cart-panel mt-4">
+                          <div class="panel-header bg-primary bg-custom">
+                              <h5 class="text-white">
+                                  <i class="fas fa-shopping-cart me-2"></i>Carrito 
+                                  <span class="badge bg-light text-dark ms-2" id="cart-counter" style="display: none;">0</span>
+                              </h5>
+                          </div>
+                          
+                          <div class="panel-body">
+                              <div id="cart-container">
+                                  <div class="empty-cart">
+                                      <i class="fas fa-shopping-cart text-muted"></i>
+                                      <p class="text-muted">No hay productos seleccionados</p>
+                                  </div>
                               </div>
                           </div>
                       </div>

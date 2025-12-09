@@ -29,14 +29,9 @@ $default_steps = [
         'page' => 'bproducto.php'
     ],
     4 => [
-        'label' => 'Facturación',
-        'icon' => 'fas fa-credit-card',
-        'page' => 'pago_venta.php'
-    ],
-    5 => [
-        'label' => 'Confirmación',
-        'icon' => 'fas fa-check-circle',
-        'page' => 'confirmar_venta.php'
+        'label' => 'Resumen del Pedido',
+        'icon' => 'fas fa-clipboard-check',
+        'page' => 'resumen_pedido.php'
     ]
 ];
 
@@ -116,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
             step.addEventListener('click', function() {
                 if (page) {
                     // Navegación con confirmación para pasos completados
-                    showStepNavigationModal(step.querySelector('.step-label').textContent, page);
+                    showStepNavigationModal(step.querySelector('.step-label').textContent, page, stepNumber);
                 }
             });
             
@@ -165,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Función para mostrar modal de confirmación de navegación
-    window.showStepNavigationModal = function(stepName, targetPage) {
+    window.showStepNavigationModal = function(stepName, targetPage, targetStepNumber) {
         // Crear modal dinámicamente si no existe
         let modal = document.getElementById('stepNavigationModal');
         if (!modal) {
@@ -221,13 +216,49 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Navegar después de cerrar el modal
             setTimeout(() => {
-                window.location.href = targetPage;
+                navigateToStep(targetPage, targetStepNumber);
             }, 300);
         };
         
         // Mostrar modal
         const modalInstance = new bootstrap.Modal(modal);
         modalInstance.show();
+    };
+    
+    // Función para navegar entre pasos con datos
+    window.navigateToStep = function(targetPage, targetStepNumber) {
+        // Obtener el paso actual desde la página
+        const currentPage = window.location.pathname.split('/').pop();
+        
+        // Si estamos en bproducto.php (paso 3) y vamos a pros_venta.php (paso 2)
+        if (currentPage === 'bproducto.php' && targetPage === 'pros_venta.php') {
+            // Obtener el order_id del campo hidden
+            const orderIdField = document.getElementById('_order_id');
+            const orderId = orderIdField ? orderIdField.value : '';
+            
+            if (orderId) {
+                // Crear un formulario temporal para enviar el order_id via POST
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = targetPage;
+                form.style.display = 'none';
+                
+                // Agregar el order_id como campo hidden
+                const orderIdInput = document.createElement('input');
+                orderIdInput.type = 'hidden';
+                orderIdInput.name = '_order_id';
+                orderIdInput.value = orderId;
+                form.appendChild(orderIdInput);
+                
+                // Agregar el formulario al DOM y enviarlo
+                document.body.appendChild(form);
+                form.submit();
+                return;
+            }
+        }
+        
+        // Navegación normal para otros casos
+        window.location.href = targetPage;
     };
 });
 </script>

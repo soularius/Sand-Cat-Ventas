@@ -42,10 +42,51 @@ $formFields = [
     'post_expcerpt',
     '_order_shipping',
     '_cart_discount',
-    '_payment_method_title'
+    '_payment_method_title',
+    '_order_id'
 ];
 
 $formData = Utils::capturePostData($formFields);
+
+// Verificar si se está navegando desde el paso 3 con un order_id existente
+$existing_order_id = $formData['_order_id'];
+if ($existing_order_id && !$formData['nombre1']) {
+    // Cargar datos existentes del pedido
+    $query_existing = "SELECT pm.meta_key, pm.meta_value 
+                       FROM miau_postmeta pm 
+                       WHERE pm.post_id = '$existing_order_id'";
+    
+    $result_existing = mysqli_query($miau, $query_existing);
+    if ($result_existing) {
+        $existing_data = [];
+        while ($row = mysqli_fetch_assoc($result_existing)) {
+            $existing_data[$row['meta_key']] = $row['meta_value'];
+        }
+        
+        // Rellenar formData con datos existentes si no se proporcionaron nuevos datos
+        if (!empty($existing_data)) {
+            $formData['nombre1'] = $existing_data['_shipping_first_name'] ?? '';
+            $formData['nombre2'] = $existing_data['_shipping_last_name'] ?? '';
+            $formData['billing_id'] = $existing_data['billing_id'] ?? '';
+            $formData['_billing_email'] = $existing_data['_billing_email'] ?? '';
+            $formData['_billing_phone'] = $existing_data['_billing_phone'] ?? '';
+            $formData['_shipping_address_1'] = $existing_data['_shipping_address_1'] ?? '';
+            $formData['_shipping_address_2'] = $existing_data['_shipping_address_2'] ?? '';
+            $formData['_billing_neighborhood'] = $existing_data['_billing_neighborhood'] ?? '';
+            $formData['_shipping_city'] = $existing_data['_shipping_city'] ?? '';
+            $formData['_shipping_state'] = $existing_data['_shipping_state'] ?? '';
+            $formData['post_expcerpt'] = $existing_data['post_excerpt'] ?? '';
+            $formData['_order_shipping'] = $existing_data['_order_shipping'] ?? '';
+            $formData['_cart_discount'] = $existing_data['_cart_discount'] ?? '';
+            $formData['_payment_method_title'] = $existing_data['_payment_method_title'] ?? '';
+            
+            Utils::logError("Datos cargados para order_id: $existing_order_id", 'INFO', 'pros_venta.php');
+            
+            // Asignar el order_id existente para que funcione el botón "Agregar Producto"
+            $elid = $existing_order_id;
+        }
+    }
+}
 
 // Asignar variables para compatibilidad con código existente
 $_shipping_first_name = $formData['nombre1'];
