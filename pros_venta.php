@@ -58,6 +58,28 @@ $_shipping_address_2 = $formData['_shipping_address_2'];
 $_billing_neighborhood = $formData['_billing_neighborhood'];
 $_shipping_city = $formData['_shipping_city'];
 $_shipping_state = $formData['_shipping_state'];
+
+// Procesar códigos de departamento y ciudad para diferentes tablas
+$original_state = $_shipping_state;
+$original_city = $_shipping_city;
+
+// Ahora $_shipping_state siempre viene con la clave del departamento (ej: "SAN", "ANT")
+// porque se corrigió el select del formulario
+
+// Para miau_usermeta: state = solo clave, city = valor
+$state_for_usermeta = $_shipping_state;  // Ya viene como clave (ej: "SAN")
+$city_for_usermeta = $_shipping_city;    // Valor completo (ej: "El carmen de chucuri")
+
+// Para miau_wc_order_addresses: state = CO-clave, city = valor
+$state_for_addresses = 'CO-' . $_shipping_state;  // Agregar prefijo CO- (ej: "CO-SAN")
+$city_for_addresses = $_shipping_city;             // Valor completo
+
+// Para miau_postmeta: usar solo la clave del departamento
+$state_for_postmeta = $_shipping_state;  // Ya viene como clave (ej: "SAN")
+
+// Log para debugging
+Utils::logError("Procesamiento de ubicación - Estado original: $original_state, Para usermeta: $state_for_usermeta, Para addresses: $state_for_addresses, Ciudad: $_shipping_city", 'INFO', 'pros_venta.php');
+
 $post_expcerpt = $formData['post_expcerpt'];
 $_order_shipping = $formData['_order_shipping'];
 $_cart_discount = $formData['_cart_discount'];
@@ -191,12 +213,12 @@ if (Utils::captureValue('nombre1', 'POST')) {
         (
             '$elid',
             '_shipping_state',
-            '$_shipping_state'
+            '$state_for_postmeta'
         ),
         (
             '$elid',
             '_billing_state',
-            '$_shipping_state'
+            '$state_for_postmeta'
         ),
         (
             '$elid',
@@ -234,6 +256,55 @@ if (Utils::captureValue('nombre1', 'POST')) {
             '$_shipping_address_2'
         )";
     mysqli_query($miau, $query2);
+
+    // Insertar direcciones en miau_wc_order_addresses
+    $query_addresses = "INSERT INTO miau_wc_order_addresses (
+        order_id,
+        address_type,
+        first_name,
+        last_name,
+        company,
+        address_1,
+        address_2,
+        city,
+        state,
+        postcode,
+        country,
+        email,
+        phone
+    )
+    VALUES
+        (
+            '$elid',
+            'billing',
+            '$_shipping_first_name',
+            '$_shipping_last_name',
+            NULL,
+            '$_shipping_address_1',
+            '$_shipping_address_2',
+            '$city_for_addresses',
+            '$state_for_addresses',
+            NULL,
+            'CO',
+            '$_billing_email',
+            '$_billing_phone'
+        ),
+        (
+            '$elid',
+            'shipping',
+            '$_shipping_first_name',
+            '$_shipping_last_name',
+            NULL,
+            '$_shipping_address_1',
+            '$_shipping_address_2',
+            '$city_for_addresses',
+            '$state_for_addresses',
+            NULL,
+            'CO',
+            NULL,
+            NULL
+        )";
+    mysqli_query($miau, $query_addresses);
 
     // Verificar si el cliente ya existe en WooCommerce
     $query_cliente = sprintf("SELECT customer_id, email FROM miau_wc_customer_lookup WHERE email = '$_billing_email'");
@@ -309,8 +380,8 @@ if (Utils::captureValue('nombre1', 'POST')) {
                 ('$user_id', 'billing_phone', '$_billing_phone'),
                 ('$user_id', 'billing_address_1', '$_shipping_address_1'),
                 ('$user_id', 'billing_address_2', '$_shipping_address_2'),
-                ('$user_id', 'billing_city', '$_shipping_city'),
-                ('$user_id', 'billing_state', '$_shipping_state'),
+                ('$user_id', 'billing_city', '$city_for_usermeta'),
+                ('$user_id', 'billing_state', '$state_for_usermeta'),
                 ('$user_id', 'billing_country', 'CO'),
                 ('$user_id', 'billing_barrio', '$_billing_neighborhood'),
                 ('$user_id', 'billing_dni', '$billing_id'),
@@ -318,8 +389,8 @@ if (Utils::captureValue('nombre1', 'POST')) {
                 ('$user_id', 'shipping_last_name', '$_shipping_last_name'),
                 ('$user_id', 'shipping_address_1', '$_shipping_address_1'),
                 ('$user_id', 'shipping_address_2', '$_shipping_address_2'),
-                ('$user_id', 'shipping_city', '$_shipping_city'),
-                ('$user_id', 'shipping_state', '$_shipping_state'),
+                ('$user_id', 'shipping_city', '$city_for_usermeta'),
+                ('$user_id', 'shipping_state', '$state_for_usermeta'),
                 ('$user_id', 'shipping_country', 'CO'),
                 ('$user_id', 'shipping_barrio', '$_billing_neighborhood'),
                 ('$user_id', 'shipping_dni', '$billing_id')";
@@ -354,8 +425,8 @@ if (Utils::captureValue('nombre1', 'POST')) {
             '$_billing_email', 
             '$hoy', 
             'CO', 
-            '$_shipping_city', 
-            '$_shipping_state'
+            '$city_for_usermeta', 
+            '$state_for_usermeta'
         )";
 
         if (mysqli_query($miau, $query3)) {
@@ -623,15 +694,34 @@ include('parts/step_wizard.php');
                                 <?php if ($_shipping_address_1): ?>
                                     <div class="info-row">
                                         <span class="info-label">Dirección:</span>
-                                        <span class="info-value"><?php echo $_shipping_address_1 . " " . $_shipping_address_2 . " " . $_billing_neighborhood; ?></span>
+                                        <span class="info-value"><?php echo $_shipping_address_1 . ($_shipping_address_2 ? " " . $_shipping_address_2 : "") . ($_billing_neighborhood ? " - " . $_billing_neighborhood : ""); ?></span>
                                     </div>
                                 <?php endif; ?>
                                 <?php if ($_shipping_city): ?>
                                     <div class="info-row">
                                         <span class="info-label">Ciudad:</span>
-                                        <span class="info-value"><?php echo $_shipping_city . " (" . $_shipping_state . ")"; ?></span>
+                                        <span class="info-value"><?php echo $_shipping_city; ?></span>
                                     </div>
                                 <?php endif; ?>
+                                <?php if ($_shipping_state): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Departamento:</span>
+                                        <span class="info-value"><?php 
+                                            // Obtener el nombre completo del departamento
+                                            $states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
+                                            if (file_exists($states_file)) {
+                                                $colombia_states = include($states_file);
+                                                echo isset($colombia_states[$_shipping_state]) ? $colombia_states[$_shipping_state] : $_shipping_state;
+                                            } else {
+                                                echo $_shipping_state;
+                                            }
+                                        ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="info-row">
+                                    <span class="info-label">País:</span>
+                                    <span class="info-value">Colombia</span>
+                                </div>
                             </div>
                         <?php endif; ?>
                     </div>

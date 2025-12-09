@@ -208,8 +208,8 @@ include('parts/step_wizard.php');
                                             $colombia_states = include($states_file);
                                             
                                             foreach ($colombia_states as $code => $name) {
-                                                $selected = (strtoupper($departamento) == strtoupper($name)) ? 'selected' : '';
-                                                echo "<option value=\"$name\" data-code=\"$code\" $selected>$name</option>";
+                                                $selected = (strtoupper($departamento) == strtoupper($code)) ? 'selected' : '';
+                                                echo "<option value=\"$code\" data-code=\"$code\" $selected>$name</option>";
                                             }
                                         } else {
                                             echo "<option value=\"\">Error: No se encontraron departamentos</option>";
