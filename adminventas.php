@@ -229,11 +229,27 @@ include("parts/header.php");
                         return;
                     }
 
-                    // LIMPIAR DATOS DE CLIENTE AL BUSCAR
+                    // LIMPIAR DATOS DE CLIENTE AL BUSCAR (localStorage y sesión)
                     if (typeof clearCustomerDataOnSearch === 'function') {
                         clearCustomerDataOnSearch();
-                        console.log('Datos de cliente limpiados al iniciar búsqueda');
+                        console.log('Datos de cliente limpiados de localStorage');
                     }
+                    
+                    // Limpiar datos de sesión PHP también
+                    $.ajax({
+                        url: 'class/save_session_data.php',
+                        method: 'POST',
+                        data: {
+                            action: 'clear_customer',
+                            clear_type: 'customer_only'
+                        },
+                        success: function(response) {
+                            console.log('Datos de cliente limpiados de sesión PHP:', response);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error limpiando sesión PHP:', xhr.responseText);
+                        }
+                    });
 
                     // Mostrar indicador de búsqueda
                     $btnSearch.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Buscando...');
@@ -252,7 +268,24 @@ include("parts/header.php");
                         dataType: 'json',
                         success: function(response) {
                             if (response.success && response.customer) {
-                                // Cliente encontrado
+                                // Cliente encontrado - Guardar en sesión PHP
+                                $.ajax({
+                                    url: 'class/save_session_data.php',
+                                    method: 'POST',
+                                    data: {
+                                        action: 'save_customer',
+                                        customer_data: JSON.stringify(response.customer),
+                                        billing_id: documento
+                                    },
+                                    success: function(sessionResponse) {
+                                        console.log('Datos del cliente guardados en sesión:', sessionResponse);
+                                    },
+                                    error: function(xhr, status, error) {
+                                        console.error('Error guardando en sesión PHP:', xhr.responseText);
+                                        // Continuar aunque falle el guardado en sesión
+                                    }
+                                });
+                                
                                 const customer = response.customer;
                                 $previewDiv.html(`
                                     <div class="card border-0 shadow-sm">

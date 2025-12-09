@@ -113,13 +113,55 @@ include('parts/step_wizard.php');
             </div>
         </div>
 
-        <?php						 
+        <?php
+            // Verificar si hay datos de cliente en sesión antes de procesar postmeta
+            $session_customer_data = [];
+            $session_billing_id = '';
+            
+            // Iniciar sesión si no está iniciada
+            if (session_status() == PHP_SESSION_NONE) {
+                session_start();
+            }
+            
+            // Obtener datos de sesión si existen (sin incluir archivo externo)
+            if (isset($_SESSION['last_customer_data'])) {
+                $sessionData = $_SESSION['last_customer_data'];
+                
+                // Verificar que los datos no sean muy antiguos (1 hora)
+                $maxAge = 3600; // 1 hora
+                if ((time() - $sessionData['timestamp']) <= $maxAge) {
+                    $session_customer_data = $sessionData['customer'];
+                    $session_billing_id = $sessionData['billing_id'];
+                    
+                    echo "<!-- SESIÓN: Cliente encontrado en sesión - DNI: $session_billing_id -->";
+                    
+                    // Simular que se encontró el cliente para que postmeta.php use estos datos
+                    $customer_found = true;
+                    $customer_data = $session_customer_data;
+                    $billing_id = $session_billing_id;
+                } else {
+                    // Datos muy antiguos, limpiar
+                    unset($_SESSION['last_customer_data']);
+                    echo "<!-- SESIÓN: Datos expirados, limpiados -->";
+                }
+            } else {
+                // Verificar si al menos hay un DNI guardado
+                if (isset($_SESSION['last_billing_id']) && empty($billing_id)) {
+                    $billing_id = $_SESSION['last_billing_id'];
+                    echo "<!-- SESIÓN: DNI recuperado de sesión: $billing_id -->";
+                }
+            }
+            
+            // Procesar datos normalmente
             include("postmeta.php");
             $documento = !empty($billing_id) ? $billing_id : $documento;
             
             // Debug: Mostrar valores cargados
             if (!empty($ciudad) || !empty($departamento)) {
                 echo "<!-- DEBUG: Ciudad='$ciudad', Departamento='$departamento' -->";
+            }
+            if (!empty($session_billing_id)) {
+                echo "<!-- SESIÓN: Datos cargados desde sesión PHP -->";
             }
         ?>
 
@@ -501,8 +543,45 @@ document.addEventListener('DOMContentLoaded', function() {
         initFormPersistence(form.id);
         
         console.log('Persistencia inicializada para datos del cliente');
+        
+        // Verificar si hay datos cargados desde sesión PHP
+        <?php if (!empty($session_billing_id)): ?>
+        // Mostrar notificación de datos cargados desde sesión
+        setTimeout(function() {
+            showSessionDataNotification('<?php echo addslashes($session_billing_id); ?>');
+        }, 1000);
+        <?php endif; ?>
     }
 });
+
+/**
+ * Mostrar notificación de datos cargados desde sesión PHP
+ */
+function showSessionDataNotification(dni) {
+    // Crear notificación
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 350px;';
+    notification.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-server me-2"></i>
+            <div>
+                <strong>Datos restaurados desde sesión</strong><br>
+                <small>Cliente con DNI ${dni} cargado automáticamente</small>
+            </div>
+            <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 4 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 4000);
+}
 </script>
 
 </div>
