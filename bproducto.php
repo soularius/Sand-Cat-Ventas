@@ -162,7 +162,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                       <h4>Busca productos</h4>
                                       <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
                                       <div class="empty-state-actions">
-                                          <button class="btn btn-primary" onclick="$('#search').focus()">
+                                          <button class="btn btn-danger" onclick="$('#search').focus()">
                                               <i class="fas fa-search me-2"></i>Comenzar Búsqueda
                                           </button>
                                       </div>
@@ -212,7 +212,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                 <i class="fas fa-calculator me-2"></i>Cantidad
                             </label>
                             <div class="quantity-input-container">
-                                <input type="number" 
+                                <input type="text" 
                                        class="form-control text-center" 
                                        id="product_qty" 
                                        name="product_qty" 
@@ -400,7 +400,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                     ${priceHtml}
                                     ${stockHtml}
                                     <div class="d-flex justify-content-center mt-auto">
-                                        <button class="btn ${product.is_available ? 'btn-success btn-circular' : 'btn-outline-secondary btn-circular'} add-product-btn position-absolute text-white" 
+                                        <button class="btn btn-custom btn-circular ${product.is_available ? 'btn-success' : 'btn-secondary'} add-product-btn position-absolute text-white" 
                                                 data-product-id="${product.id}" 
                                                 data-product-name="${product.title}"
                                                 data-product-price="${product.price.replace(/[.,]/g, '')}"
@@ -497,15 +497,15 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 
                 // Cambiar estado del botón
                 const origText = btn.html();
-                btn.html('<i class="fas fa-spinner fa-spin me-1"></i>Agregando...').prop('disabled', true);
+                btn.html('<i class="fas fa-spinner fa-spin me-1"></i>').prop('disabled', true);
                 
                 // Simular agregado (aquí iría la lógica real)
                 setTimeout(() => {
-                    btn.html('<i class="fas fa-check me-1"></i>Agregado').removeClass('btn-primary').addClass('btn-success');
+                    btn.html('<i class="fas fa-check me-1"></i>').removeClass('btn-danger').addClass('btn-success');
                     
                     // Restaurar después de 2 segundos
                     setTimeout(() => {
-                        btn.html(origText).removeClass('btn-success').addClass('btn-primary').prop('disabled', false);
+                        btn.html('<i class="fas fa-xmark me-1"></i>').removeClass('btn-success').addClass('btn-danger').prop('disabled', false);
                     }, 2000);
                 }, 1000);
             });

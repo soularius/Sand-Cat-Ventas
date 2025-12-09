@@ -1,12 +1,15 @@
 // Sistema de carrito en localStorage para productos
 class ProductCart {
     constructor() {
+        console.log('ProductCart constructor called');
         this.storageKey = 'ventas_cart_products';
         this.cart = this.loadCart();
+        console.log('Cart loaded in constructor:', this.cart);
         this.init();
     }
     
     init() {
+        console.log('ProductCart init called');
         this.updateCartDisplay();
         this.bindEvents();
     }
@@ -34,11 +37,16 @@ class ProductCart {
     
     // Agregar producto al carrito
     addProduct(product, quantity = 1) {
+        console.log('ProductCart.addProduct called with:', product, 'quantity:', quantity);
+        
         const productId = product.id.toString();
+        console.log('Product ID (string):', productId);
         
         if (this.cart[productId]) {
+            console.log('Product exists in cart, updating quantity');
             this.cart[productId].quantity += quantity;
         } else {
+            console.log('Adding new product to cart');
             this.cart[productId] = {
                 id: product.id,
                 title: product.title,
@@ -52,6 +60,7 @@ class ProductCart {
             };
         }
         
+        console.log('Cart after adding product:', this.cart);
         this.saveCart();
         this.showNotification(`${product.title} agregado al carrito`, 'success');
     }
@@ -112,11 +121,16 @@ class ProductCart {
         const totalItems = this.getTotalItems();
         const totalPrice = this.getTotalPrice();
         
+        console.log('updateCartDisplay called - Total items:', totalItems, 'Total price:', totalPrice);
+        
         // Actualizar contador en el header si existe
         const cartCounter = document.getElementById('cart-counter');
         if (cartCounter) {
             cartCounter.textContent = totalItems;
             cartCounter.style.display = totalItems > 0 ? 'inline' : 'none';
+            console.log('Cart counter updated:', totalItems);
+        } else {
+            console.warn('Cart counter element not found');
         }
         
         // Actualizar panel de carrito
@@ -126,11 +140,16 @@ class ProductCart {
     // Renderizar panel de carrito
     renderCartPanel() {
         const cartContainer = document.getElementById('cart-container');
-        if (!cartContainer) return;
+        if (!cartContainer) {
+            console.error('Cart container element not found!');
+            return;
+        }
         
         const items = this.getCartItems();
+        console.log('renderCartPanel called with items:', items);
         
         if (items.length === 0) {
+            console.log('No items in cart, showing empty state');
             cartContainer.innerHTML = `
                 <div class="empty-cart">
                     <i class="fas fa-shopping-cart text-muted"></i>
@@ -161,7 +180,7 @@ class ProductCart {
                             <button class="btn btn-sm btn-outline-secondary" onclick="cart.updateQuantity('${item.id}', ${item.quantity - 1})">
                                 <i class="fas fa-minus"></i>
                             </button>
-                            <input type="number" class="form-control form-control-sm quantity-input" 
+                            <input type="text" class="form-control form-control-sm quantity-input" 
                                    value="${item.quantity}" min="1" max="${item.stock}"
                                    onchange="cart.updateQuantity('${item.id}', parseInt(this.value))">
                             <button class="btn btn-sm btn-outline-secondary" onclick="cart.updateQuantity('${item.id}', ${item.quantity + 1})">
@@ -187,16 +206,17 @@ class ProductCart {
                     <span class="text-muted">${this.getTotalItems()} productos</span>
                 </div>
                 <div class="cart-actions mt-3">
-                    <button class="btn btn-outline-danger btn-sm" onclick="cart.clearCart()">
+                    <button class="btn btn-danger btn-custom btn-sm" onclick="cart.clearCart()">
                         <i class="fas fa-trash me-1"></i>Limpiar
                     </button>
-                    <button class="btn btn-success" onclick="proceedToSummary()" ${items.length === 0 ? 'disabled' : ''}>
-                        <i class="fas fa-arrow-right me-1"></i>Continuar al Resumen
+                    <button class="btn btn-success btn-custom" onclick="proceedToSummary()" ${items.length === 0 ? 'disabled' : ''}>
+                        <i class="fas fa-arrow-right me-1"></i> Continuar
                     </button>
                 </div>
             </div>
         `;
         
+        console.log('Setting cart container HTML:', html);
         cartContainer.innerHTML = html;
     }
     
@@ -243,8 +263,54 @@ class ProductCart {
 let cart;
 
 $(document).ready(function(){
+    console.log('Document ready - Initializing cart system');
+    
     // Inicializar carrito
     cart = new ProductCart();
+    console.log('Cart initialized:', cart);
+    
+    // Hacer funciones disponibles globalmente
+    window.addToCartById = addToCartById;
+    window.addToCart = addToCart;
+    window.adjustQuantity = adjustQuantity;
+    window.proceedToSummary = proceedToSummary;
+    console.log('Global functions assigned');
+    
+    // Event listener para botones con data-attributes (desde bproducto.php)
+    $(document).on('click', '.add-product-btn', function(e) {
+        console.log('Add product button clicked (data-attributes)');
+        console.log('Button element:', this);
+        console.log('Product ID:', $(this).data('product-id'));
+        console.log('Product Name:', $(this).data('product-name'));
+        console.log('Product Price:', $(this).data('product-price'));
+        
+        const productId = $(this).data('product-id');
+        const productName = $(this).data('product-name');
+        const productPrice = $(this).data('product-price');
+        
+        if (!productId) {
+            console.error('No product ID found in button data');
+            return;
+        }
+        
+        // Crear objeto producto desde los data attributes
+        const product = {
+            id: productId,
+            title: productName,
+            price: productPrice,
+            available: true,
+            stock: 999 // Valor por defecto
+        };
+        
+        console.log('Created product object from data:', product);
+        
+        // Agregar al carrito
+        if (cart) {
+            cart.addProduct(product, 1);
+        } else {
+            console.error('Cart not initialized');
+        }
+    });
     
     // Focus on search input when page loads
     $('#search').focus();
@@ -317,7 +383,7 @@ $(document).ready(function(){
                     <h4>Busca productos</h4>
                     <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
                     <div class="empty-state-actions">
-                        <button class="btn btn-primary" onclick="$('#search').focus()">
+                        <button class="btn btn-danger" onclick="$('#search').focus()">
                             <i class="fas fa-search me-2"></i>Comenzar Búsqueda
                         </button>
                     </div>
@@ -343,8 +409,13 @@ $(document).ready(function(){
     };
 });
 
+// Cache de productos para acceso por ID
+let productsCache = {};
+
 // Renderizar productos en la interfaz
 function renderProducts(products) {
+    console.log('renderProducts called with:', products);
+    
     if (!products || products.length === 0) {
         $('#result').html(`
             <div class="empty-state">
@@ -356,9 +427,15 @@ function renderProducts(products) {
         return;
     }
     
+    // Limpiar cache y agregar productos
+    productsCache = {};
+    
     let html = '<div class="products-grid">';
     
     products.forEach(product => {
+        // Agregar al cache
+        productsCache[product.id] = product;
+        console.log('Product added to cache:', product.id, product.title);
         const price = product.sale_price || product.price;
         const hasDiscount = product.sale_price && product.sale_price < product.regular_price;
         
@@ -391,7 +468,7 @@ function renderProducts(products) {
                             <button class="btn btn-outline-secondary" type="button" onclick="adjustQuantity('${product.id}', -1)">
                                 <i class="fas fa-minus"></i>
                             </button>
-                            <input type="number" class="form-control text-center quantity-input" 
+                            <input type="text" class="form-control text-center quantity-input" 
                                    id="qty-${product.id}" value="1" min="1" max="${product.stock}" 
                                    ${!product.available ? 'disabled' : ''}>
                             <button class="btn btn-outline-secondary" type="button" onclick="adjustQuantity('${product.id}', 1)">
@@ -401,7 +478,7 @@ function renderProducts(products) {
                     </div>
                     
                     <button class="btn btn-success btn-sm add-to-cart-btn" 
-                            onclick="addToCart(${JSON.stringify(product).replace(/"/g, '&quot;')})"
+                            onclick="console.log('Button clicked for product:', '${product.id}'); addToCartById('${product.id}');"
                             ${!product.available ? 'disabled' : ''}>
                         <i class="fas fa-cart-plus me-1"></i>
                         ${product.available ? 'Agregar' : 'Sin Stock'}
@@ -412,6 +489,7 @@ function renderProducts(products) {
     });
     
     html += '</div>';
+    console.log('Generated HTML for products:', html.substring(0, 500) + '...');
     $('#result').html(html);
 }
 
@@ -431,12 +509,27 @@ function adjustQuantity(productId, delta) {
     }
 }
 
-// Agregar producto al carrito
-function addToCart(product) {
+// Agregar producto al carrito por ID
+function addToCartById(productId) {
+    console.log('addToCartById called with ID:', productId);
+    console.log('Products cache:', productsCache);
+    console.log('Cart instance:', cart);
+    
+    const product = productsCache[productId];
+    if (!product) {
+        console.error('Product not found in cache:', productId);
+        return;
+    }
+    
+    console.log('Product found:', product);
+    
     const quantityInput = document.getElementById(`qty-${product.id}`);
     const quantity = quantityInput ? parseInt(quantityInput.value) || 1 : 1;
     
+    console.log('Quantity to add:', quantity);
+    
     if (quantity > product.stock) {
+        console.warn('Quantity exceeds stock:', quantity, 'vs', product.stock);
         cart.showNotification(`Solo hay ${product.stock} unidades disponibles`, 'warning');
         return;
     }
@@ -447,6 +540,12 @@ function addToCart(product) {
     if (quantityInput) {
         quantityInput.value = 1;
     }
+}
+
+// Mantener función original para compatibilidad
+function addToCart(product) {
+    console.log('addToCart (legacy) called with:', product);
+    addToCartById(product.id);
 }
 
 // Proceder al resumen (paso 4)
