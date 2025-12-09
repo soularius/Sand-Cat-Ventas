@@ -13,11 +13,12 @@ if ($customer_found && !empty($customer_data)) {
     // Usar datos del cliente encontrado en WooCommerce
     $nombre1 = $customer_data['first_name'] ?? $customer_data['shipping_first_name'] ?? '';
     $nombre2 = $customer_data['last_name'] ?? $customer_data['shipping_last_name'] ?? '';
-    $documento = $customer_data['billing_id'] ?? $billing_id;
+    $documento = $customer_data['dni'] ?? $customer_data['billing_id'] ?? $billing_id;
     $ciudad = $customer_data['city'] ?? $customer_data['shipping_city'] ?? '';
     $departamento = $customer_data['state'] ?? $customer_data['shipping_state'] ?? '';
     $dir1 = $customer_data['address_1'] ?? $customer_data['shipping_address_1'] ?? '';
     $dir2 = $customer_data['address_2'] ?? $customer_data['shipping_address_2'] ?? '';
+    $barrio = $customer_data['barrio'] ?? $customer_data['shipping_barrio'] ?? '';
     $celular = $customer_data['phone'] ?? '';
     $correo = $customer_data['email'] ?? '';
     $fecha = date("Y-m-d");
@@ -30,6 +31,12 @@ if ($customer_found && !empty($customer_data)) {
         }
         if($row_lista['meta_key']=='_shipping_last_name') {
             $nombre2 = $row_lista['meta_value'];
+        }
+        if($row_lista['meta_key']=='_billing_dni') {
+            $documento = $row_lista['meta_value'];
+        }
+        if($row_lista['meta_key']=='_shipping_dni') {
+            $documento = $row_lista['meta_value'];
         }
         if($row_lista['meta_key']=='billing_id') {
             $documento = $row_lista['meta_value'];
@@ -46,7 +53,10 @@ if ($customer_found && !empty($customer_data)) {
         if($row_lista['meta_key']=='_shipping_address_2') {
             $dir2 = $row_lista['meta_value'];
         }
-        if($row_lista['meta_key']=='_billing_neighborhood') {
+        if($row_lista['meta_key']=='_billing_barrio') {
+            $barrio = $row_lista['meta_value'];
+        }
+        if($row_lista['meta_key']=='_shipping_barrio') {
             $barrio = $row_lista['meta_value'];
         }
         if($row_lista['meta_key']=='_billing_phone') {

@@ -126,12 +126,12 @@ include("parts/header.php");
                         <form action="datos_venta.php" class="needs-validation" method="post" target="_self" id="adminventas" novalidate>
                             <div class="mb-3">
                                 <label for="billing_id" class="form-label">
-                                    <i class="fas fa-id-card me-2"></i>Documento del Cliente
+                                    <i class="fas fa-id-card me-2"></i>DNI/Cédula del Cliente
                                 </label>
                                 <div class="input-group">
                                     <input type="text"
                                         class="form-control form-control-lg"
-                                        placeholder="Ingrese el documento del cliente"
+                                        placeholder="Ingrese el DNI/Cédula del cliente"
                                         id="billing_id"
                                         name="billing_id"
                                         value=""
@@ -142,11 +142,11 @@ include("parts/header.php");
                                     </button>
                                 </div>
                                 <div class="invalid-feedback">
-                                    Por favor ingrese un documento válido.
+                                    Por favor ingrese un DNI/Cédula válido.
                                 </div>
                                 <small class="form-text text-muted">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Busque el cliente en la base de datos de WooCommerce
+                                    Busque el cliente por DNI en la base de datos de WooCommerce
                                 </small>
                             </div>
 
@@ -255,6 +255,9 @@ include("parts/header.php");
                                     </div>
                                     <div class="row">
                                         <div class="col-md-6">
+                                            <strong>DNI:</strong> ${customer.dni || 'No registrado'}
+                                        </div>
+                                        <div class="col-md-6">
                                             <strong>Nombre:</strong> ${customer.first_name} ${customer.last_name}
                                         </div>
                                         <div class="col-md-6">
@@ -265,6 +268,12 @@ include("parts/header.php");
                                         </div>
                                         <div class="col-md-6">
                                             <strong>Ciudad:</strong> ${customer.city || 'No registrada'}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Barrio:</strong> ${customer.barrio || 'No registrado'}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Dirección:</strong> ${customer.address_1 || 'No registrada'}
                                         </div>
                                     </div>
                                     <div class="mt-2">
