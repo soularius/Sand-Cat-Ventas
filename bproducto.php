@@ -488,24 +488,61 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 updateResultsCount(0);
             });
             
-            // Manejar click en agregar producto
+            // Manejar click en agregar/eliminar producto
             $(document).on('click', '.add-product-btn', function() {
                 const btn = $(this);
                 const prodId = btn.data('product-id');
                 const prodName = btn.data('product-name');
                 const prodPrice = btn.data('product-price');
                 
-                // Cambiar estado del botón
+                // Verificar si el botón está en estado "eliminar" (tiene X)
+                const isRemoveState = btn.find('.fa-xmark').length > 0;
+                
+                if (isRemoveState) {
+                    // Eliminar producto del carrito
+                    console.log('Removing product from cart:', prodId);
+                    if (window.cart) {
+                        window.cart.removeProduct(prodId);
+                        // Cambiar botón de vuelta al estado inicial
+                        btn.html('<i class="text-white fas fa-plus"></i>')
+                           .removeClass('btn-danger btn-success')
+                           .addClass('btn-success')
+                           .prop('disabled', false);
+                        console.log('Product removed and button reset');
+                    }
+                    return;
+                }
+                
+                // Estado normal: agregar producto
+                console.log('Adding product to cart:', prodId, prodName);
+                
+                // Cambiar estado del botón a "cargando"
                 const origText = btn.html();
                 btn.html('<i class="fas fa-spinner fa-spin me-1"></i>').prop('disabled', true);
                 
-                // Simular agregado (aquí iría la lógica real)
+                // Agregar al carrito usando el sistema existente
+                if (window.cart) {
+                    const product = {
+                        id: prodId,
+                        title: prodName,
+                        price: prodPrice,
+                        available: true,
+                        stock: 999
+                    };
+                    window.cart.addProduct(product, 1);
+                }
+                
+                // Cambiar a estado "agregado" (check)
                 setTimeout(() => {
-                    btn.html('<i class="fas fa-check me-1"></i>').removeClass('btn-danger').addClass('btn-success');
+                    btn.html('<i class="fas fa-check me-1"></i>').removeClass('btn-success').addClass('btn-success');
                     
-                    // Restaurar después de 2 segundos
+                    // Cambiar a estado "eliminar" (X) después de 2 segundos
                     setTimeout(() => {
-                        btn.html('<i class="fas fa-xmark me-1"></i>').removeClass('btn-success').addClass('btn-danger').prop('disabled', false);
+                        btn.html('<i class="fas fa-xmark me-1"></i>')
+                           .removeClass('btn-success')
+                           .addClass('btn-danger')
+                           .prop('disabled', false)
+                           .attr('title', 'Eliminar del carrito');
                     }, 2000);
                 }, 1000);
             });

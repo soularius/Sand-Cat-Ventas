@@ -269,48 +269,16 @@ $(document).ready(function(){
     cart = new ProductCart();
     console.log('Cart initialized:', cart);
     
-    // Hacer funciones disponibles globalmente
+    // Hacer funciones y carrito disponibles globalmente
+    window.cart = cart;
     window.addToCartById = addToCartById;
     window.addToCart = addToCart;
     window.adjustQuantity = adjustQuantity;
     window.proceedToSummary = proceedToSummary;
-    console.log('Global functions assigned');
+    console.log('Global functions and cart assigned');
     
-    // Event listener para botones con data-attributes (desde bproducto.php)
-    $(document).on('click', '.add-product-btn', function(e) {
-        console.log('Add product button clicked (data-attributes)');
-        console.log('Button element:', this);
-        console.log('Product ID:', $(this).data('product-id'));
-        console.log('Product Name:', $(this).data('product-name'));
-        console.log('Product Price:', $(this).data('product-price'));
-        
-        const productId = $(this).data('product-id');
-        const productName = $(this).data('product-name');
-        const productPrice = $(this).data('product-price');
-        
-        if (!productId) {
-            console.error('No product ID found in button data');
-            return;
-        }
-        
-        // Crear objeto producto desde los data attributes
-        const product = {
-            id: productId,
-            title: productName,
-            price: productPrice,
-            available: true,
-            stock: 999 // Valor por defecto
-        };
-        
-        console.log('Created product object from data:', product);
-        
-        // Agregar al carrito
-        if (cart) {
-            cart.addProduct(product, 1);
-        } else {
-            console.error('Cart not initialized');
-        }
-    });
+    // Event listener para botones con data-attributes se maneja en bproducto.php
+    // para evitar conflictos y permitir la funcionalidad de eliminar
     
     // Focus on search input when page loads
     $('#search').focus();
