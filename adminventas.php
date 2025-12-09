@@ -229,6 +229,12 @@ include("parts/header.php");
                         return;
                     }
 
+                    // LIMPIAR DATOS DE CLIENTE AL BUSCAR
+                    if (typeof clearCustomerDataOnSearch === 'function') {
+                        clearCustomerDataOnSearch();
+                        console.log('Datos de cliente limpiados al iniciar búsqueda');
+                    }
+
                     // Mostrar indicador de búsqueda
                     $btnSearch.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Buscando...');
                     $previewDiv.html('<i class="fas fa-spinner fa-spin me-2"></i>Buscando cliente en WooCommerce...');

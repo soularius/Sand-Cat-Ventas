@@ -397,6 +397,28 @@ $(document).ready(function() {
 });
 </script>
 
+<!-- Sistema de Persistencia de Formularios -->
+<script src="js/form-persistence.js"></script>
+
+<script>
+// Inicializar persistencia para el formulario de datos de venta
+document.addEventListener('DOMContentLoaded', function() {
+    // Buscar el formulario principal
+    const form = document.querySelector('form');
+    if (form) {
+        // Asignar ID si no lo tiene
+        if (!form.id) {
+            form.id = 'datos_cliente_form';
+        }
+        
+        // Inicializar persistencia
+        initFormPersistence(form.id);
+        
+        console.log('Persistencia inicializada para datos del cliente');
+    }
+});
+</script>
+
 </div>
 </body>
 </html>

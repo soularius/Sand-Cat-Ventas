@@ -1351,6 +1351,39 @@ a.a-custom:hover {
   border-radius: 0px 10px 10px 0px;
 }
 
+/* Estilos para indicadores de datos guardados */
+.form-persistence-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(40, 167, 69, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.form-persistence-indicator.show {
+    opacity: 1;
+}
+
+.form-persistence-indicator i {
+    margin-right: 5px;
+}
+
+/* Animación para campos restaurados */
+@keyframes fieldRestored {
+    0% { background-color: rgba(40, 167, 69, 0.2); }
+    100% { background-color: transparent; }
+}
+
+.field-restored {
+    animation: fieldRestored 2s ease-out;
+}
+
 @media (max-width: 991px) {
   .navbar-nav .nav-link {
     margin: 2px 0;

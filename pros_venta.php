@@ -892,6 +892,28 @@ include('parts/step_wizard.php');
             </div>
         <?php endif; ?>
 
+<!-- Sistema de Persistencia de Formularios -->
+<script src="js/form-persistence.js"></script>
+
+<script>
+// Inicializar persistencia para el formulario de productos
+document.addEventListener('DOMContentLoaded', function() {
+    // Buscar el formulario principal de productos
+    const form = document.querySelector('form');
+    if (form) {
+        // Asignar ID si no lo tiene
+        if (!form.id) {
+            form.id = 'productos_form';
+        }
+        
+        // Inicializar persistencia
+        initFormPersistence(form.id);
+        
+        console.log('Persistencia inicializada para productos');
+    }
+});
+</script>
+
 <?php include("parts/foot.php"); ?>
 </body>
 
