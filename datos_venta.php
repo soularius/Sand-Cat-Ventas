@@ -187,16 +187,46 @@ include('parts/step_wizard.php');
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="_shipping_city" class="form-label">Ciudad *</label>
-                                    <input type="text" class="form-control" id="_shipping_city" name="_shipping_city" 
-                                           value="<?php echo strtoupper($ciudad); ?>" required>
+                                    <label for="_shipping_country" class="form-label">País</label>
+                                    <input type="text" class="form-control" id="_shipping_country" name="_shipping_country" 
+                                           value="COLOMBIA" readonly style="background-color: #f8f9fa;">
                                 </div>
                             </div>
                         </div>
-                        <div class="form-group mb-3">
-                            <label for="_shipping_state" class="form-label">Departamento *</label>
-                            <input type="text" class="form-control" id="_shipping_state" name="_shipping_state" 
-                                   value="<?php echo strtoupper($departamento); ?>" required>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="_shipping_state" class="form-label">Departamento *</label>
+                                    <select class="form-control" id="_shipping_state" name="_shipping_state" required>
+                                        <option value="">Seleccione un departamento</option>
+                                        <?php
+                                        // Obtener departamentos desde archivo de datos del plugin
+                                        $states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
+                                        if (file_exists($states_file)) {
+                                            $colombia_states = include($states_file);
+                                            
+                                            foreach ($colombia_states as $code => $name) {
+                                                $selected = (strtoupper($departamento) == strtoupper($name)) ? 'selected' : '';
+                                                echo "<option value=\"$name\" data-code=\"$code\" $selected>$name</option>";
+                                            }
+                                        } else {
+                                            echo "<option value=\"\">Error: No se encontraron departamentos</option>";
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="_shipping_city" class="form-label">Ciudad *</label>
+                                    <select class="form-control" id="_shipping_city" name="_shipping_city" required>
+                                        <option value="">Primero seleccione un departamento</option>
+                                        <?php if (!empty($ciudad)): ?>
+                                            <option value="<?php echo strtoupper($ciudad); ?>" selected><?php echo strtoupper($ciudad); ?></option>
+                                        <?php endif; ?>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -255,6 +285,60 @@ include('parts/step_wizard.php');
     </div>
 </section>
 <?php include("parts/foot.php"); ?>
+
+<script>
+// Manejo de departamentos y ciudades de Colombia
+$(document).ready(function() {
+    // Cuando cambia el departamento, cargar las ciudades
+    $('#_shipping_state').on('change', function() {
+        const departamento = $(this).find('option:selected').data('code');
+        const citySelect = $('#_shipping_city');
+        
+        // Limpiar ciudades
+        citySelect.html('<option value="">Cargando ciudades...</option>');
+        citySelect.prop('disabled', true);
+        
+        if (departamento) {
+            // Obtener ciudades del departamento desde la base de datos
+            $.ajax({
+                url: 'get_colombia_data.php',
+                method: 'GET',
+                data: {
+                    action: 'ciudades',
+                    departamento: departamento
+                },
+                dataType: 'json',
+                success: function(response) {
+                    citySelect.html('<option value="">Seleccione una ciudad</option>');
+                    
+                    if (response.success && response.data) {
+                        response.data.forEach(function(ciudad) {
+                            citySelect.append(`<option value="${ciudad.name}">${ciudad.name}</option>`);
+                        });
+                    } else {
+                        citySelect.append('<option value="">No se encontraron ciudades</option>');
+                    }
+                    
+                    citySelect.prop('disabled', false);
+                },
+                error: function() {
+                    citySelect.html('<option value="">Error cargando ciudades</option>');
+                    citySelect.prop('disabled', false);
+                }
+            });
+        } else {
+            citySelect.html('<option value="">Primero seleccione un departamento</option>');
+            citySelect.prop('disabled', false);
+        }
+    });
+    
+    // Si ya hay un departamento seleccionado al cargar la página, cargar sus ciudades
+    if ($('#_shipping_state').val()) {
+        $('#_shipping_state').trigger('change');
+    }
+});
+</script>
+
 </div>
 </body>
 </html>
