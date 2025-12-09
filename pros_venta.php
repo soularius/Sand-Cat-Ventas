@@ -135,6 +135,11 @@ if (Utils::captureValue('nombre1', 'POST')) {
         ),
         (
             '$elid',
+            '_billing_dni',
+            '$billing_id'
+        ),
+        (
+            '$elid',
             '_billing_email',
             '$_billing_email'
         ),
@@ -553,255 +558,251 @@ include("parts/header.php");
 <style>
 </style>
 
-<body class="order-details-container">
-    <div class="container">
-        <?php include("parts/menf.php"); ?>
-        <?php
-        // Configurar el paso actual para el wizard
-        $current_step = 2; // Paso 2: Productos
-        include('parts/step_wizard.php');
-        ?>
-        <section class="row justify-content-center mt-4">
-            <div class="col-12">
-                <!-- Order Header -->
-                <div class="order-card">
-                    <div class="order-header">
-                        <h2><i class="fas fa-shopping-cart me-2"></i>Detalle de Venta WooCommerce</h2>
-                        <?php if (isset($elid) && $elid): ?>
-                            <div class="order-number">Pedido #<?php echo $elid; ?></div>
+<?php include("parts/menf.php"); ?>
+<?php
+// Configurar el paso actual para el wizard
+$current_step = 2; // Paso 2: Productos
+include('parts/step_wizard.php');
+?>
+        <!-- Order Header -->
+        <div class="row justify-content-center">
+            <div class="col-md-10 text-center mb-4">
+                <h2 class="heading-section text-primary">
+                    <i class="fas fa-shopping-cart me-2"></i>Detalle de Venta WooCommerce
+                </h2>
+                <?php if (isset($elid) && $elid): ?>
+                    <p class="text-muted">Pedido #<?php echo $elid; ?> - Revise y confirme los detalles</p>
+                <?php else: ?>
+                    <p class="text-muted">Revise los detalles de la venta antes de continuar</p>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div class="order-card">
+            <div class="customer-info">
+                <!-- Two Column Layout -->
+                <div class="row">
+                    <!-- Left Column: Customer & Shipping Info -->
+                    <div class="col-lg-6 col-md-12">
+                        <!-- Customer Information -->
+                        <?php if ($_shipping_first_name || $_shipping_last_name): ?>
+                            <div class="info-section">
+                                <h5><i class="fas fa-user"></i>Información del Cliente</h5>
+                                <div class="info-row">
+                                    <span class="info-label">Nombre Completo:</span>
+                                    <span class="info-value"><?php echo strtoupper($_shipping_first_name) . " " . strtoupper($_shipping_last_name); ?></span>
+                                </div>
+                                <?php if ($billing_id): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Documento:</span>
+                                        <span class="info-value"><?php echo $billing_id; ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if ($_billing_email): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Email:</span>
+                                        <span class="info-value"><?php echo $_billing_email; ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if ($_billing_phone): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Teléfono:</span>
+                                        <span class="info-value"><?php echo $_billing_phone; ?></span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         <?php endif; ?>
                     </div>
 
-                    <div class="customer-info">
-                        <!-- Two Column Layout -->
-                        <div class="row">
-                            <!-- Left Column: Customer & Shipping Info -->
-                            <div class="col-lg-6 col-md-12">
-                                <!-- Customer Information -->
-                                <?php if ($_shipping_first_name || $_shipping_last_name): ?>
-                                    <div class="info-section">
-                                        <h5><i class="fas fa-user"></i>Información del Cliente</h5>
-                                        <div class="info-row">
-                                            <span class="info-label">Nombre Completo:</span>
-                                            <span class="info-value"><?php echo strtoupper($_shipping_first_name) . " " . strtoupper($_shipping_last_name); ?></span>
-                                        </div>
-                                        <?php if ($billing_id): ?>
-                                            <div class="info-row">
-                                                <span class="info-label">Documento:</span>
-                                                <span class="info-value"><?php echo $billing_id; ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($_billing_email): ?>
-                                            <div class="info-row">
-                                                <span class="info-label">Email:</span>
-                                                <span class="info-value"><?php echo $_billing_email; ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($_billing_phone): ?>
-                                            <div class="info-row">
-                                                <span class="info-label">Teléfono:</span>
-                                                <span class="info-value"><?php echo $_billing_phone; ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-
-                            <!-- Right Column: Payment & Order Info -->
-                            <div class="col-lg-6 col-md-12">
-                                <!-- Shipping Information -->
-                                <?php if ($_shipping_address_1 || $_shipping_city): ?>
-                                    <div class="info-section">
-                                        <h5><i class="fas fa-map-marker-alt"></i>Dirección de Envío</h5>
-                                        <?php if ($_shipping_address_1): ?>
-                                            <div class="info-row">
-                                                <span class="info-label">Dirección:</span>
-                                                <span class="info-value"><?php echo $_shipping_address_1 . " " . $_shipping_address_2 . " " . $_billing_neighborhood; ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($_shipping_city): ?>
-                                            <div class="info-row">
-                                                <span class="info-label">Ciudad:</span>
-                                                <span class="info-value"><?php echo $_shipping_city . " (" . $_shipping_state . ")"; ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-
-                            <!-- Right Column: Payment & Order Info -->
-                            <div class="col-12">
-                                <!-- Payment Information -->
-                                <div class="info-section">
-                                    <h5><i class="fas fa-credit-card"></i>Información de Pago</h5>
-                                    <?php if ($metodo): ?>
-                                        <div class="info-row">
-                                            <span class="info-label">Método de Pago:</span>
-                                            <span class="info-value"><?php echo $metodo; ?></span>
-                                        </div>
-                                    <?php endif; ?>
-                                    <?php if (isset($row_obser['post_date']) && $row_obser['post_date']): ?>
-                                        <div class="info-row">
-                                            <span class="info-label">Fecha del Pedido:</span>
-                                            <span class="info-value"><?php echo date('d/m/Y H:i', strtotime($row_obser['post_date'])); ?></span>
-                                        </div>
-                                    <?php endif; ?>
+                    <!-- Right Column: Payment & Order Info -->
+                    <div class="col-lg-6 col-md-12">
+                        <!-- Shipping Information -->
+                        <?php if ($_shipping_address_1 || $_shipping_city): ?>
+                            <div class="info-section">
+                                <h5><i class="fas fa-map-marker-alt"></i>Dirección de Envío</h5>
+                                <?php if ($_shipping_address_1): ?>
                                     <div class="info-row">
-                                        <span class="info-label">Estado:</span>
-                                        <span class="info-value">
-                                            <span class="status-badge status-pending">Pendiente</span>
-                                        </span>
+                                        <span class="info-label">Dirección:</span>
+                                        <span class="info-value"><?php echo $_shipping_address_1 . " " . $_shipping_address_2 . " " . $_billing_neighborhood; ?></span>
                                     </div>
-                                </div>
-
-                                <!-- Order Summary -->
-                                <?php if (Utils::captureValue('proceso', 'POST') && isset($vatotal)): ?>
-                                    <div class="order-summary">
-                                        <h5><i class="fas fa-calculator me-2"></i>Resumen del Pedido</h5>
-                                        <?php
-                                        $sindesc = $vatotal + $_cart_discount;
-                                        ?>
-                                        <div class="summary-row">
-                                            <span>Subtotal:</span>
-                                            <span>$<?php echo number_format($sindesc); ?></span>
-                                        </div>
-                                        <?php if ($_cart_discount > 0): ?>
-                                            <div class="summary-row">
-                                                <span>Descuento:</span>
-                                                <span>-$<?php echo number_format($_cart_discount); ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($_order_shipping > 0): ?>
-                                            <div class="summary-row">
-                                                <span>Envío:</span>
-                                                <span>$<?php echo number_format($_order_shipping); ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <div class="summary-row total">
-                                            <span>Total:</span>
-                                            <span>$<?php echo number_format($sindesc - $_cart_discount + ($_order_shipping ?? 0)); ?></span>
-                                        </div>
+                                <?php endif; ?>
+                                <?php if ($_shipping_city): ?>
+                                    <div class="info-row">
+                                        <span class="info-label">Ciudad:</span>
+                                        <span class="info-value"><?php echo $_shipping_city . " (" . $_shipping_state . ")"; ?></span>
                                     </div>
                                 <?php endif; ?>
                             </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Right Column: Payment & Order Info -->
+                    <div class="col-12">
+                        <!-- Payment Information -->
+                        <div class="info-section">
+                            <h5><i class="fas fa-credit-card"></i>Información de Pago</h5>
+                            <?php if ($metodo): ?>
+                                <div class="info-row">
+                                    <span class="info-label">Método de Pago:</span>
+                                    <span class="info-value"><?php echo $metodo; ?></span>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (isset($row_obser['post_date']) && $row_obser['post_date']): ?>
+                                <div class="info-row">
+                                    <span class="info-label">Fecha del Pedido:</span>
+                                    <span class="info-value"><?php echo date('d/m/Y H:i', strtotime($row_obser['post_date'])); ?></span>
+                                </div>
+                            <?php endif; ?>
+                            <div class="info-row">
+                                <span class="info-label">Estado:</span>
+                                <span class="info-value">
+                                    <span class="status-badge status-pending">Pendiente</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Order Summary -->
+                        <?php if (Utils::captureValue('proceso', 'POST') && isset($vatotal)): ?>
+                            <div class="order-summary">
+                                <h5><i class="fas fa-calculator me-2"></i>Resumen del Pedido</h5>
+                                <?php
+                                $sindesc = $vatotal + $_cart_discount;
+                                ?>
+                                <div class="summary-row">
+                                    <span>Subtotal:</span>
+                                    <span>$<?php echo number_format($sindesc); ?></span>
+                                </div>
+                                <?php if ($_cart_discount > 0): ?>
+                                    <div class="summary-row">
+                                        <span>Descuento:</span>
+                                        <span>-$<?php echo number_format($_cart_discount); ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                <?php if ($_order_shipping > 0): ?>
+                                    <div class="summary-row">
+                                        <span>Envío:</span>
+                                        <span>$<?php echo number_format($_order_shipping); ?></span>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="summary-row total">
+                                    <span>Total:</span>
+                                    <span>$<?php echo number_format($sindesc - $_cart_discount + ($_order_shipping ?? 0)); ?></span>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Observaciones -->
+        <?php if (!empty($post_excerpt)): ?>
+            <div class="order-card">
+                <div class="info-section">
+                    <h5><i class="fas fa-sticky-note"></i>Observaciones</h5>
+                    <div class="alert alert-info mb-0">
+                        <?php echo nl2br(htmlspecialchars($post_excerpt)); ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Action Buttons -->
+        <?php if (isset($elid) && $elid): ?>
+            <div class="order-card">
+                <div class="customer-info">
+                    <h5 class="text-center mb-4"><i class="fas fa-cogs me-2"></i>Acciones del Pedido</h5>
+
+                    <div class="row justify-content-between g-3">
+                        <!-- Finalizar Pedido -->
+                        <?php if (isset($row_productos['order_item_name'])): ?>
+                            <div class="col-md-4">
+                                <form action="adminf.php" method="post" class="h-100">
+                                    <input type="hidden" name="fin_pedido" value="<?php echo $elid; ?>">
+                                    <button type="submit" class="btn btn-success btn-custom action-button w-100 d-flex align-items-center justify-content-center">
+                                        <i class="fas fa-check-circle fa-2x mx-2"></i>
+                                        <span>Finalizar Pedido</span>
+                                    </button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Cancelar Pedido -->
+                        <div class="col-md-4">
+                            <form action="adminventas.php" method="post" class="h-100"
+                                onsubmit="return confirm('¿Está seguro de que desea cancelar este pedido?')">
+                                <input type="hidden" name="id_ventas" value="<?php echo $elid; ?>">
+                                <input type="hidden" name="cancela" value="si">
+                                <button type="submit" class="btn btn-danger btn-custom action-button w-100 d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-times-circle fa-2x mx-2"></i>
+                                    <span>Cancelar Pedido</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Agregar Producto -->
+                        <div class="col-md-4">
+                            <form action="bproducto.php" method="post" class="h-100">
+                                <input type="hidden" name="_order_id" value="<?php echo $elid; ?>">
+                                <button type="submit" class="btn btn-primary btn-custom action-button w-100 d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-plus-circle fa-2x mx-2"></i>
+                                    <span>Agregar Producto</span>
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
-
-                <!-- Observaciones -->
-                <?php if (!empty($post_excerpt)): ?>
-                    <div class="order-card">
-                        <div class="info-section">
-                            <h5><i class="fas fa-sticky-note"></i>Observaciones</h5>
-                            <div class="alert alert-info mb-0">
-                                <?php echo nl2br(htmlspecialchars($post_excerpt)); ?>
-                            </div>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <!-- Action Buttons -->
-                <?php if (isset($elid) && $elid): ?>
-                    <div class="order-card">
-                        <div class="customer-info">
-                            <h5 class="text-center mb-4"><i class="fas fa-cogs me-2"></i>Acciones del Pedido</h5>
-
-                            <div class="row justify-content-between g-3">
-                                <!-- Finalizar Pedido -->
-                                <?php if (isset($row_productos['order_item_name'])): ?>
-                                    <div class="col-md-4">
-                                        <form action="adminf.php" method="post" class="h-100">
-                                            <input type="hidden" name="fin_pedido" value="<?php echo $elid; ?>">
-                                            <button type="submit" class="btn btn-success btn-custom action-button w-100 d-flex align-items-center justify-content-center">
-                                                <i class="fas fa-check-circle fa-2x mx-2"></i>
-                                                <span>Finalizar Pedido</span>
-                                            </button>
-                                        </form>
-                                    </div>
-                                <?php endif; ?>
-
-                                <!-- Cancelar Pedido -->
-                                <div class="col-md-4">
-                                    <form action="adminventas.php" method="post" class="h-100"
-                                        onsubmit="return confirm('¿Está seguro de que desea cancelar este pedido?')">
-                                        <input type="hidden" name="id_ventas" value="<?php echo $elid; ?>">
-                                        <input type="hidden" name="cancela" value="si">
-                                        <button type="submit" class="btn btn-danger btn-custom action-button w-100 d-flex align-items-center justify-content-center">
-                                            <i class="fas fa-times-circle fa-2x mx-2"></i>
-                                            <span>Cancelar Pedido</span>
-                                        </button>
-                                    </form>
-                                </div>
-
-                                <!-- Agregar Producto -->
-                                <div class="col-md-4">
-                                    <form action="bproducto.php" method="post" class="h-100">
-                                        <input type="hidden" name="_order_id" value="<?php echo $elid; ?>">
-                                        <button type="submit" class="btn btn-primary btn-custom action-button w-100 d-flex align-items-center justify-content-center">
-                                            <i class="fas fa-plus-circle fa-2x mx-2"></i>
-                                            <span>Agregar Producto</span>
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <!-- Products List -->
-                <?php if (isset($row_productos['order_item_name'])): ?>
-                    <div class="order-card">
-                        <div class="order-header">
-                            <h2><i class="fas fa-box me-2"></i>Productos del Pedido</h2>
-                        </div>
-                        <div class="customer-info">
-                            <?php do { ?>
-                                <div class="info-section">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-6">
-                                            <h6 class="mb-2 text-primary">
-                                                <i class="fas fa-cube me-2"></i>
-                                                <?php echo htmlspecialchars($row_productos['order_item_name']); ?>
-                                            </h6>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="row text-end">
-                                                <div class="col-4">
-                                                    <small class="text-muted">Cantidad</small>
-                                                    <div class="fw-bold"><?php echo $row_productos['product_qty']; ?></div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">Subtotal</small>
-                                                    <div class="fw-bold">$<?php echo number_format($row_productos['coupon_amount'] + $row_productos['product_net_revenue']); ?></div>
-                                                </div>
-                                                <div class="col-4">
-                                                    <small class="text-muted">Total</small>
-                                                    <div class="fw-bold text-success">$<?php echo number_format($row_productos['product_net_revenue']); ?></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <?php if ($row_productos['coupon_amount'] > 0): ?>
-                                        <div class="mt-2">
-                                            <span class="badge bg-warning">
-                                                <i class="fas fa-tag me-1"></i>
-                                                Descuento: $<?php echo number_format($row_productos['coupon_amount']); ?>
-                                            </span>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            <?php } while ($row_productos = mysqli_fetch_assoc($productos)); ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
             </div>
-        </section>
+        <?php endif; ?>
 
-        <?php include("parts/foot.php"); ?>
-    </div>
-    </section>
-    </div>
+        <!-- Products List -->
+        <?php if (isset($row_productos['order_item_name'])): ?>
+            <div class="order-card">
+                <div class="order-header">
+                    <h2><i class="fas fa-box me-2"></i>Productos del Pedido</h2>
+                </div>
+                <div class="customer-info">
+                    <?php do { ?>
+                        <div class="info-section">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h6 class="mb-2 text-primary">
+                                        <i class="fas fa-cube me-2"></i>
+                                        <?php echo htmlspecialchars($row_productos['order_item_name']); ?>
+                                    </h6>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="row text-end">
+                                        <div class="col-4">
+                                            <small class="text-muted">Cantidad</small>
+                                            <div class="fw-bold"><?php echo $row_productos['product_qty']; ?></div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Subtotal</small>
+                                            <div class="fw-bold">$<?php echo number_format($row_productos['coupon_amount'] + $row_productos['product_net_revenue']); ?></div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Total</small>
+                                            <div class="fw-bold text-success">$<?php echo number_format($row_productos['product_net_revenue']); ?></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php if ($row_productos['coupon_amount'] > 0): ?>
+                                <div class="mt-2">
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-tag me-1"></i>
+                                        Descuento: $<?php echo number_format($row_productos['coupon_amount']); ?>
+                                    </span>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php } while ($row_productos = mysqli_fetch_assoc($productos)); ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+<?php include("parts/foot.php"); ?>
 </body>
 
 </html>

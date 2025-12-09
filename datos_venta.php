@@ -106,7 +106,9 @@ include('parts/step_wizard.php');
 
         <div class="row justify-content-center">
             <div class="col-md-10 text-center mb-4">
-                <h2 class="heading-section text-primary">Crear Nueva Orden</h2>
+                <h2 class="heading-section text-primary">
+                    <i class="fas fa-user-edit me-2"></i>Datos del Cliente
+                </h2>
                 <p class="text-muted">Complete los datos del cliente para continuar</p>
             </div>
         </div>

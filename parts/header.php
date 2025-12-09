@@ -34,4 +34,3 @@
     <link rel="stylesheet" href="assets/css/wizard-form.css">
     <link rel="stylesheet" href="assets/css/login.css">
 </head>
-<body>
