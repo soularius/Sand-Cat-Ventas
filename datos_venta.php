@@ -238,10 +238,18 @@ include('parts/step_wizard.php');
                                 <div class="form-group mb-3">
                                     <label for="_order_shipping" class="form-label">Costo de Envío *</label>
                                     <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" class="form-control" id="_order_shipping" name="_order_shipping" 
-                                               value="10000" required>
+                                        <span class="input-group-text bg-brand bg-custom text-white border-0">$</span>
+                                        <input type="text" class="form-control" id="_order_shipping" name="_order_shipping" 
+                                               value="10,000" required placeholder="0"
+                                               data-value="10000"
+                                               oninput="formatCurrency(this)"
+                                               onblur="validateCurrency(this)">
+                                        <input type="hidden" id="_order_shipping_value" name="_order_shipping_value" value="10000">
                                     </div>
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Formato: $10,000 COP
+                                    </small>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -287,8 +295,56 @@ include('parts/step_wizard.php');
 <?php include("parts/foot.php"); ?>
 
 <script>
+// Funciones para formato de moneda
+function formatCurrency(input) {
+    // Obtener solo números
+    let value = input.value.replace(/[^\d]/g, '');
+    
+    // Si está vacío, limpiar
+    if (value === '') {
+        input.value = '';
+        input.setAttribute('data-value', '0');
+        document.getElementById('_order_shipping_value').value = '0';
+        return;
+    }
+    
+    // Convertir a número y formatear con comas
+    let numericValue = parseInt(value);
+    let formattedValue = numericValue.toLocaleString('es-CO');
+    
+    // Actualizar el input visual y el valor real
+    input.value = formattedValue;
+    input.setAttribute('data-value', numericValue);
+    document.getElementById('_order_shipping_value').value = numericValue;
+}
+
+function validateCurrency(input) {
+    // Validar que tenga un valor mínimo
+    let numericValue = parseInt(input.getAttribute('data-value') || '0');
+    
+    if (numericValue < 0) {
+        input.value = '0';
+        input.setAttribute('data-value', '0');
+        document.getElementById('_order_shipping_value').value = '0';
+        
+        // Mostrar mensaje de error
+        input.classList.add('is-invalid');
+        setTimeout(() => {
+            input.classList.remove('is-invalid');
+        }, 3000);
+    } else {
+        input.classList.remove('is-invalid');
+    }
+}
+
 // Manejo de departamentos y ciudades de Colombia
 $(document).ready(function() {
+    // Inicializar formato de moneda al cargar la página
+    const shippingInput = document.getElementById('_order_shipping');
+    if (shippingInput && shippingInput.value) {
+        formatCurrency(shippingInput);
+    }
+    
     // Cuando cambia el departamento, cargar las ciudades
     $('#_shipping_state').on('change', function() {
         const departamento = $(this).find('option:selected').data('code');

@@ -457,6 +457,76 @@ a.a-custom:hover {
   background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
 }
 
+.bg-primary.bg-custom {
+  background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+}
+
+.bg-secondary.bg-custom {
+  background: linear-gradient(45deg, var(--secondary-color), var(--tertiary-color));
+}
+
+.bg-danger.bg-custom {
+  background: linear-gradient(45deg, var(--error-color), var(--error-gradient));
+}
+
+.bg-warning.bg-custom {
+  background: linear-gradient(45deg, var(--warning-color), var(--warning-gradient));
+}
+
+.bg-info.bg-custom {
+  background: linear-gradient(45deg, var(--info-color), var(--info-gradient));
+}
+
+.bg-light.bg-custom {
+  background: linear-gradient(45deg, var(--inactive-color), var(--inactive-gradient));
+}
+
+.bg-dark.bg-custom {
+  background: linear-gradient(45deg, var(--draft-color), var(--draft-gradient));
+}
+
+.bg-white.bg-custom {
+  background: linear-gradient(45deg, var(--success-light-color), var(--info-light-color));
+}
+
+.bg-transparent.bg-custom {
+  background: linear-gradient(45deg, var(--primary-0015-color), var(--accent-0015-color));
+}
+
+/* Gradientes temáticos adicionales */
+.bg-gradient-primary.bg-custom {
+  background: linear-gradient(135deg, var(--primary-color), var(--cuertar-color));
+}
+
+.bg-gradient-success.bg-custom {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+}
+
+.bg-gradient-danger.bg-custom {
+  background: linear-gradient(135deg, var(--error-color), var(--cancelled-color));
+}
+
+.bg-gradient-warning.bg-custom {
+  background: linear-gradient(135deg, var(--warning-color), var(--pending-color));
+}
+
+.bg-gradient-info.bg-custom {
+  background: linear-gradient(135deg, var(--info-color), var(--active-color));
+}
+
+.bg-gradient-dark.bg-custom {
+  background: linear-gradient(135deg, var(--draft-color), var(--inactive-color));
+}
+
+/* Gradientes de marca */
+.bg-brand.bg-custom {
+  background: linear-gradient(45deg, var(--cuertar-color), var(--tertiary-color));
+}
+
+.bg-accent.bg-custom {
+  background: linear-gradient(45deg, var(--accent-color), var(--primary-color));
+}
+
 .navbar-nav .nav-link {
   transition: all 0.3s ease;
   position: relative;
@@ -1275,6 +1345,10 @@ a.a-custom:hover {
   display: inline-block;
   font-weight: 600;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+#_order_shipping {
+  border-radius: 0px 10px 10px 0px;
 }
 
 @media (max-width: 991px) {
