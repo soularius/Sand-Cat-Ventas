@@ -1,6 +1,6 @@
 :root {
   --primary-color: #276234;
-  --primary-dg-color: #1c5829;
+  --primary-dg-color: #1a261d;
   --primary-0015-color: #2762345d;
   --primary-04-color: #276234b2;
 
@@ -179,12 +179,6 @@
   padding: 0.75rem;
   font-size: 1rem;
   transition: all 0.3s ease;
-}
-
-.input-group-text {
-  background-color: var(--primary-color);
-  color: white;
-  border: 2px solid var(--primary-color);
 }
 
 /* Quick Filters */
@@ -503,28 +497,6 @@
   padding: 0.5rem 0;
   border-bottom: 1px solid #e9ecef;
   margin-bottom: 1rem;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .products-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .cart-actions {
-    flex-direction: column;
-  }
-  
-  .item-controls {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-  }
-  
-  .quantity-controls {
-    justify-content: center;
-  }
 }
 
 /* ===== ORDER SUMMARY STYLES ===== */
@@ -1775,7 +1747,6 @@ a.a-custom:hover {
 }
 
 .input-group-text {
-  background: var(--primary-color);
   color: white;
   border: 2px solid var(--primary-color);
   border-radius: 10px 0 0 10px;
@@ -1810,7 +1781,8 @@ a.a-custom:hover {
 .filter-btn {
   border-radius: 20px;
   padding: 8px 16px;
-  font-size: 0.875rem;
+  font-size: 0.875rem;  
+  background: linear-gradient(45deg, var(--cuertar-color), var(--accent-color));
   transition: all 0.3s ease;
 }
 
@@ -2227,12 +2199,6 @@ a.a-custom:hover {
     margin-top: 0.5rem;
 }
 
-.filter-btn.active {
-    background-color: #007bff !important;
-    border-color: #007bff !important;
-    color: white !important;
-}
-
 .search-input-modern {
     border-radius: 8px;
     border: 2px solid #e9ecef;
@@ -2541,5 +2507,23 @@ a.a-custom:hover {
     height: 40px;
     font-size: 1rem;
   }
+
+  .products-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
   
+  .cart-actions {
+    flex-direction: column;
+  }
+  
+  .item-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .quantity-controls {
+    justify-content: center;
+  }
 }

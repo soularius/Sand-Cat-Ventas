@@ -71,7 +71,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                               <!-- Search Input -->
                               <div class="search-input-wrapper">
                                   <div class="input-group">
-                                      <span class="input-group-text">
+                                      <span class="input-group-text bg-primary bg-custom">
                                           <i class="fas fa-search"></i>
                                       </span>
                                       <input type="text" 
