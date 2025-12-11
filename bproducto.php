@@ -147,6 +147,15 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                       <p class="text-muted">No hay productos seleccionados</p>
                                   </div>
                               </div>
+                              
+                              <!-- Cart Actions -->
+                              <div class="cart-actions mt-3" id="cart-actions" style="display: none;">
+                                  <div class="d-grid gap-2">
+                                      <button class="btn btn-info btn-custom" onclick="proceedToSummary()" id="proceed-summary-btn">
+                                          <i class="fas fa-clipboard-check me-2"></i>Proceder al Resumen
+                                      </button>
+                                  </div>
+                              </div>
                           </div>
                       </div>
                   </div>
@@ -694,8 +703,38 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 }
             };
             
-            // Cargar categorías al inicializar
+            // Cargar categorías al inicializar la página
             loadCategories();
+            
+            // Cargar datos del cliente si hay order_id
+            const orderId = $('#_order_id').val();
+            if (orderId) {
+                loadCustomerData(orderId);
+            }
+            
+            // Función para cargar datos del cliente
+            function loadCustomerData(orderId) {
+                $.ajax({
+                    url: 'get_customer_data.php',
+                    method: 'POST',
+                    data: { order_id: orderId },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success && response.customer) {
+                            // Guardar datos del cliente globalmente
+                            window.customerInfo = response.customer;
+                            console.log('Customer data loaded:', response.customer);
+                        } else {
+                            console.log('No customer data found for order:', orderId);
+                            window.customerInfo = null;
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading customer data:', error);
+                        window.customerInfo = null;
+                    }
+                });
+            }
             
             // Focus on search input when page loads
             setTimeout(() => {

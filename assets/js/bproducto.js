@@ -156,6 +156,12 @@ class ProductCart {
                     <p class="text-muted">No hay productos seleccionados</p>
                 </div>
             `;
+            
+            // Ocultar botones de acción externos
+            const cartActions = document.getElementById('cart-actions');
+            if (cartActions) {
+                cartActions.style.display = 'none';
+            }
             return;
         }
         
@@ -218,6 +224,12 @@ class ProductCart {
         
         console.log('Setting cart container HTML:', html);
         cartContainer.innerHTML = html;
+        
+        // Mostrar botones de acción externos cuando hay productos
+        const cartActions = document.getElementById('cart-actions');
+        if (cartActions) {
+            cartActions.style.display = 'block';
+        }
     }
     
     // Mostrar notificación
@@ -493,6 +505,14 @@ function addToCart(product) {
     addToCartById(product.id);
 }
 
+// Limpiar carrito
+function clearCart() {
+    if (confirm('¿Estás seguro de que quieres limpiar el carrito? Se perderán todos los productos seleccionados.')) {
+        cart.clearCart();
+        cart.showNotification('Carrito limpiado correctamente', 'success');
+    }
+}
+
 // Proceder al resumen (paso 4)
 function proceedToSummary() {
     const items = cart.getCartItems();
@@ -501,6 +521,22 @@ function proceedToSummary() {
         cart.showNotification('Debes agregar al menos un producto', 'warning');
         return;
     }
+    
+    // Obtener datos del cliente desde la sesión/formulario si están disponibles
+    const customerData = {
+        order_id: $('#_order_id').val(),
+        nombre1: window.customerInfo?.nombre1 || '',
+        nombre2: window.customerInfo?.nombre2 || '',
+        dni: window.customerInfo?.dni || window.customerInfo?.billing_id || '',
+        _billing_email: window.customerInfo?._billing_email || '',
+        _billing_phone: window.customerInfo?._billing_phone || '',
+        _shipping_address_1: window.customerInfo?._shipping_address_1 || '',
+        _shipping_address_2: window.customerInfo?._shipping_address_2 || '',
+        _shipping_city: window.customerInfo?._shipping_city || '',
+        _shipping_state: window.customerInfo?._shipping_state || '',
+        _billing_neighborhood: window.customerInfo?._billing_neighborhood || '',
+        timestamp: new Date().toISOString()
+    };
     
     // Guardar datos del carrito para el paso 4
     const orderData = {
@@ -511,7 +547,9 @@ function proceedToSummary() {
         timestamp: new Date().toISOString()
     };
     
+    // Guardar ambos conjuntos de datos
     localStorage.setItem('ventas_order_summary', JSON.stringify(orderData));
+    localStorage.setItem('ventas_customer_data', JSON.stringify(customerData));
     
     // Redirigir al paso 4 (resumen)
     window.location.href = 'resumen_pedido.php';
