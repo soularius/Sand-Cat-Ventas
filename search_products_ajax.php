@@ -38,6 +38,8 @@ try {
             p.post_title as nombre,
             p.post_content as descripcion,
             p.post_excerpt as descripcion_corta,
+            p.post_name as slug,
+            p.guid as guid,
             COALESCE(pm_price.meta_value, '0') as precio,
             COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
             COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
@@ -162,6 +164,10 @@ try {
         // Obtener imagen del producto
         $image_url = getSimpleProductImage($product['id_producto']);
         
+        // Construir permalink del producto
+        $base_url = env('WOOCOMMERCE_BASE_URL'); // URL base de WordPress
+        $permalink = $base_url . '/producto/' . $product['slug'] . '/';
+        
         // Formatear precio
         $price = $product['precio'];
         $regular_price = $product['precio_regular'];
@@ -175,6 +181,7 @@ try {
             'title' => $product['nombre'],
             'short_description' => $product['descripcion_corta'] ?? '',
             'sku' => $product['sku'] ?? '',
+            'permalink' => $permalink,
             'price' => number_format($display_price, 0, ',', '.'),
             'regular_price' => $regular_price > 0 ? number_format($regular_price, 0, ',', '.') : null,
             'sale_price' => $sale_price > 0 ? number_format($sale_price, 0, ',', '.') : null,

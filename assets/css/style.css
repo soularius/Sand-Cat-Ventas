@@ -198,19 +198,6 @@
   gap: 0.5rem;
 }
 
-.filter-btn {
-  border-radius: 20px;
-  font-size: 0.875rem;
-  padding: 0.375rem 0.75rem;
-  transition: all 0.3s ease;
-}
-
-.filter-btn.active {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: white;
-}
-
 /* Search Tips */
 .search-tips h6 {
   color: var(--tertiary-color);
@@ -741,11 +728,6 @@
 }
 
 /* Order Details */
-.order-info {
-  display: grid;
-  gap: 1.25rem;
-}
-
 .info-item {
   display: flex;
   align-items: flex-start;
@@ -959,6 +941,38 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px var(--cuertar-0015-color);
 }
+/* Status Buttons */
+.btn-info.btn-custom {
+  background: linear-gradient(45deg, var(--info-color), var(--info-dg-color));
+  color: #fff;
+  border: none;
+}
+
+.btn-info.btn-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--info-0015-color);
+}
+
+.btn-warning.btn-custom {
+  background: linear-gradient(45deg, var(--warning-color), var(--warning-dg-color));
+  color: #fff;
+  border: none;
+}
+
+.btn-warning.btn-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--warning-0015-color);
+}
+
+.btn-error.btn-custom {
+  background: linear-gradient(45deg, var(--error-color), var(--error-dg-color));
+  border: none;
+}
+
+.btn-error.btn-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px var(--error-0015-color);
+}
 
 .text-primary {
   color: var(--primary-color) !important;
@@ -1008,118 +1022,6 @@ body {
 
 .text-inactive {
   color: var(--inactive-color) !important;
-}
-
-/* Alert Styles */
-.alert-info {
-  background-color: var(--info-light-color);
-  border-color: var(--info-color);
-  color: var(--info-color);
-  border-left: 4px solid var(--info-color);
-}
-
-.alert-warning {
-  background-color: var(--warning-light-color);
-  border-color: var(--warning-color);
-  color: var(--warning-color);
-  border-left: 4px solid var(--warning-color);
-}
-
-.alert-error {
-  background-color: var(--error-light-color);
-  border-color: var(--error-color);
-  color: var(--error-color);
-  border-left: 4px solid var(--error-color);
-}
-
-.alert-success {
-  background-color: var(--success-light-color);
-  border-color: var(--success-color);
-  color: var(--success-color);
-  border-left: 4px solid var(--success-color);
-}
-
-/* Additional Alert Styles */
-.alert-completed {
-  background-color: var(--completed-light-color);
-  border-color: var(--completed-color);
-  color: var(--completed-color);
-  border-left: 4px solid var(--completed-color);
-}
-
-.alert-pending {
-  background-color: var(--pending-light-color);
-  border-color: var(--pending-color);
-  color: var(--pending-color);
-  border-left: 4px solid var(--pending-color);
-}
-
-.alert-processing {
-  background-color: var(--processing-light-color);
-  border-color: var(--processing-color);
-  color: var(--processing-color);
-  border-left: 4px solid var(--processing-color);
-}
-
-.alert-cancelled {
-  background-color: var(--cancelled-light-color);
-  border-color: var(--cancelled-color);
-  color: var(--cancelled-color);
-  border-left: 4px solid var(--cancelled-color);
-}
-
-.alert-draft {
-  background-color: var(--draft-light-color);
-  border-color: var(--draft-color);
-  color: var(--draft-color);
-  border-left: 4px solid var(--draft-color);
-}
-
-.alert-active {
-  background-color: var(--active-light-color);
-  border-color: var(--active-color);
-  color: var(--active-color);
-  border-left: 4px solid var(--active-color);
-}
-
-.alert-inactive {
-  background-color: var(--inactive-light-color);
-  border-color: var(--inactive-color);
-  color: var(--inactive-color);
-  border-left: 4px solid var(--inactive-color);
-}
-
-/* Status Buttons */
-.btn-info.btn-custom {
-  background: linear-gradient(45deg, var(--info-color), var(--info-dg-color));
-  color: #fff;
-  border: none;
-}
-
-.btn-info.btn-custom:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px var(--info-0015-color);
-}
-
-.btn-warning.btn-custom {
-  background: linear-gradient(45deg, var(--warning-color), var(--warning-dg-color));
-  color: #fff;
-  border: none;
-}
-
-.btn-warning.btn-custom:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px var(--warning-0015-color);
-}
-
-.btn-error.btn-custom {
-  background: linear-gradient(45deg, var(--error-color), var(--error-dg-color));
-  border: none;
-}
-
-.btn-error.btn-custom:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px var(--error-0015-color);
 }
 
 .form-control:focus {
@@ -1638,19 +1540,6 @@ a.a-custom:hover {
   color: var(--primary-color);
 }
 
-.order-info {
-  background: linear-gradient(45deg, var(--tertiary-color), var(--cuertar-color));
-  color: white;
-  padding: 15px 25px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.order-info strong {
-  font-size: 1.1rem;
-}
-
 /* Loading animations */
 @keyframes pulse {
   0% {
@@ -1750,7 +1639,6 @@ a.a-custom:hover {
 
 .input-group-text {
   color: white;
-  border: 2px solid var(--primary-color);
   border-radius: 10px 0 0 10px;
 }
 
@@ -1793,8 +1681,8 @@ a.a-custom:hover {
 }
 
 .filter-btn.active {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
+  background: linear-gradient(45deg, var(--accent-color), var(--cuertar-color)) !important;
+  border: 0;
   color: white;
 }
 
@@ -2277,6 +2165,11 @@ a.a-custom:hover {
 
 .btn-circular.btn-success:hover {
     background: linear-gradient(135deg, #218838, #1ea085);
+}
+
+.btn-secondary.btn-circular {
+  bottom: -20px;
+  right: -20px;
 }
 
 .btn-circular:disabled {
@@ -2961,12 +2854,6 @@ html {
 }
 
 /* Order Details Styles */
-.order-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .info-item {
   display: flex;
   align-items: flex-start;
@@ -3063,4 +2950,22 @@ html {
   .action-buttons .col-md-6 {
     margin-bottom: 1rem;
   }
+}
+
+/* Product Title Clickable (both cart and product cards) */
+.product-title-clickable {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.product-title-clickable:hover {
+  color: var(--primary-color) !important;
+  text-decoration: underline !important;
+  font-weight: 600;
+  transform: translateY(-1px);
+}
+
+/* Specific styles for product card titles */
+.card-title.product-title-clickable:hover {
+  color: var(--accent-color) !important;
 }

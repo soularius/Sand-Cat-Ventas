@@ -147,15 +147,6 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                       <p class="text-muted">No hay productos seleccionados</p>
                                   </div>
                               </div>
-                              
-                              <!-- Cart Actions -->
-                              <div class="cart-actions mt-3" id="cart-actions" style="display: none;">
-                                  <div class="d-grid gap-2">
-                                      <button class="btn btn-info btn-custom" onclick="proceedToSummary()" id="proceed-summary-btn">
-                                          <i class="fas fa-clipboard-check me-2"></i>Proceder al Resumen
-                                      </button>
-                                  </div>
-                              </div>
                           </div>
                       </div>
                   </div>
@@ -453,16 +444,26 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                         ''}
                                 </div>
                                 <div class="card-body d-flex flex-column p-3 card-body-product">
-                                    <h6 class="card-title fw-bold mb-2" style="color: #2c3e50; line-height: 1.3;">${product.title}</h6>
+                                    <h6 class="card-title fw-bold mb-2 product-title-clickable" 
+                                        onclick="viewProductDetails('${product.id}', '${product.title}', '${product.permalink}')"
+                                        title="Click para ver detalles del producto"
+                                        style="color: #2c3e50; line-height: 1.3; cursor: pointer; transition: all 0.3s ease;">${product.title}</h6>
                                     ${skuBadge}
                                     ${priceHtml}
                                     ${stockHtml}
-                                    <div class="d-flex justify-content-center mt-auto">
+                                    <!-- Product Actions -->
+                                    <div class="product-actions d-flex justify-content-between align-items-center mt-auto">
+                                        <button class="btn btn-secondary btn-custom btn-circular btn-sm position-absolute text-white" 
+                                                onclick="shareProductLink('${product.permalink}', '${product.title}')" 
+                                                title="Compartir enlace">
+                                            <i class="fas fa-share-alt"></i>
+                                        </button>
                                         <button class="btn btn-custom btn-circular ${product.is_available ? 'btn-success' : 'btn-secondary'} add-product-btn position-absolute text-white" 
                                                 data-product-id="${product.id}" 
                                                 data-product-name="${product.title}"
                                                 data-product-price="${product.price.replace(/[.,]/g, '')}"
                                                 data-product-sku="${product.sku || ''}"
+                                                data-product-permalink="${product.permalink}"
                                                 ${!product.is_available ? 'disabled' : ''}
                                                 title="${product.is_available ? 'Agregar al Pedido' : 'No Disponible'}">
                                             <i class="text-white ${product.is_available ? 'fas fa-plus' : 'fas fa-xmark'}"></i>
@@ -633,11 +634,13 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 
                 // Agregar al carrito usando el sistema existente
                 if (window.cart) {
+                    const prodPermalink = btn.data('product-permalink');
                     const product = {
                         id: prodId,
                         title: prodName,
                         price: prodPrice,
                         sku: prodSku || '',
+                        permalink: prodPermalink || '#',
                         available: true,
                         stock: 999
                     };
@@ -740,8 +743,73 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
             setTimeout(() => {
                 $('#search').focus();
             }, 500);
+            
         });
+        
+        // Función para compartir enlace del producto
+        function shareProductLink(productUrl, productTitle) {
+            console.log('Sharing product link:', productUrl, productTitle);
+            
+            // Intentar copiar al portapapeles
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(productUrl).then(() => {
+                    showNotification(`Enlace de "${productTitle}" copiado al portapapeles`, 'success');
+                }).catch(err => {
+                    console.error('Error copying to clipboard:', err);
+                    fallbackCopyToClipboard(productUrl, productTitle);
+                });
+            } else {
+                fallbackCopyToClipboard(productUrl, productTitle);
+            }
+        }
+        
+        // Función fallback para copiar al portapapeles
+        function fallbackCopyToClipboard(text, productTitle) {
+            // Crear elemento temporal
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showNotification(`Enlace de "${productTitle}" copiado al portapapeles`, 'success');
+                } else {
+                    showNotification('No se pudo copiar el enlace. Inténtalo manualmente.', 'warning');
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                showNotification('No se pudo copiar el enlace. Inténtalo manualmente.', 'warning');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        // Función para mostrar notificaciones
+        function showNotification(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 5000);
+        }
     </script>
+
 
 </body>
 </html>

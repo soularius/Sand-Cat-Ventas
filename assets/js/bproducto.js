@@ -55,6 +55,7 @@ class ProductCart {
                 sale_price: product.sale_price ? parseFloat(product.sale_price) : null,
                 stock: parseInt(product.stock || 0),
                 sku: product.sku || '',
+                permalink: product.permalink || '#',
                 quantity: quantity,
                 available: product.available
             };
@@ -171,10 +172,17 @@ class ProductCart {
             const price = item.sale_price || item.price;
             const subtotal = price * item.quantity;
             
+            // Escapar caracteres especiales para evitar problemas en el HTML
+            const escapedTitle = item.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+            const escapedPermalink = (item.permalink || '#').replace(/'/g, "\\'").replace(/"/g, '\\"');
+            
             html += `
                 <div class="cart-item" data-product-id="${item.id}">
                     <div class="item-info">
-                        <h6>${item.title}</h6>
+                        <h6 class="product-title-clickable" 
+                            onclick="viewProductDetails('${item.id}', '${escapedTitle}', '${escapedPermalink}')" 
+                            title="Click para ver detalles del producto"
+                            style="cursor: pointer; color: var(--primary-color); text-decoration: underline;">${item.title}</h6>
                         <small class="text-muted">SKU: ${item.sku || 'N/A'}</small>
                         <div class="price-info">
                             <span class="price">$${price.toLocaleString('es-CO')}</span>
@@ -553,4 +561,21 @@ function proceedToSummary() {
     
     // Redirigir al paso 4 (resumen)
     window.location.href = 'resumen_pedido.php';
+}
+
+// Función global para ver detalles del producto (abre en nueva pestaña)
+function viewProductDetails(productId, productTitle, productUrl) {
+    console.log('viewProductDetails called with:', {
+        productId: productId,
+        productTitle: productTitle,
+        productUrl: productUrl
+    });
+    
+    if (productUrl && productUrl !== '#' && productUrl !== '') {
+        console.log('Opening URL in new tab:', productUrl);
+        window.open(productUrl, '_blank');
+    } else {
+        console.warn('No valid URL provided for product:', productTitle);
+        alert(`No se puede abrir el producto "${productTitle}" porque no tiene un enlace válido.`);
+    }
 }
