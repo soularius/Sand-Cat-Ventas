@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Capturar parámetros de búsqueda
 $search_term = $_POST['search'] ?? '';
+$category_id = $_POST['category_id'] ?? '';
 $filter = $_POST['filter'] ?? 'all';
 $limit = (int)($_POST['limit'] ?? 20);
 
@@ -30,64 +31,68 @@ try {
         throw new Exception('No hay conexión a la base de datos WordPress');
     }
     
-    // Realizar búsqueda directa sin clase
+    // Construir query base
+    $query = "
+        SELECT 
+            p.ID as id_producto,
+            p.post_title as nombre,
+            p.post_content as descripcion,
+            p.post_excerpt as descripcion_corta,
+            COALESCE(pm_price.meta_value, '0') as precio,
+            COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
+            COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
+            COALESCE(pm_stock.meta_value, '0') as stock,
+            COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
+            COALESCE(pm_sku.meta_value, '') as sku
+        FROM miau_posts p
+        LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
+        LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
+        LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
+        LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+        LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
+        LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'";
+    
+    // Agregar JOIN para categorías si es necesario
+    if (!empty($category_id)) {
+        $query .= "
+        INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
+        INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id";
+    }
+    
+    $query .= "
+        WHERE p.post_type = 'product' 
+        AND p.post_status = 'publish'";
+    
+    // Condiciones de búsqueda
+    $conditions = [];
+    
+    // Filtro por categoría
+    if (!empty($category_id)) {
+        $category_id_escaped = mysqli_real_escape_string($miau, $category_id);
+        $conditions[] = "tt.term_taxonomy_id = '$category_id_escaped'";
+    }
+    
+    // Filtro por término de búsqueda
     if (!empty($search_term)) {
         $search_term_escaped = mysqli_real_escape_string($miau, $search_term);
-        $query = "
-            SELECT 
-                p.ID as id_producto,
-                p.post_title as nombre,
-                p.post_content as descripcion,
-                p.post_excerpt as descripcion_corta,
-                COALESCE(pm_price.meta_value, '0') as precio,
-                COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
-                COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
-                COALESCE(pm_stock.meta_value, '0') as stock,
-                COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
-                COALESCE(pm_sku.meta_value, '') as sku
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
-            LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
-            LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-            LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
-            WHERE p.post_type = 'product' 
-            AND p.post_status = 'publish'
-            AND (
-                p.post_title LIKE '%$search_term_escaped%' 
-                OR pm_sku.meta_value LIKE '%$search_term_escaped%'
-                OR p.post_content LIKE '%$search_term_escaped%'
-            )
-            ORDER BY p.post_title ASC
-            LIMIT $limit
-        ";
-    } else {
-        $query = "
-            SELECT 
-                p.ID as id_producto,
-                p.post_title as nombre,
-                p.post_content as descripcion,
-                p.post_excerpt as descripcion_corta,
-                COALESCE(pm_price.meta_value, '0') as precio,
-                COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
-                COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
-                COALESCE(pm_stock.meta_value, '0') as stock,
-                COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
-                COALESCE(pm_sku.meta_value, '') as sku
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
-            LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
-            LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-            LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
-            WHERE p.post_type = 'product' 
-            AND p.post_status = 'publish'
-            ORDER BY p.post_title ASC
-            LIMIT $limit
-        ";
+        $conditions[] = "(
+            p.post_title LIKE '%$search_term_escaped%' 
+            OR pm_sku.meta_value LIKE '%$search_term_escaped%'
+            OR p.post_content LIKE '%$search_term_escaped%'
+        )";
     }
+    
+    // Agregar condiciones a la query
+    if (!empty($conditions)) {
+        $query .= " AND " . implode(" AND ", $conditions);
+    }
+    
+    $query .= "
+        ORDER BY p.post_title ASC
+        LIMIT $limit";
+    
+    // Log de la query para debugging
+    Utils::logError("Query ejecutada - Search: '$search_term', Category: '$category_id', Filter: '$filter'", 'INFO', 'search_products_ajax.php');
     
     $result = mysqli_query($miau, $query);
     if (!$result) {
@@ -191,6 +196,7 @@ try {
         'total' => count($processed_products),
         'showing' => count($processed_products),
         'search_term' => $search_term,
+        'category_id' => $category_id,
         'filter' => $filter
     ]);
     

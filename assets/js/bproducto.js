@@ -315,7 +315,7 @@ $(document).ready(function(){
             })
             .done(function(response){
                 if (response.success && response.products) {
-                    renderProducts(response.products);
+                    // renderProducts(response.products); // COMENTADO: Conflicto con displayProducts en bproducto.php
                     updateSearchStats(response.count, search);
                 } else {
                     $('#result').html(`
@@ -340,33 +340,10 @@ $(document).ready(function(){
                         </button>
                     </div>
                 `);
+                $('#searchStats').hide();
             });
-        } else if(search.length === 0) {
-            // Reset to initial state when search is empty
-            $('#result').html(`
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <h4>Busca productos</h4>
-                    <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
-                    <div class="empty-state-actions">
-                        <button class="btn btn-danger" onclick="$('#search').focus()">
-                            <i class="fas fa-search me-2"></i>Comenzar Búsqueda
-                        </button>
-                    </div>
-                </div>
-            `);
-            $('#searchStats').hide();
         } else {
-            // Show help message for short searches
-            $('#result').html(`
-                <div class="info-state">
-                    <i class="fas fa-keyboard text-warning"></i>
-                    <h5>Continúa escribiendo...</h5>
-                    <p>Necesitas al menos 3 caracteres para buscar</p>
-                </div>
-            `);
+            $('#result').html('');
             $('#searchStats').hide();
         }
     });

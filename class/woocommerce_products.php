@@ -325,6 +325,7 @@ class WooCommerceProducts {
         $query = "
             SELECT 
                 t.term_id as id_categoria,
+                tt.term_taxonomy_id as id_taxonomy,
                 t.name as nombre,
                 t.slug as slug,
                 tt.count as total_productos

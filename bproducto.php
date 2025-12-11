@@ -98,16 +98,25 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                               <div class="quick-filters">
                                   <h6>Filtros Rápidos</h6>
                                   <div class="filter-buttons">
-                                      <button class="btn btn-outline-primary btn-sm filter-btn active" data-filter="all">
+                                      <button class="btn btn-primary btn-custom btn-sm filter-btn active" data-filter="all">
                                           <i class="fas fa-list me-1"></i>Todos
                                       </button>
-                                      <button class="btn btn-outline-success btn-sm filter-btn" data-filter="available">
+                                      <button class="btn btn-success btn-custom btn-sm filter-btn" data-filter="available">
                                           <i class="fas fa-check-circle me-1"></i>Disponibles
                                       </button>
-                                      <button class="btn btn-outline-warning btn-sm filter-btn" data-filter="featured">
+                                      <button class="btn btn-warning btn-custom btn-sm filter-btn" data-filter="featured">
                                           <i class="fas fa-star me-1"></i>Destacados
                                       </button>
                                   </div>
+                              </div>
+                              
+                              <!-- Category Filter -->
+                              <div class="category-filter mt-3">
+                                  <h6>Filtrar por Categoría</h6>
+                                  <select class="form-select form-select-sm" id="categoryFilter">
+                                      <option value="">Todas las categorías</option>
+                                      <option value="loading" disabled>Cargando categorías...</option>
+                                  </select>
                               </div>
                               
                               <!-- Search Tips -->
@@ -162,7 +171,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                       <h4>Busca productos</h4>
                                       <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
                                       <div class="empty-state-actions">
-                                          <button class="btn btn-danger" onclick="$('#search').focus()">
+                                          <button class="btn btn-danger btn-custom" onclick="$('#search').focus()">
                                               <i class="fas fa-search me-2"></i>Comenzar Búsqueda
                                           </button>
                                       </div>
@@ -327,6 +336,46 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 });
             }
             
+            // Función para buscar productos por categoría
+            function searchProductsByCategory(categoryId, searchTerm = '') {                
+                // Mostrar loading
+                $('#result').html(`
+                    <div class="loading-state text-center py-5">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <h5>Cargando productos de la categoría...</h5>
+                        <p class="text-muted">Por favor espere</p>
+                    </div>
+                `);
+                
+                // Realizar petición AJAX
+                $.ajax({
+                    url: 'search_products_ajax.php',
+                    method: 'POST',
+                    data: {
+                        category_id: categoryId,
+                        search: searchTerm,
+                        filter: currentFilter,
+                        limit: 50
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            displayProducts(response.products);
+                            updateResultsCount(response.total);
+                        } else {
+                            console.error('Category search error:', response.error);
+                            showError('Error al cargar productos de la categoría: ' + response.error);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error AJAX:', error);
+                        showError('Error de conexión al cargar productos de la categoría');
+                    }
+                });
+            }
+            
             // Función para mostrar productos
             function displayProducts(products) {
                 if (products.length === 0) {
@@ -347,7 +396,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 products.forEach(function(product) {
                     const priceHtml = product.has_sale ? 
                         `<div class="price mb-3">
-                            <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center justify-content-between box-prices">
                                 <div>
                                     <span class="sale-price text-danger fw-bold fs-5">$${product.sale_price}</span>
                                     <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${product.regular_price}</span>
@@ -417,7 +466,14 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 });
                 
                 html += '</div>';
-                $('#result').html(html);
+                $('#result').html(html);                
+                // Verificar que el HTML se mantuvo y la visibilidad
+                setTimeout(() => {
+                    const currentContent = $('#result').html();
+                    const isVisible = $('#result').is(':visible');
+                    const hasDisplay = $('#result').css('display') !== 'none';
+                    const hasHeight = $('#result').height() > 0;
+                }, 100);
             }
             
             // Función para mostrar errores
@@ -445,20 +501,35 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
             $('#search').on('input', function() {
                 clearTimeout(searchTimeout);
                 const searchTerm = $(this).val().trim();
-                
+                const selectedCategory = $('#categoryFilter').val();
+
                 if (searchTerm.length >= 3) {
-                    searchTimeout = setTimeout(searchProducts, 500);
+                    // Si hay categoría seleccionada, buscar dentro de esa categoría
+                    if (selectedCategory) {
+                        searchTimeout = setTimeout(() => {
+                            searchProductsByCategory(selectedCategory, searchTerm);
+                        }, 500);
+                    } else {
+                        // Búsqueda normal sin categoría
+                        searchTimeout = setTimeout(searchProducts, 500);
+                    }
                 } else if (searchTerm.length === 0) {
-                    $('#result').html(`
-                        <div class="empty-state text-center py-5">
-                            <div class="empty-state-icon mb-3">
-                                <i class="fas fa-search fa-3x text-muted"></i>
+                    // Si hay categoría seleccionada, mostrar productos de esa categoría
+                    if (selectedCategory) {
+                        searchProductsByCategory(selectedCategory, '');
+                    } else {
+                        // Si no hay categoría, mostrar estado vacío
+                        $('#result').html(`
+                            <div class="empty-state text-center py-5">
+                                <div class="empty-state-icon mb-3">
+                                    <i class="fas fa-search fa-3x text-muted"></i>
+                                </div>
+                                <h4>Busca productos</h4>
+                                <p class="text-muted">Utiliza el panel de búsqueda para encontrar productos disponibles</p>
                             </div>
-                            <h4>Busca productos</h4>
-                            <p class="text-muted">Utiliza el panel de búsqueda para encontrar productos disponibles</p>
-                        </div>
-                    `);
-                    updateResultsCount(0);
+                        `);
+                        updateResultsCount(0);
+                    }
                 }
             });
             
@@ -474,19 +545,53 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 }
             });
             
+            // Filtro de categorías
+            $('#categoryFilter').on('change', function() {
+                const selectedCategory = $(this).val();
+                const searchTerm = $('#search').val().trim();
+                
+                if (selectedCategory) {
+                    // Si hay categoría seleccionada, buscar productos de esa categoría
+                    searchProductsByCategory(selectedCategory, searchTerm);
+                } else if (searchTerm.length >= 3) {
+                    // Si no hay categoría pero hay búsqueda, hacer búsqueda normal
+                    searchProducts();
+                } else {
+                    // Limpiar resultados si no hay categoría ni búsqueda
+                    $('#result').html(`
+                        <div class="empty-state text-center py-5">
+                            <div class="empty-state-icon mb-3">
+                                <i class="fas fa-search fa-3x text-muted"></i>
+                            </div>
+                            <h4>Busca productos</h4>
+                            <p class="text-muted">Utiliza el panel de búsqueda para encontrar productos disponibles</p>
+                        </div>
+                    `);
+                    updateResultsCount(0);
+                }
+            });
+            
             // Clear search functionality
             $('#clearSearch').on('click', function() {
+                const selectedCategory = $('#categoryFilter').val();
                 $('#search').val('').focus();
-                $('#result').html(`
-                    <div class="empty-state text-center py-5">
-                        <div class="empty-state-icon mb-3">
-                            <i class="fas fa-search fa-3x text-muted"></i>
+                
+                // Si hay categoría seleccionada, mostrar productos de esa categoría
+                if (selectedCategory) {
+                    searchProductsByCategory(selectedCategory, '');
+                } else {
+                    // Si no hay categoría, mostrar estado vacío
+                    $('#result').html(`
+                        <div class="empty-state text-center py-5">
+                            <div class="empty-state-icon mb-3">
+                                <i class="fas fa-search fa-3x text-muted"></i>
+                            </div>
+                            <h4>Busca productos</h4>
+                            <p class="text-muted">Utiliza el panel de búsqueda para encontrar productos disponibles</p>
                         </div>
-                        <h4>Busca productos</h4>
-                        <p class="text-muted">Utiliza el panel de búsqueda para encontrar productos disponibles</p>
-                    </div>
-                `);
-                updateResultsCount(0);
+                    `);
+                    updateResultsCount(0);
+                }
             });
             
             // Manejar click en agregar/eliminar producto
@@ -502,7 +607,6 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 
                 if (isRemoveState) {
                     // Eliminar producto del carrito
-                    console.log('Removing product from cart:', prodId);
                     if (window.cart) {
                         window.cart.removeProduct(prodId);
                         // Cambiar botón de vuelta al estado inicial
@@ -510,13 +614,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                            .removeClass('btn-danger btn-success')
                            .addClass('btn-success')
                            .prop('disabled', false);
-                        console.log('Product removed and button reset');
                     }
                     return;
                 }
-                
-                // Estado normal: agregar producto
-                console.log('Adding product to cart:', prodId, prodName, 'SKU:', prodSku);
                 
                 // Cambiar estado del botón a "cargando"
                 const origText = btn.html();
@@ -550,6 +650,40 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 }, 1000);
             });
             
+            // Función para cargar categorías
+            function loadCategories() {                
+                $.ajax({
+                    url: 'get_categories.php',
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success && response.categories) {
+                            const categorySelect = $('#categoryFilter');
+                            
+                            // Limpiar opciones existentes excepto la primera
+                            categorySelect.find('option:not(:first)').remove();
+                            
+                            // Agregar categorías
+                            response.categories.forEach(function(category) {
+                                categorySelect.append(`
+                                    <option value="${category.id}">${category.name} (${category.count})</option>
+                                `);
+                            });
+                        } else {
+                            console.error('Error loading categories:', response.message);
+                            // Mostrar mensaje de error en el select
+                            $('#categoryFilter').find('option:not(:first)').remove();
+                            $('#categoryFilter').append('<option value="" disabled>Error cargando categorías</option>');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX error loading categories:', error);
+                        $('#categoryFilter').find('option:not(:first)').remove();
+                        $('#categoryFilter').append('<option value="" disabled>Error de conexión</option>');
+                    }
+                });
+            }
+            
             // Update results count function
             window.updateResultsCount = function(count) {
                 $('#resultsCount').text(count);
@@ -559,6 +693,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     $('#searchStats').hide();
                 }
             };
+            
+            // Cargar categorías al inicializar
+            loadCategories();
             
             // Focus on search input when page loads
             setTimeout(() => {
