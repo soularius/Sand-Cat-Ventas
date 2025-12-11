@@ -89,6 +89,14 @@ function searchProducts($search) {
             $product['weight'] = $product['meta']['_weight'] ?? '';
             $product['stock_status'] = $product['meta']['_stock_status'] ?? 'outofstock';
             
+            // Si no hay SKU, mostrar --
+            if (empty($product['sku'])) {
+                $product['sku'] = '--';
+                Utils::logError("Producto sin SKU: ID={$product['id']}, mostrando '--'", 'INFO', 'search.php');
+            } else {
+                Utils::logError("Producto con SKU: ID={$product['id']}, SKU={$product['sku']}", 'INFO', 'search.php');
+            }
+            
             // Determinar disponibilidad
             $product['available'] = ($product['stock_status'] === 'instock' && intval($product['stock']) > 0);
             

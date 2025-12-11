@@ -404,6 +404,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                                 data-product-id="${product.id}" 
                                                 data-product-name="${product.title}"
                                                 data-product-price="${product.price.replace(/[.,]/g, '')}"
+                                                data-product-sku="${product.sku || ''}"
                                                 ${!product.is_available ? 'disabled' : ''}
                                                 title="${product.is_available ? 'Agregar al Pedido' : 'No Disponible'}">
                                             <i class="text-white ${product.is_available ? 'fas fa-plus' : 'fas fa-xmark'}"></i>
@@ -494,6 +495,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 const prodId = btn.data('product-id');
                 const prodName = btn.data('product-name');
                 const prodPrice = btn.data('product-price');
+                const prodSku = btn.data('product-sku');
                 
                 // Verificar si el botón está en estado "eliminar" (tiene X)
                 const isRemoveState = btn.find('.fa-xmark').length > 0;
@@ -514,7 +516,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 }
                 
                 // Estado normal: agregar producto
-                console.log('Adding product to cart:', prodId, prodName);
+                console.log('Adding product to cart:', prodId, prodName, 'SKU:', prodSku);
                 
                 // Cambiar estado del botón a "cargando"
                 const origText = btn.html();
@@ -526,6 +528,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         id: prodId,
                         title: prodName,
                         price: prodPrice,
+                        sku: prodSku || '',
                         available: true,
                         stock: 999
                     };
