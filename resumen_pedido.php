@@ -193,7 +193,6 @@ $pes2 = '';
     </div>
 
     <?php include("parts/foot.php"); ?>
-    
     <!-- Order Summary JavaScript -->
     <script src="assets/js/resumen_pedido.js"></script>
 </body>

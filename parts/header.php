@@ -33,4 +33,35 @@
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/wizard-form.css">
     <link rel="stylesheet" href="assets/css/login.css">
+
+    <script>
+        window.colombiaStates = <?php
+            $states_file = __DIR__ . '/../data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
+            $colombia_states = [];
+            if (file_exists($states_file)) {
+                $colombia_states = include($states_file);
+            }
+            echo json_encode($colombia_states, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        ?>;
+        window.VentasUtils = window.VentasUtils || {};
+        window.VentasUtils.getColombiaStateName = function(stateCode) {
+            const code = (stateCode || '').toString().trim();
+            if (!code) return '';
+            return (window.colombiaStates && window.colombiaStates[code]) ? window.colombiaStates[code] : code;
+        };
+        window.VentasUtils.getLocalStorageJSON = function(key, fallbackValue) {
+            try {
+                const raw = localStorage.getItem(key);
+                return raw ? JSON.parse(raw) : fallbackValue;
+            } catch (e) {
+                return fallbackValue;
+            }
+        };
+        window.VentasUtils.getCustomerData = function() {
+            return window.VentasUtils.getLocalStorageJSON('ventas_customer_data', null);
+        };
+        window.VentasUtils.getOrderSummary = function() {
+            return window.VentasUtils.getLocalStorageJSON('ventas_order_summary', null);
+        };
+    </script>
 </head>

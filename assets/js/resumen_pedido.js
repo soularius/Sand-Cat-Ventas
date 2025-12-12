@@ -14,9 +14,11 @@ class OrderSummary {
     // Cargar datos del pedido desde localStorage
     loadOrderData() {
         try {
-            const stored = localStorage.getItem('ventas_order_summary');
-            if (stored) {
-                this.orderData = JSON.parse(stored);
+            const storedData = (window.VentasUtils && window.VentasUtils.getOrderSummary)
+                ? window.VentasUtils.getOrderSummary()
+                : null;
+            if (storedData) {
+                this.orderData = storedData;
                 const orderIdField = document.getElementById('_order_id');
                 if (orderIdField && this.orderData && this.orderData.order_id) {
                     orderIdField.value = this.orderData.order_id;
@@ -37,9 +39,11 @@ class OrderSummary {
     // Cargar datos del cliente desde localStorage
     loadCustomerData() {
         try {
-            const stored = localStorage.getItem('ventas_customer_data');
-            if (stored) {
-                this.customerData = JSON.parse(stored);
+            const storedData = (window.VentasUtils && window.VentasUtils.getCustomerData)
+                ? window.VentasUtils.getCustomerData()
+                : null;
+            if (storedData) {
+                this.customerData = storedData;
                 this.renderCustomerInfo();
             } else {
                 // Si no hay datos del cliente, mostrar información básica
@@ -215,6 +219,10 @@ class OrderSummary {
         }
         
         const customer = this.customerData;
+
+        const stateName = (window.VentasUtils && window.VentasUtils.getColombiaStateName)
+            ? window.VentasUtils.getColombiaStateName(customer._shipping_state)
+            : (customer._shipping_state || '');
         
         const html = `
             <div class="customer-details">
@@ -240,11 +248,11 @@ class OrderSummary {
                 <div class="customer-address">
                     <h6 class="address-title"><i class="fas fa-map-marker-alt me-2"></i>Dirección de Envío</h6>
                     <div class="address-details">
-                        <p class="mb-1">${customer._shipping_address_1 || ''}</p>
-                        ${customer._shipping_address_2 ? `<p class="mb-1">${customer._shipping_address_2}</p>` : ''}
-                        ${customer._billing_neighborhood ? `<p class="mb-1">Barrio: ${customer._billing_neighborhood}</p>` : ''}
-                        <p class="mb-0">
-                            ${customer._shipping_city || ''}, ${customer._shipping_state || ''}
+                        <p class="mb-1 text-uppercase">${customer._shipping_address_1 || ''}</p>
+                        ${customer._shipping_address_2 ? `<p class="mb-1 text-uppercase">${customer._shipping_address_2}</p>` : ''}
+                        ${customer._billing_neighborhood ? `<p class="mb-1 text-uppercase">Barrio: ${customer._billing_neighborhood}</p>` : ''}
+                        <p class="mb-0 text-uppercase">
+                            ${customer._shipping_city || ''}, ${stateName || ''}
                         </p>
                     </div>
                 </div>
