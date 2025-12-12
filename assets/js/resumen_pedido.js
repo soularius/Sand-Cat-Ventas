@@ -17,6 +17,10 @@ class OrderSummary {
             const stored = localStorage.getItem('ventas_order_summary');
             if (stored) {
                 this.orderData = JSON.parse(stored);
+                const orderIdField = document.getElementById('_order_id');
+                if (orderIdField && this.orderData && this.orderData.order_id) {
+                    orderIdField.value = this.orderData.order_id;
+                }
                 this.renderOrderSummary();
             } else {
                 this.showError('No se encontraron datos del pedido. Redirigiendo...');
@@ -364,6 +368,24 @@ $(document).ready(function() {
 // Volver a productos
 function goBackToProducts() {
     if (confirm('¿Estás seguro de que quieres volver? Los cambios no guardados se perderán.')) {
+        const orderId = orderSummary && orderSummary.orderData ? orderSummary.orderData.order_id : '';
+        if (orderId) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'bproducto.php';
+            form.style.display = 'none';
+
+            const orderIdInput = document.createElement('input');
+            orderIdInput.type = 'hidden';
+            orderIdInput.name = '_order_id';
+            orderIdInput.value = orderId;
+            form.appendChild(orderIdInput);
+
+            document.body.appendChild(form);
+            form.submit();
+            return;
+        }
+
         window.location.href = 'bproducto.php';
     }
 }

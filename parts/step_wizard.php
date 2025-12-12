@@ -229,12 +229,32 @@ document.addEventListener('DOMContentLoaded', function() {
     window.navigateToStep = function(targetPage, targetStepNumber) {
         // Obtener el paso actual desde la página
         const currentPage = window.location.pathname.split('/').pop();
+        const orderIdField = document.getElementById('_order_id');
+        const orderId = orderIdField ? orderIdField.value : '';
+
+        // Si estamos en resumen_pedido.php (paso 4) y vamos a cualquier paso anterior,
+        // enviar order_id via POST para que se recarguen los datos y no se pierdan.
+        if (currentPage === 'resumen_pedido.php' && orderId) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = targetPage;
+            form.style.display = 'none';
+
+            const orderIdInput = document.createElement('input');
+            orderIdInput.type = 'hidden';
+            orderIdInput.name = '_order_id';
+            orderIdInput.value = orderId;
+            form.appendChild(orderIdInput);
+
+            document.body.appendChild(form);
+            form.submit();
+            return;
+        }
         
         // Si estamos en bproducto.php (paso 3) y vamos a pros_venta.php (paso 2)
         if (currentPage === 'bproducto.php' && targetPage === 'pros_venta.php') {
             // Obtener el order_id del campo hidden
-            const orderIdField = document.getElementById('_order_id');
-            const orderId = orderIdField ? orderIdField.value : '';
+            
             
             if (orderId) {
                 // Crear un formulario temporal para enviar el order_id via POST

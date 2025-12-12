@@ -31,6 +31,8 @@ $pes2 = '';
 <body class="order-summary-container">
     <div class="container-fluid">
         <?php include("parts/menf.php"); ?>
+
+        <input type="hidden" id="_order_id" name="_order_id" value="">
         
         <?php
         // Configurar el paso actual para el wizard

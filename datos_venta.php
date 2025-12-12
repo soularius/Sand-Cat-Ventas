@@ -49,6 +49,16 @@ $totalRows_lista = 0;
 $customer_found = false;
 $customer_data = [];
 
+// Si se navega desde pasos posteriores (3/4), puede venir un order_id para recargar datos
+$existing_order_id = Utils::captureValue('_order_id', 'POST', '');
+if (!empty($existing_order_id)) {
+    $post_id = $existing_order_id;
+    $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$post_id'");
+    $lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
+    $row_lista = mysqli_fetch_assoc($lista);
+    $totalRows_lista = mysqli_num_rows($lista);
+}
+
 if(isset($_POST['billing_id'])) {
     $billing_id = $_POST['billing_id'];
     $customer_found = $_POST['customer_found'] === 'true';
@@ -166,6 +176,7 @@ include('parts/step_wizard.php');
         ?>
 
         <form action="pros_venta.php" method="post" id="d_usuario">
+            <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars($post_id); ?>">
             <div class="row">
                 <!-- Columna Izquierda -->
                 <div class="col-lg-6">
