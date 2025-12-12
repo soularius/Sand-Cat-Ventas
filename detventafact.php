@@ -2,45 +2,27 @@
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
-// Cargar configuración desde archivo .env
-require_once('class/config.php');
 
-if (!isset($_SESSION)) {
-  session_start();
-}
-$MM_authorizedUsers = "a,v";
-$MM_donotCheckaccess = "false";
+// 1. Cargar autoloader del sistema (incluye conexiones de BD)
+require_once('class/autoload.php');
 
-// *** Restrict Access To Page: Grant or deny access to this page
-// La función isAuthorized() ahora está disponible desde tools.php
+// 2. Incluir el manejador de login común
+require_once('parts/login_handler.php');
 
+// 3. Lógica de autenticación y procesamiento
+// Requerir autenticación - redirige a index.php si no está logueado
+requireLogin("index.php");
 
-
-$MM_restrictGoTo = "http://localhost/ventas";
-
-
-if (!((isset($_SESSION['MM_Username'])))) { 
-  $MM_qsChar = "?";
-  $MM_referrer = $_SERVER['PHP_SELF'];
-  if (strpos($MM_restrictGoTo, "?")) $MM_qsChar = "&";
-  if (isset($QUERY_STRING) && strlen($QUERY_STRING) > 0) 
-  $MM_referrer .= "?" . $QUERY_STRING;
-  $MM_restrictGoTo = $MM_restrictGoTo. $MM_qsChar . "accesscheck=" . urlencode($MM_referrer);
-  header("Location: ". $MM_restrictGoTo); 
-  exit;
-}
-if (isset($_SESSION['MM_Username'])) {
-$colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
+// Obtener datos del usuario actual usando función centralizada
+$row_usuario = getCurrentUserFromDB();
+if (!$row_usuario) {
+    // Si no se pueden obtener los datos del usuario, redirigir al login
+    Header("Location: index.php");
+    exit();
 }
 
-$query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
-$row_usuario = mysqli_fetch_assoc($usuario);
-$totalRows_usuario = mysqli_num_rows($usuario);
-
-$ellogin = '';
-$ellogin = $row_usuario['elnombre'];
-$id_usuarios = $row_usuario['id_ingreso'];
+$ellogin = $row_usuario['elnombre'] ?? '';
+$id_usuarios = $row_usuario['id_ingreso'] ?? 0;
 $hoy = date("Y-m-d");
 
 
@@ -191,7 +173,6 @@ if(isset($_POST['id_ventas'])) {
 </html>
 <?php
 // Liberar recursos solo si existen
-if ($usuario) mysqli_free_result($usuario);
 if ($datos) mysqli_free_result($datos);
 if ($lista) mysqli_free_result($lista);
 if ($productos) mysqli_free_result($productos);
