@@ -23,7 +23,9 @@ if (!$orden_id || !$factura_num) {
 }
 
 // Verificar que la factura existe
-$query_factura = "SELECT * FROM facturas WHERE id_order = '$orden_id' AND factura = '$factura_num' AND estado = 'a'";
+$orden_id_safe = (int)$orden_id;
+$factura_num_safe = mysqli_real_escape_string($sandycat, (string)$factura_num);
+$query_factura = "SELECT * FROM facturas WHERE id_order = '{$orden_id_safe}' AND factura = '{$factura_num_safe}' AND estado = 'a'";
 $result_factura = mysqli_query($sandycat, $query_factura);
 
 if (mysqli_num_rows($result_factura) == 0) {
@@ -37,11 +39,14 @@ $query_orden = "
         o.date_created_gmt as fecha_orden,
         o.status as estado,
         COALESCE(o.total_amount, 0) as total,
+        COALESCE(o.shipping_amount, 0) as envio,
+        COALESCE(o.discount_amount, 0) as descuento,
         COALESCE(o.billing_email, '') as email_cliente,
         COALESCE(ba.first_name, '') as nombre_cliente,
         COALESCE(ba.last_name, '') as apellido_cliente,
         COALESCE(ba.phone, '') as telefono_cliente,
-        COALESCE(ba.email, o.billing_email) as email_completo
+        COALESCE(ba.email, o.billing_email) as email_completo,
+        COALESCE(o.payment_method_title, '') as titulo_metodo_pago
     FROM miau_wc_orders o
     LEFT JOIN miau_wc_order_addresses ba 
         ON o.id = ba.order_id 
@@ -96,7 +101,10 @@ $datos_pdf = [
     'factura_num' => $factura_num,
     'orden_id' => $orden_id,
     'woocommerce_url' => $woocommerce_url,
-    'productos' => $productos
+    'productos' => $productos,
+    'envio' => (float)($orden['envio'] ?? 0),
+    'descuento' => (float)($orden['descuento'] ?? 0),
+    'metodo' => (string)($orden['titulo_metodo_pago'] ?? '')
 ];
 
 // Determinar modo de salida

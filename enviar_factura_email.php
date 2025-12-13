@@ -48,6 +48,9 @@ try {
     $query = "SELECT 
         o.id as orden_id,
         o.total_amount as total,
+        COALESCE(o.shipping_amount, 0) as envio,
+        COALESCE(o.discount_amount, 0) as descuento,
+        COALESCE(o.payment_method_title, '') as titulo_metodo_pago,
         o.date_created_gmt as fecha_orden,
         ba.first_name as nombre_cliente,
         ba.last_name as apellido_cliente,
@@ -118,7 +121,10 @@ try {
         'factura_num' => $factura_num,
         'orden_id' => $orden_id,
         'woocommerce_url' => $woocommerce_url,
-        'productos' => $productos_array
+        'productos' => $productos_array,
+        'envio' => (float)($orden['envio'] ?? 0),
+        'descuento' => (float)($orden['descuento'] ?? 0),
+        'metodo' => (string)($orden['titulo_metodo_pago'] ?? '')
     ];
 
     // Generar PDF como string para adjuntar al email

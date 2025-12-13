@@ -73,6 +73,49 @@ try {
     $result = $ordersService->createOrderFromSalesData($orderData, 'prod');
 
     if (!empty($result['success'])) {
+        // Generar factura automáticamente en BD ventassc (tabla facturas)
+        $createdFactura = '';
+        try {
+            $orderId = (int)($result['order_id'] ?? 0);
+            if ($orderId > 0) {
+                // Evitar duplicados: si ya hay factura activa para la orden, reutilizarla
+                $checkSql = "SELECT factura FROM facturas WHERE id_order = ? AND estado = 'a' LIMIT 1";
+                $stmtCheck = mysqli_prepare($sandycat, $checkSql);
+                if ($stmtCheck) {
+                    mysqli_stmt_bind_param($stmtCheck, 'i', $orderId);
+                    mysqli_stmt_execute($stmtCheck);
+                    $res = mysqli_stmt_get_result($stmtCheck);
+                    if ($res && ($row = mysqli_fetch_assoc($res)) && !empty($row['factura'])) {
+                        $createdFactura = (string)$row['factura'];
+                    }
+                    mysqli_stmt_close($stmtCheck);
+                }
+
+                if ($createdFactura === '') {
+                    // Siguiente consecutivo
+                    $numSql = "SELECT COUNT(id_facturas) AS numero FROM facturas";
+                    $numRes = mysqli_query($sandycat, $numSql);
+                    $numRow = $numRes ? mysqli_fetch_assoc($numRes) : null;
+                    $nextFactura = (int)($numRow['numero'] ?? 0) + 1;
+                    if ($numRes) {
+                        mysqli_free_result($numRes);
+                    }
+
+                    $insSql = "INSERT INTO facturas (id_order, factura, estado) VALUES (?, ?, 'a')";
+                    $stmtIns = mysqli_prepare($sandycat, $insSql);
+                    if ($stmtIns) {
+                        $facturaStr = (string)$nextFactura;
+                        mysqli_stmt_bind_param($stmtIns, 'is', $orderId, $facturaStr);
+                        mysqli_stmt_execute($stmtIns);
+                        mysqli_stmt_close($stmtIns);
+                        $createdFactura = $facturaStr;
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            Utils::logError('Error generando factura automática: ' . $e->getMessage(), 'ERROR', 'create_final_order.php');
+        }
+
         Utils::logError(
             "Pedido #" . ($result['order_id'] ?? '') . " creado exitosamente por usuario: $username.",
             'INFO',
@@ -83,7 +126,8 @@ try {
             'success' => true,
             'message' => 'Pedido creado exitosamente',
             'order_id' => $result['order_id'] ?? null,
-            'total' => $result['total'] ?? 0
+            'total' => $result['total'] ?? 0,
+            'factura' => $createdFactura
         ]);
         exit;
     }

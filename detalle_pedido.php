@@ -10,6 +10,18 @@ if ($order_id <= 0) {
     exit();
 }
 
+// Obtener número de factura si existe
+$factura_num = '';
+$query_factura = "SELECT factura FROM facturas WHERE id_order = '$order_id' AND estado = 'a' ORDER BY id_facturas DESC LIMIT 1";
+$result_factura = mysqli_query($sandycat, $query_factura);
+if ($result_factura && mysqli_num_rows($result_factura) > 0) {
+    $row_factura = mysqli_fetch_assoc($result_factura);
+    $factura_num = (string)($row_factura['factura'] ?? '');
+}
+if ($result_factura) {
+    mysqli_free_result($result_factura);
+}
+
 require_once('class/woocommerce_orders.php');
 $ordersService = new WooCommerceOrders();
 
@@ -200,11 +212,40 @@ include('parts/header.php');
                                 </button>
                             </div>
                             <div class="col-md-6">
-                                <button class="btn btn-primary btn-custom btn-lg w-100" onclick="window.print()">
-                                    <i class="fas fa-print me-2"></i>Imprimir
+                                <button class="btn btn-primary btn-custom btn-lg w-100" id="btnImprimirPDF" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                    <i class="fas fa-print me-2"></i>Imprimir PDF
                                 </button>
                             </div>
                         </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <button class="btn btn-secondary btn-custom btn-lg w-100" id="btnAbrirPDF" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                    <i class="fas fa-external-link-alt me-2"></i>Abrir PDF
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-success btn-custom btn-lg w-100" id="btnDescargarPDF" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                    <i class="fas fa-download me-2"></i>Descargar
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-warning btn-custom btn-lg w-100 text-white" id="btnEnviarEmail" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                    <i class="fas fa-envelope me-2"></i>Enviar Email
+                                </button>
+                            </div>
+                        </div>
+
+                        <?php if (empty($factura_num)): ?>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="alert alert-warning mb-0">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        No hay factura activa para este pedido. Genere la factura desde el panel de administración.
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -216,6 +257,85 @@ include('parts/header.php');
         window.serverOrderData = <?php echo json_encode($serverOrderData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.serverCustomerData = <?php echo json_encode($serverCustomerData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.serverFormData = <?php echo json_encode($serverFormData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.facturaNumero = <?php echo json_encode($factura_num, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+        window.orderId = <?php echo json_encode((string)$order_id, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    </script>
+    <script>
+        (function() {
+            const orderId = window.orderId;
+            const factura = window.facturaNumero;
+
+            const btnAbrir = document.getElementById('btnAbrirPDF');
+            const btnDescargar = document.getElementById('btnDescargarPDF');
+            const btnEnviar = document.getElementById('btnEnviarEmail');
+            const btnImprimir = document.getElementById('btnImprimirPDF');
+
+            if (!orderId || !factura) {
+                return;
+            }
+
+            if (btnAbrir) {
+                btnAbrir.onclick = function() {
+                    const url = `generar_pdf.php?orden=${encodeURIComponent(orderId)}&factura=${encodeURIComponent(factura)}`;
+                    window.open(url, '_blank');
+                };
+            }
+
+            if (btnDescargar) {
+                btnDescargar.onclick = function() {
+                    const url = `generar_pdf.php?orden=${encodeURIComponent(orderId)}&factura=${encodeURIComponent(factura)}&download=1`;
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `factura_${factura}.pdf`;
+                    link.click();
+                };
+            }
+
+            if (btnEnviar) {
+                btnEnviar.onclick = function() {
+                    const btn = this;
+                    const originalText = btn.innerHTML;
+
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+                    btn.disabled = true;
+
+                    const formData = new FormData();
+                    formData.append('orden_id', orderId);
+                    formData.append('factura_id', factura);
+
+                    fetch('enviar_factura_email.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                            if (data.success) {
+                                alert(`Factura enviada exitosamente a: ${data.email}`);
+                            } else {
+                                alert('Error al enviar factura: ' + (data.error || 'Error desconocido'));
+                            }
+                        })
+                        .catch(() => {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                            alert('Error al enviar factura');
+                        });
+                };
+            }
+
+            if (btnImprimir) {
+                btnImprimir.onclick = function() {
+                    const url = `generar_pdf.php?orden=${encodeURIComponent(orderId)}&factura=${encodeURIComponent(factura)}&print=1`;
+                    const printWindow = window.open(url, '_blank');
+                    if (!printWindow) return;
+                    printWindow.onload = function() {
+                        printWindow.print();
+                    };
+                };
+            }
+        })();
     </script>
     <script src="assets/js/resumen_pedido.js"></script>
 </body>
