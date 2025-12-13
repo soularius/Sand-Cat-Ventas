@@ -44,7 +44,7 @@ try {
         throw new Exception("Error de conexión: " . $miau->connect_error);
     }
 
-    // Obtener datos de la orden
+    // Obtener datos de la orden (incluyendo dirección completa como generar_pdf.php)
     $query = "SELECT 
         o.id as orden_id,
         o.total_amount as total,
@@ -52,7 +52,12 @@ try {
         ba.first_name as nombre_cliente,
         ba.last_name as apellido_cliente,
         ba.email as email_cliente,
-        ba.phone as telefono_cliente
+        ba.phone as telefono_cliente,
+        ba.address_1 as direccion_1,
+        ba.address_2 as direccion_2,
+        ba.city as ciudad,
+        ba.state as departamento,
+        ba.country as pais
     FROM miau_wc_orders o
     LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
     WHERE o.id = ?";
@@ -67,10 +72,10 @@ try {
         throw new Exception("Orden no encontrada");
     }
 
-    // Obtener envío/descuento/método desde legacy postmeta (compatibilidad)
-    $metaQuery = "SELECT meta_key, meta_value FROM miau_postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title')";
+    // Obtener envío/descuento/método/DNI/barrio desde legacy postmeta (compatibilidad)
+    $metaQuery = "SELECT meta_key, meta_value FROM miau_postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title','_billing_dni','_billing_barrio')";
     $metaStmt = $miau->prepare($metaQuery);
-    $meta = ['_order_shipping' => '0', '_cart_discount' => '0', '_payment_method_title' => ''];
+    $meta = ['_order_shipping' => '0', '_cart_discount' => '0', '_payment_method_title' => '', '_billing_dni' => '', '_billing_barrio' => ''];
     if ($metaStmt) {
         $metaStmt->bind_param('i', $orden_id);
         $metaStmt->execute();
@@ -87,6 +92,29 @@ try {
     $orden['envio'] = (float)preg_replace('/[^0-9]/', '', (string)($meta['_order_shipping'] ?? '0'));
     $orden['descuento'] = (float)preg_replace('/[^0-9]/', '', (string)($meta['_cart_discount'] ?? '0'));
     $orden['titulo_metodo_pago'] = (string)($meta['_payment_method_title'] ?? '');
+    $orden['dni'] = (string)($meta['_billing_dni'] ?? '');
+    $orden['barrio'] = (string)($meta['_billing_barrio'] ?? '');
+
+    // Convertir código de departamento a nombre completo (igual que generar_pdf.php)
+    if (!empty($orden['departamento'])) {
+        // Si el departamento contiene "CO-", extraer solo la parte del código
+        $codigo_departamento = $orden['departamento'];
+        if (strpos($codigo_departamento, 'CO-') === 0) {
+            $codigo_departamento = substr($codigo_departamento, 3); // Quitar "CO-"
+        }
+        
+        // Convertir código a nombre usando los datos del plugin Colombia
+        $states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
+        if (file_exists($states_file)) {
+            $colombia_states = include($states_file);
+            foreach ($colombia_states as $code => $name) {
+                if (strtoupper($code) === strtoupper($codigo_departamento)) {
+                    $orden['departamento'] = $name;
+                    break;
+                }
+            }
+        }
+    }
 
     // Verificar que el cliente tenga email
     if (empty($orden['email_cliente'])) {
@@ -105,14 +133,71 @@ try {
     $woocommerce_order_path = $_ENV['WOOCOMMERCE_ORDER_PATH'] ?? '/mi-cuenta/ver-pedido/{id_pedido}/';
     $woocommerce_url = $woocommerce_base_url . str_replace('{id_pedido}', $orden_id, $woocommerce_order_path);
 
-    // Obtener productos de la orden
-    $query_productos = "SELECT 
-        I.order_item_name as nombre_producto,
-        L.product_qty as cantidad,
-        L.product_net_revenue as total_producto
-    FROM miau_woocommerce_order_items I 
-    RIGHT JOIN miau_wc_order_product_lookup L ON I.order_item_id = L.order_item_id 
-    WHERE I.order_id = ? AND order_item_type='line_item'";
+    // Obtener productos de la orden usando la misma consulta optimizada que generar_pdf.php
+    $query_productos = "
+        SELECT
+            I.order_item_id,
+            I.order_item_name as nombre_producto,
+            I.order_id,
+
+            /* Cantidad y totales desde el pedido (lo que realmente se facturó) */
+            COALESCE(CAST(IM.qty AS UNSIGNED), 1) AS cantidad,
+
+            COALESCE(CAST(IM.line_total AS DECIMAL(18,2)), 0)    AS line_total,
+            COALESCE(CAST(IM.line_subtotal AS DECIMAL(18,2)), 0) AS line_subtotal,
+
+            /* Unitarios basados en el pedido (RECOMENDADO para factura) */
+            CASE
+                WHEN COALESCE(CAST(IM.qty AS UNSIGNED), 1) > 0
+                THEN ROUND(COALESCE(CAST(IM.line_subtotal AS DECIMAL(18,2)), 0) / COALESCE(CAST(IM.qty AS UNSIGNED), 1), 2)
+                ELSE 0
+            END AS regular_price,  -- precio unitario sin descuentos (del pedido)
+
+            CASE
+                WHEN COALESCE(CAST(IM.qty AS UNSIGNED), 1) > 0
+                THEN ROUND(COALESCE(CAST(IM.line_total AS DECIMAL(18,2)), 0) / COALESCE(CAST(IM.qty AS UNSIGNED), 1), 2)
+                ELSE 0
+            END AS sale_price,     -- precio unitario con descuentos (del pedido)
+
+            /* SKU: variación si existe, si no producto */
+            COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') AS sku
+
+        FROM miau_woocommerce_order_items I
+
+        /* Pivot de itemmeta: saco lo necesario en un solo join */
+        LEFT JOIN (
+            SELECT
+                order_item_id,
+                MAX(CASE WHEN meta_key = '_qty' THEN meta_value END)           AS qty,
+                MAX(CASE WHEN meta_key = '_line_total' THEN meta_value END)    AS line_total,
+                MAX(CASE WHEN meta_key = '_line_subtotal' THEN meta_value END) AS line_subtotal,
+                MAX(CASE WHEN meta_key = '_product_id' THEN meta_value END)    AS product_id,
+                MAX(CASE WHEN meta_key = '_variation_id' THEN meta_value END)  AS variation_id
+            FROM miau_woocommerce_order_itemmeta
+            WHERE meta_key IN ('_qty','_line_total','_line_subtotal','_product_id','_variation_id')
+            GROUP BY order_item_id
+        ) IM
+            ON IM.order_item_id = I.order_item_id
+
+        /* SKU usando subconsultas para evitar duplicados */
+        LEFT JOIN (
+            SELECT post_id, meta_value as sku_prod
+            FROM miau_postmeta 
+            WHERE meta_key = '_sku'
+        ) PM_sku_prod
+            ON PM_sku_prod.post_id = CAST(IM.product_id AS UNSIGNED)
+
+        LEFT JOIN (
+            SELECT post_id, meta_value as sku_var
+            FROM miau_postmeta 
+            WHERE meta_key = '_sku'
+        ) PM_sku_var
+            ON PM_sku_var.post_id = CAST(IM.variation_id AS UNSIGNED)
+
+        WHERE
+            I.order_id = ? 
+            AND I.order_item_type = 'line_item'
+        GROUP BY I.order_item_id";
     
     $stmt_productos = $miau->prepare($query_productos);
     $stmt_productos->bind_param("i", $orden_id);
@@ -123,11 +208,13 @@ try {
     $productos_array = [];
     if ($productos_result && $productos_result->num_rows > 0) {
         while ($producto = $productos_result->fetch_assoc()) {
+            // Calcular total_producto para compatibilidad con pdf_generator.php
+            $producto['total_producto'] = $producto['line_total'];
             $productos_array[] = $producto;
         }
     }
 
-    // Preparar datos para el generador centralizado
+    // Preparar datos para el generador centralizado (incluyendo dirección completa)
     $datos_pdf = [
         'fecha' => $fecha,
         'nombre1' => $orden['nombre_cliente'],
@@ -142,7 +229,15 @@ try {
         'productos' => $productos_array,
         'envio' => (float)($orden['envio'] ?? 0),
         'descuento' => (float)($orden['descuento'] ?? 0),
-        'metodo' => (string)($orden['titulo_metodo_pago'] ?? '')
+        'metodo' => (string)($orden['titulo_metodo_pago'] ?? ''),
+        // Campos de dirección completa
+        'direccion_1' => (string)($orden['direccion_1'] ?? ''),
+        'direccion_2' => (string)($orden['direccion_2'] ?? ''),
+        'ciudad' => (string)($orden['ciudad'] ?? ''),
+        'departamento' => (string)($orden['departamento'] ?? ''),
+        'pais' => (string)($orden['pais'] ?? ''),
+        'barrio' => (string)($orden['barrio'] ?? ''),
+        'dni' => (string)($orden['dni'] ?? '')
     ];
 
     // Generar PDF como string para adjuntar al email

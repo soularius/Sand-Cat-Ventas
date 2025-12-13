@@ -319,19 +319,20 @@ function generarHTMLFactura($datos) {
                 
                 // Truncar nombre del producto para evitar desbordamientos
                 $nomprod_truncado = truncarTexto($producto['nombre_producto'], 35);
-                
-                // Agregar SKU si existe
-                $descripcion_completa = htmlspecialchars($nomprod_truncado);
+                $descripcion_completa = "";
+
+                // Agregar SKU si existe (ARRIBA del nombre, igual que MySQL)
                 if (!empty($producto['sku'])) {
-                    $descripcion_completa .= '<br><span class="sku-text">SKU: '.htmlspecialchars($producto['sku']).'</span>';
+                    $descripcion_completa .= '<span class="sku-text">SKU: '.htmlspecialchars($producto['sku']).'<br></span>';
                 }
+                $descripcion_completa .= htmlspecialchars($nomprod_truncado);
                 
                 $cuerpo .= '
       <tr>
-        <td style="text-align: center; vertical-align: top">'.$producto['cantidad'].'</td>
+        <td style="text-align: center; vertical-align: top"><br>'.$producto['cantidad'].'</td>
         <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$descripcion_completa.'</td>
-        <td style="text-align: right; vertical-align: top">'.number_format($precio_unitario).'</td>
-        <td style="text-align: right; vertical-align: top">'.number_format($producto['total_producto']).'</td>
+        <td style="text-align: right; vertical-align: top"><br>'.number_format($precio_unitario).'</td>
+        <td style="text-align: right; vertical-align: top"><br>'.number_format($producto['total_producto']).'</td>
       </tr>';
             }
         }
