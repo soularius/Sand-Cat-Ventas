@@ -34,163 +34,163 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
 <body class="product-selector-container">
     <div class="container-fluid">
         <?php include("parts/menf.php"); ?>
-        
+
         <?php
         // Configurar el paso actual para el wizard
         $current_step = 3; // Paso 3: Productos
         include('parts/step_wizard.php');
         ?>
-        
+
         <!-- Product Header -->
         <div class="row justify-content-center">
             <div class="col-md-10 text-center mb-4">
                 <h2 class="heading-section text-primary">
                     <i class="fas fa-shopping-cart me-2"></i>Selección de Productos
                 </h2>
-                <?php if($_order_id): ?>
+                <?php if ($_order_id): ?>
                     <p class="text-muted">Pedido #<?php echo htmlspecialchars($_order_id); ?> - Busca y agrega productos a tu pedido</p>
                 <?php else: ?>
                     <p class="text-muted">Busca y agrega productos de manera rápida y eficiente</p>
                 <?php endif; ?>
             </div>
         </div>
-          
-          <!-- Main Content -->
-          <div class="container">
-              <div class="row">
-                  <!-- Search Panel -->
-                  <div class="col-lg-4 col-md-12 mb-4">
-                      <div class="search-panel">
-                          <div class="panel-header bg-success bg-custom">
+
+        <!-- Main Content -->
+        <div class="container">
+            <div class="row">
+                <!-- Search Panel -->
+                <div class="col-lg-4 col-md-12 mb-4">
+                    <div class="search-panel">
+                        <div class="panel-header bg-success bg-custom">
+                            <h5 class="text-white">
+                                <i class="fas fa-search me-2"></i> Búsqueda de Productos
+                            </h5>
+                        </div>
+
+                        <div class="panel-body">
+                            <!-- Search Input -->
+                            <div class="search-input-wrapper">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-primary bg-custom">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text"
+                                        class="form-control search-input-modern"
+                                        id="search"
+                                        name="search"
+                                        placeholder="Nombre, código o categoría...">
+                                    <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars($_order_id); ?>">
+                            </div>
+
+                            <!-- Search Stats -->
+                            <div class="search-stats" id="searchStats" style="display: none;">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span id="resultsCount">0</span> productos encontrados
+                                </small>
+                            </div>
+
+                            <!-- Quick Filters -->
+                            <div class="quick-filters">
+                                <h6>Filtros Rápidos</h6>
+                                <div class="filter-buttons">
+                                    <button class="btn btn-primary btn-custom btn-sm filter-btn active" data-filter="all">
+                                        <i class="fas fa-list me-1"></i>Todos
+                                    </button>
+                                    <button class="btn btn-success btn-custom btn-sm filter-btn" data-filter="available">
+                                        <i class="fas fa-check-circle me-1"></i>Disponibles
+                                    </button>
+                                    <button class="btn btn-warning btn-custom btn-sm filter-btn" data-filter="featured">
+                                        <i class="fas fa-star me-1"></i>Destacados
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="category-filter mt-3">
+                                <h6>Filtrar por Categoría</h6>
+                                <select class="form-select form-select-sm" id="categoryFilter">
+                                    <option value="">Todas las categorías</option>
+                                    <option value="loading" disabled>Cargando categorías...</option>
+                                </select>
+                            </div>
+
+                            <!-- Search Tips -->
+                            <div class="search-tips">
+                                <h6>Consejos de Búsqueda</h6>
+                                <ul class="tips-list">
+                                    <li><i class="fas fa-lightbulb me-1"></i>Usa al menos 3 caracteres</li>
+                                    <li><i class="fas fa-lightbulb me-1"></i>Busca por nombre o código</li>
+                                    <li><i class="fas fa-lightbulb me-1"></i>Los filtros ayudan a refinar</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cart Panel -->
+                    <div class="cart-panel mt-4">
+                        <div class="panel-header bg-primary bg-custom">
+                            <h5 class="text-white d-flex align-items-center">
+                                <i class="fas fa-shopping-cart me-2"></i>Carrito
+                                <span class="badge bg-light text-dark ms-2" id="cart-counter" style="display: none;">0</span>
+                            </h5>
+                        </div>
+
+                        <div class="panel-body">
+                            <div id="cart-container">
+                                <div class="empty-cart">
+                                    <i class="fas fa-shopping-cart text-muted"></i>
+                                    <p class="text-muted">No hay productos seleccionados</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Panel -->
+                <div class="col-lg-8 col-md-12">
+                    <div class="results-panel">
+                        <div class="panel-header bg-success bg-custom">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <h5 class="text-white">
-                                    <i class="fas fa-search me-2"></i> Búsqueda de Productos
+                                    <i class="fas fa-box me-2"></i>Productos
                                 </h5>
-                          </div>
-                          
-                          <div class="panel-body">
-                              <!-- Search Input -->
-                              <div class="search-input-wrapper">
-                                  <div class="input-group">
-                                      <span class="input-group-text bg-primary bg-custom">
-                                          <i class="fas fa-search"></i>
-                                      </span>
-                                      <input type="text" 
-                                            class="form-control search-input-modern" 
-                                            id="search" 
-                                            name="search" 
-                                            placeholder="Nombre, código o categoría...">
-                                      <button class="btn btn-outline-secondary" type="button" id="clearSearch">
-                                          <i class="fas fa-times"></i>
-                                      </button>
-                                  </div>
-                                  <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars($_order_id); ?>">
-                              </div>
-                              
-                              <!-- Search Stats -->
-                              <div class="search-stats" id="searchStats" style="display: none;">
-                                  <small class="text-muted">
-                                      <i class="fas fa-info-circle me-1"></i>
-                                      <span id="resultsCount">0</span> productos encontrados
-                                  </small>
-                              </div>
-                              
-                              <!-- Quick Filters -->
-                              <div class="quick-filters">
-                                  <h6>Filtros Rápidos</h6>
-                                  <div class="filter-buttons">
-                                      <button class="btn btn-primary btn-custom btn-sm filter-btn active" data-filter="all">
-                                          <i class="fas fa-list me-1"></i>Todos
-                                      </button>
-                                      <button class="btn btn-success btn-custom btn-sm filter-btn" data-filter="available">
-                                          <i class="fas fa-check-circle me-1"></i>Disponibles
-                                      </button>
-                                      <button class="btn btn-warning btn-custom btn-sm filter-btn" data-filter="featured">
-                                          <i class="fas fa-star me-1"></i>Destacados
-                                      </button>
-                                  </div>
-                              </div>
-                              
-                              <!-- Category Filter -->
-                              <div class="category-filter mt-3">
-                                  <h6>Filtrar por Categoría</h6>
-                                  <select class="form-select form-select-sm" id="categoryFilter">
-                                      <option value="">Todas las categorías</option>
-                                      <option value="loading" disabled>Cargando categorías...</option>
-                                  </select>
-                              </div>
-                              
-                              <!-- Search Tips -->
-                              <div class="search-tips">
-                                  <h6>Consejos de Búsqueda</h6>
-                                  <ul class="tips-list">
-                                      <li><i class="fas fa-lightbulb me-1"></i>Usa al menos 3 caracteres</li>
-                                      <li><i class="fas fa-lightbulb me-1"></i>Busca por nombre o código</li>
-                                      <li><i class="fas fa-lightbulb me-1"></i>Los filtros ayudan a refinar</li>
-                                  </ul>
-                              </div>
-                          </div>
-                      </div>
-                      
-                      <!-- Cart Panel -->
-                      <div class="cart-panel mt-4">
-                          <div class="panel-header bg-primary bg-custom">
-                              <h5 class="text-white">
-                                  <i class="fas fa-shopping-cart me-2"></i>Carrito 
-                                  <span class="badge bg-light text-dark ms-2" id="cart-counter" style="display: none;">0</span>
-                              </h5>
-                          </div>
-                          
-                          <div class="panel-body">
-                              <div id="cart-container">
-                                  <div class="empty-cart">
-                                      <i class="fas fa-shopping-cart text-muted"></i>
-                                      <p class="text-muted">No hay productos seleccionados</p>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-                  
-                  <!-- Results Panel -->
-                  <div class="col-lg-8 col-md-12">
-                      <div class="results-panel">
-                          <div class="panel-header bg-success bg-custom">
-                              <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="text-white">
-                                        <i class="fas fa-box me-2"></i>Productos
-                                    </h5>
-                              </div>
-                          </div>
-                          
-                          <div class="panel-body">
-                              <div class="results-container" id="result">
-                                  <div class="empty-state">
-                                      <div class="empty-state-icon">
-                                          <i class="fas fa-search"></i>
-                                      </div>
-                                      <h4>Busca productos</h4>
-                                      <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
-                                      <div class="empty-state-actions">
-                                          <button class="btn btn-danger btn-custom" onclick="$('#search').focus()">
-                                              <i class="fas fa-search me-2"></i>Comenzar Búsqueda
-                                          </button>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          </div>
+                            </div>
+                        </div>
+
+                        <div class="panel-body">
+                            <div class="results-container" id="result">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                    <h4>Busca productos</h4>
+                                    <p>Utiliza el panel de búsqueda para encontrar productos disponibles</p>
+                                    <div class="empty-state-actions">
+                                        <button class="btn btn-danger btn-custom" onclick="$('#search').focus()">
+                                            <i class="fas fa-search me-2"></i>Comenzar Búsqueda
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         </section>
     </div>
     <?php include("parts/foot.php"); ?>
-    
+
     <!-- Modal para agregar producto -->
     <div class="modal fade product-modal" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
-                
+
                 <!-- Modal Header -->
                 <div class="modal-header">
                     <h4 class="modal-title fw-bold" id="productModalLabel">
@@ -198,14 +198,14 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     </h4>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                
+
                 <!-- Product Info Display -->
                 <div class="modal-product-info" style="background: #f8f9fa; padding: 15px; border-bottom: 1px solid #dee2e6;">
-                    <textarea id="order_idb" name="order_idb" 
-                              style="font-size: 16px; color: #495057; padding: 10px; text-align: center; width: 100%; border: none; background: transparent; resize: none; font-weight: 600;" 
-                              rows="2" disabled readonly></textarea>
+                    <textarea id="order_idb" name="order_idb"
+                        style="font-size: 16px; color: #495057; padding: 10px; text-align: center; width: 100%; border: none; background: transparent; resize: none; font-weight: 600;"
+                        rows="2" disabled readonly></textarea>
                 </div>
-                
+
                 <!-- Modal Body -->
                 <div class="modal-body">
                     <form action="pros_venta.php" method="post" id="newproduct" class="product-form">
@@ -214,21 +214,21 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         <input id="order_id" type="hidden" name="order_id" value="">
                         <input id="order_idbn" type="hidden" name="order_idbn" value="">
                         <input id="product_id" type="hidden" name="product_id" value="">
-                        
+
                         <!-- Quantity Input -->
                         <div class="form-group mb-4">
                             <label for="product_qty" class="form-label" style="font-weight: 600; color: var(--primary-color); margin-bottom: 10px;">
                                 <i class="fas fa-calculator me-2"></i>Cantidad
                             </label>
                             <div class="quantity-input-container">
-                                <input type="text" 
-                                       class="form-control text-center" 
-                                       id="product_qty" 
-                                       name="product_qty" 
-                                       value="1" 
-                                       min="1" 
-                                       max="999"
-                                       required>
+                                <input type="text"
+                                    class="form-control text-center"
+                                    id="product_qty"
+                                    name="product_qty"
+                                    value="1"
+                                    min="1"
+                                    max="999"
+                                    required>
                                 <div class="quantity-buttons">
                                     <button type="button" class="btn btn-sm btn-outline-success" onclick="incrementQuantity()">
                                         <i class="fas fa-plus"></i>
@@ -243,7 +243,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                 Especifica la cantidad de productos que deseas agregar
                             </small>
                         </div>
-                        
+
                         <!-- Action Buttons -->
                         <div class="d-flex justify-content-center gap-3 align-items-center">
                             <div class="text-center">
@@ -257,7 +257,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         </div>
                     </form>
                 </div>
-                
+
                 <!-- Modal Footer -->
                 <div class="modal-footer" style="background: #f8f9fa; border-top: 1px solid #dee2e6;">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -269,24 +269,24 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
     </div>
 
     <script src="assets/js/bproducto.js"></script>
-    
+
     <script>
         // Quantity control functions
         function incrementQuantity() {
             const qtyInput = document.getElementById('product_qty');
             const currentValue = parseInt(qtyInput.value) || 1;
             const maxValue = parseInt(qtyInput.getAttribute('max')) || 999;
-            
+
             if (currentValue < maxValue) {
                 qtyInput.value = currentValue + 1;
             }
         }
-        
+
         function decrementQuantity() {
             const qtyInput = document.getElementById('product_qty');
             const currentValue = parseInt(qtyInput.value) || 1;
             const minValue = parseInt(qtyInput.getAttribute('min')) || 1;
-            
+
             if (currentValue > minValue) {
                 qtyInput.value = currentValue - 1;
             }
@@ -295,11 +295,11 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
         $(document).ready(function() {
             let searchTimeout;
             let currentFilter = 'all';
-            
+
             // Función para realizar búsqueda de productos
             function searchProducts() {
                 const searchTerm = $('#search').val().trim();
-                
+
                 // Mostrar loading
                 $('#result').html(`
                     <div class="loading-state text-center py-5">
@@ -310,7 +310,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         <p class="text-muted">Por favor espere</p>
                     </div>
                 `);
-                
+
                 // Realizar petición AJAX
                 $.ajax({
                     url: 'search_products_ajax.php',
@@ -335,9 +335,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     }
                 });
             }
-            
+
             // Función para buscar productos por categoría
-            function searchProductsByCategory(categoryId, searchTerm = '') {                
+            function searchProductsByCategory(categoryId, searchTerm = '') {
                 // Mostrar loading
                 $('#result').html(`
                     <div class="loading-state text-center py-5">
@@ -348,7 +348,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         <p class="text-muted">Por favor espere</p>
                     </div>
                 `);
-                
+
                 // Realizar petición AJAX
                 $.ajax({
                     url: 'search_products_ajax.php',
@@ -375,7 +375,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     }
                 });
             }
-            
+
             // Función para mostrar productos
             function displayProducts(products) {
                 if (products.length === 0) {
@@ -390,11 +390,11 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     `);
                     return;
                 }
-                
+
                 let html = '<div class="row">';
-                
+
                 products.forEach(function(product) {
-                    const priceHtml = product.has_sale ? 
+                    const priceHtml = product.has_sale ?
                         `<div class="price mb-3">
                             <div class="d-flex align-items-center justify-content-between box-prices">
                                 <div>
@@ -407,7 +407,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         `<div class="price mb-3">
                             <span class="current-price text-primary fw-bold fs-5">$${product.price}</span>
                         </div>`;
-                    
+
                     const stockHtml = product.is_available ?
                         `<div class="stock-info d-flex align-items-center justify-content-between mb-2">
                             <span class="stock-status ${product.stock_status_class} d-flex align-items-center">
@@ -422,11 +422,11 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                 <span class="fw-medium">${product.availability_text}</span>
                             </span>
                         </div>`;
-                    
-                    const skuBadge = product.sku ? 
+
+                    const skuBadge = product.sku ?
                         `<div class="mb-2">
                             <span class="product-sku badge bg-light text-dark">SKU: ${product.sku}</span>
-                        </div>` : '';                    
+                        </div>` : '';
                     html += `
                         <div class="col-md-6 col-lg-4 mb-4">
                             <div class="card product-card shadow-sm ${product.card_border_class}" data-product-id="${product.id}">
@@ -474,9 +474,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         </div>
                     `;
                 });
-                
+
                 html += '</div>';
-                $('#result').html(html);                
+                $('#result').html(html);
                 // Verificar que el HTML se mantuvo y la visibilidad
                 setTimeout(() => {
                     const currentContent = $('#result').html();
@@ -485,7 +485,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     const hasHeight = $('#result').height() > 0;
                 }, 100);
             }
-            
+
             // Función para mostrar errores
             function showError(message) {
                 $('#result').html(`
@@ -506,7 +506,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     </div>
                 `);
             }
-            
+
             // Event listeners
             $('#search').on('input', function() {
                 clearTimeout(searchTimeout);
@@ -542,24 +542,24 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     }
                 }
             });
-            
+
             // Filtros rápidos
             $('.filter-btn').on('click', function() {
                 $('.filter-btn').removeClass('active');
                 $(this).addClass('active');
                 currentFilter = $(this).data('filter');
-                
+
                 const searchTerm = $('#search').val().trim();
                 if (searchTerm.length >= 3) {
                     searchProducts();
                 }
             });
-            
+
             // Filtro de categorías
             $('#categoryFilter').on('change', function() {
                 const selectedCategory = $(this).val();
                 const searchTerm = $('#search').val().trim();
-                
+
                 if (selectedCategory) {
                     // Si hay categoría seleccionada, buscar productos de esa categoría
                     searchProductsByCategory(selectedCategory, searchTerm);
@@ -580,12 +580,12 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     updateResultsCount(0);
                 }
             });
-            
+
             // Clear search functionality
             $('#clearSearch').on('click', function() {
                 const selectedCategory = $('#categoryFilter').val();
                 $('#search').val('').focus();
-                
+
                 // Si hay categoría seleccionada, mostrar productos de esa categoría
                 if (selectedCategory) {
                     searchProductsByCategory(selectedCategory, '');
@@ -603,7 +603,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     updateResultsCount(0);
                 }
             });
-            
+
             // Manejar click en agregar/eliminar producto
             $(document).on('click', '.add-product-btn', function() {
                 const btn = $(this);
@@ -611,27 +611,27 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 const prodName = btn.data('product-name');
                 const prodPrice = btn.data('product-price');
                 const prodSku = btn.data('product-sku');
-                
+
                 // Verificar si el botón está en estado "eliminar" (tiene X)
                 const isRemoveState = btn.find('.fa-xmark').length > 0;
-                
+
                 if (isRemoveState) {
                     // Eliminar producto del carrito
                     if (window.cart) {
                         window.cart.removeProduct(prodId);
                         // Cambiar botón de vuelta al estado inicial
                         btn.html('<i class="text-white fas fa-plus"></i>')
-                           .removeClass('btn-danger btn-success')
-                           .addClass('btn-success')
-                           .prop('disabled', false);
+                            .removeClass('btn-danger btn-success')
+                            .addClass('btn-success')
+                            .prop('disabled', false);
                     }
                     return;
                 }
-                
+
                 // Cambiar estado del botón a "cargando"
                 const origText = btn.html();
                 btn.html('<i class="fas fa-spinner fa-spin me-1"></i>').prop('disabled', true);
-                
+
                 // Agregar al carrito usando el sistema existente
                 if (window.cart) {
                     const prodPermalink = btn.data('product-permalink');
@@ -646,24 +646,24 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     };
                     window.cart.addProduct(product, 1);
                 }
-                
+
                 // Cambiar a estado "agregado" (check)
                 setTimeout(() => {
                     btn.html('<i class="fas fa-check me-1"></i>').removeClass('btn-success').addClass('btn-success');
-                    
+
                     // Cambiar a estado "eliminar" (X) después de 2 segundos
                     setTimeout(() => {
                         btn.html('<i class="fas fa-xmark me-1"></i>')
-                           .removeClass('btn-success')
-                           .addClass('btn-danger')
-                           .prop('disabled', false)
-                           .attr('title', 'Eliminar del carrito');
+                            .removeClass('btn-success')
+                            .addClass('btn-danger')
+                            .prop('disabled', false)
+                            .attr('title', 'Eliminar del carrito');
                     }, 2000);
                 }, 1000);
             });
-            
+
             // Función para cargar categorías
-            function loadCategories() {                
+            function loadCategories() {
                 $.ajax({
                     url: 'get_categories.php',
                     method: 'GET',
@@ -671,10 +671,10 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     success: function(response) {
                         if (response.success && response.categories) {
                             const categorySelect = $('#categoryFilter');
-                            
+
                             // Limpiar opciones existentes excepto la primera
                             categorySelect.find('option:not(:first)').remove();
-                            
+
                             // Agregar categorías
                             response.categories.forEach(function(category) {
                                 categorySelect.append(`
@@ -695,7 +695,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     }
                 });
             }
-            
+
             // Update results count function
             window.updateResultsCount = function(count) {
                 $('#resultsCount').text(count);
@@ -705,22 +705,24 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     $('#searchStats').hide();
                 }
             };
-            
+
             // Cargar categorías al inicializar la página
             loadCategories();
-            
+
             // Cargar datos del cliente si hay order_id
             const orderId = $('#_order_id').val();
             if (orderId) {
                 loadCustomerData(orderId);
             }
-            
+
             // Función para cargar datos del cliente
             function loadCustomerData(orderId) {
                 $.ajax({
                     url: 'get_customer_data.php',
                     method: 'POST',
-                    data: { order_id: orderId },
+                    data: {
+                        order_id: orderId
+                    },
                     dataType: 'json',
                     success: function(response) {
                         if (response.success && response.customer) {
@@ -738,18 +740,18 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     }
                 });
             }
-            
+
             // Focus on search input when page loads
             setTimeout(() => {
                 $('#search').focus();
             }, 500);
-            
+
         });
-        
+
         // Función para compartir enlace del producto
         function shareProductLink(productUrl, productTitle) {
             console.log('Sharing product link:', productUrl, productTitle);
-            
+
             // Intentar copiar al portapapeles
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(productUrl).then(() => {
@@ -762,7 +764,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 fallbackCopyToClipboard(productUrl, productTitle);
             }
         }
-        
+
         // Función fallback para copiar al portapapeles
         function fallbackCopyToClipboard(text, productTitle) {
             // Crear elemento temporal
@@ -774,7 +776,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
             document.body.appendChild(textArea);
             textArea.focus();
             textArea.select();
-            
+
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
@@ -786,10 +788,10 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 console.error('Fallback copy failed:', err);
                 showNotification('No se pudo copiar el enlace. Inténtalo manualmente.', 'warning');
             }
-            
+
             document.body.removeChild(textArea);
         }
-        
+
         // Función para mostrar notificaciones
         function showNotification(message, type = 'info') {
             const toast = document.createElement('div');
@@ -799,9 +801,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-            
+
             document.body.appendChild(toast);
-            
+
             setTimeout(() => {
                 if (toast.parentNode) {
                     toast.parentNode.removeChild(toast);
@@ -812,4 +814,5 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
 
 
 </body>
+
 </html>
