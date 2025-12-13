@@ -173,7 +173,7 @@ class ProductCart {
         // Actualizar contador en el header si existe
         const cartCounter = document.getElementById('cart-counter');
         if (cartCounter) {
-            cartCounter.textContent = totalItems;
+            cartCounter.textContent = "×" + totalItems + " Item" + (totalItems > 1 ? 's' : '');
             cartCounter.style.display = totalItems > 0 ? 'inline' : 'none';
             console.log('Cart counter updated:', totalItems);
         } else {
@@ -301,7 +301,7 @@ class ProductCart {
                 </div>
                 <div class="d-flex justify-content-between">
                     <span class="text-muted">${this.getTotalItems()} productos</span>
-                    ${totalDiscount > 0 ? `<span class="text-success">Ahorras $${totalDiscount.toLocaleString('es-CO')}</span>` : ''}
+                    ${totalDiscount > 0 ? `<span class="text-danger font-weight-bold">Ahorras $${totalDiscount.toLocaleString('es-CO')}</span>` : ''}
                 </div>
                 <div class="cart-actions mt-3">
                     <button class="btn btn-danger btn-custom btn-sm" onclick="cart.clearCart()">

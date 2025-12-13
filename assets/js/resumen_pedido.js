@@ -87,7 +87,7 @@ class OrderSummary {
         }
         
         // Actualizar contador de productos
-        document.getElementById('products-count').textContent = "×" + this.orderData.total_items + " Items";
+        document.getElementById('products-count').textContent = "×" + this.orderData.total_items + " Item" + (this.orderData.total_items > 1 ? 's' : '');
         
         // Renderizar productos
         this.renderProducts();

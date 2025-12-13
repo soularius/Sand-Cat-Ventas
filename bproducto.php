@@ -134,9 +134,11 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     <!-- Cart Panel -->
                     <div class="cart-panel mt-4">
                         <div class="panel-header bg-primary bg-custom">
-                            <h5 class="text-white d-flex align-items-center">
+                            <h5 class="text-white d-flex align-items-center justify-content-between">
+                                <span>
                                 <i class="fas fa-shopping-cart me-2"></i>Carrito
-                                <span class="badge bg-light text-dark ms-2" id="cart-counter" style="display: none;">0</span>
+                                </span>
+                                <span class="text-white ms-2 d-flex align-items-center" id="cart-counter" style="display: none;">0</span>
                             </h5>
                         </div>
 

@@ -135,12 +135,12 @@ $pes2 = '';
                     <div class="action-buttons mt-4">
                         <div class="row">
                             <div class="col-md-6">
-                                <button class="btn btn-outline-secondary btn-lg w-100" onclick="goBackToProducts()">
+                                <button class="btn btn-danger btn-custom btn-lg w-100" onclick="goBackToProducts()">
                                     <i class="fas fa-arrow-left me-2"></i>Volver a Productos
                                 </button>
                             </div>
                             <div class="col-md-6">
-                                <button class="btn btn-success btn-lg w-100" id="create-order-btn" onclick="createFinalOrder()" disabled>
+                                <button class="btn btn-success btn-custom btn-lg w-100" id="create-order-btn" onclick="createFinalOrder()" disabled>
                                     <i class="fas fa-check me-2"></i>Crear Pedido
                                 </button>
                             </div>
