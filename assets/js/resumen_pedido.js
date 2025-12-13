@@ -347,8 +347,30 @@ class OrderSummary {
             return Number.isFinite(n) ? n : null;
         };
 
+        const computeDiscountFromProducts = () => {
+            const products = this.orderData && Array.isArray(this.orderData.products)
+                ? this.orderData.products
+                : [];
+
+            return products.reduce((acc, p) => {
+                const qty = parseInt(p.quantity || 0, 10);
+                if (!qty) return acc;
+
+                const regular = parseMoney(p.regular_price ?? p.price);
+                const sale = parseMoney(p.sale_price);
+                if (regular === null || sale === null) return acc;
+                if (sale >= regular) return acc;
+
+                return acc + ((regular - sale) * qty);
+            }, 0);
+        };
+
         const orderShipping = parseMoney(orderShippingRaw);
         const cartDiscount = parseMoney(cartDiscountRaw);
+        const cartDiscountFromProducts = computeDiscountFromProducts();
+        const discountToShow = (cartDiscountFromProducts && cartDiscountFromProducts > 0)
+            ? cartDiscountFromProducts
+            : cartDiscount;
 
         const orderId = (this.orderData && this.orderData.order_id)
             ? this.orderData.order_id
@@ -392,7 +414,7 @@ class OrderSummary {
                     <i class="fas fa-tags text-muted me-2"></i>
                     <div>
                         <strong>Descuento:</strong><br>
-                        <span class="text-muted">${(cartDiscount !== null) ? ('$' + cartDiscount.toLocaleString('es-CO')) : 'No especificado'}</span>
+                        <span class="text-muted">${(discountToShow !== null && discountToShow !== undefined) ? ('$' + Number(discountToShow).toLocaleString('es-CO')) : 'No especificado'}</span>
                     </div>
                 </div>
 
