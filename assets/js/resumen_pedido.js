@@ -214,24 +214,40 @@ class OrderSummary {
             return Number.isFinite(n) ? n : 0;
         };
 
-        const shippingRaw = (this.formData && this.formData._order_shipping)
-            ? this.formData._order_shipping
-            : ((this.orderData && this.orderData._order_shipping) ? this.orderData._order_shipping : 0);
+        const shippingRaw = (this.formData && (this.formData._order_shipping_value !== null && this.formData._order_shipping_value !== undefined) && this.formData._order_shipping_value !== '')
+            ? this.formData._order_shipping_value
+            : ((this.formData && (this.formData._order_shipping !== null && this.formData._order_shipping !== undefined) && this.formData._order_shipping !== '')
+                ? this.formData._order_shipping
+                : ((this.orderData && (this.orderData._order_shipping_value !== null && this.orderData._order_shipping_value !== undefined) && this.orderData._order_shipping_value !== '')
+                    ? this.orderData._order_shipping_value
+                    : ((this.orderData && (this.orderData._order_shipping !== null && this.orderData._order_shipping !== undefined) && this.orderData._order_shipping !== '')
+                        ? this.orderData._order_shipping
+                        : 0)));
         const shippingCost = parseMoney(shippingRaw);
         
-        // Calcular totales
+        // Calcular totales (normalizando COP)
         let subtotal = 0;
         let totalDiscount = 0;
-        
+
         products.forEach(product => {
-            const price = product.sale_price || product.price;
-            const originalPrice = product.regular_price;
-            const quantity = product.quantity;
-            
-            subtotal += originalPrice * quantity;
-            
-            if (product.sale_price && product.sale_price < originalPrice) {
-                totalDiscount += (originalPrice - product.sale_price) * quantity;
+            const quantity = parseInt(product.quantity || 0, 10);
+            if (!quantity) return;
+
+            const regularPrice = parseMoney((product.regular_price !== null && product.regular_price !== undefined && product.regular_price !== '')
+                ? product.regular_price
+                : product.price);
+            const priceFallback = parseMoney(product.price);
+            const safeRegular = (regularPrice > 0 ? regularPrice : priceFallback);
+
+            const salePrice = (product.sale_price !== null && product.sale_price !== undefined && product.sale_price !== '')
+                ? parseMoney(product.sale_price)
+                : 0;
+
+            const hasDiscount = salePrice > 0 && safeRegular > 0 && salePrice < safeRegular;
+
+            subtotal += (safeRegular * quantity);
+            if (hasDiscount) {
+                totalDiscount += ((safeRegular - salePrice) * quantity);
             }
         });
         

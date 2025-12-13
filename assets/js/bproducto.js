@@ -36,9 +36,19 @@ class ProductCart {
                 if (!item) return;
                 item.price = this.parseCOP(item.price);
                 item.regular_price = this.parseCOP(item.regular_price);
-                item.sale_price = item.sale_price !== null && item.sale_price !== undefined
+                item.sale_price = (item.sale_price !== null && item.sale_price !== undefined && item.sale_price !== '')
                     ? this.parseCOP(item.sale_price)
                     : null;
+
+                // Si no hay regular_price (0) para productos sin oferta, usar price como regular
+                if ((!item.regular_price || item.regular_price <= 0) && item.price > 0) {
+                    item.regular_price = item.price;
+                }
+
+                // Si hay sale_price inválido (>= regular), no considerarlo como oferta
+                if (item.sale_price !== null && item.sale_price >= item.regular_price) {
+                    item.sale_price = null;
+                }
                 item.stock = parseInt(item.stock || 0, 10);
                 item.quantity = parseInt(item.quantity || 0, 10);
             });
@@ -72,12 +82,22 @@ class ProductCart {
             this.cart[productId].quantity += quantity;
         } else {
             console.log('Adding new product to cart');
+            const normalizedPrice = this.parseCOP(product.price || 0);
+            const normalizedRegular = this.parseCOP((product.regular_price !== null && product.regular_price !== undefined && product.regular_price !== '')
+                ? product.regular_price
+                : normalizedPrice);
+            const normalizedSale = (product.sale_price !== null && product.sale_price !== undefined && product.sale_price !== '')
+                ? this.parseCOP(product.sale_price)
+                : null;
+
             this.cart[productId] = {
                 id: product.id,
                 title: product.title,
-                price: this.parseCOP(product.price || 0),
-                regular_price: this.parseCOP(product.regular_price || 0),
-                sale_price: product.sale_price ? this.parseCOP(product.sale_price) : null,
+                price: normalizedPrice,
+                regular_price: (normalizedRegular > 0 ? normalizedRegular : normalizedPrice),
+                sale_price: (normalizedSale !== null && normalizedSale < (normalizedRegular > 0 ? normalizedRegular : normalizedPrice))
+                    ? normalizedSale
+                    : null,
                 stock: parseInt(product.stock || 0),
                 sku: product.sku || '',
                 image_url: product.image_url || '',
