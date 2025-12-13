@@ -117,47 +117,81 @@ class OrderSummary {
             return;
         }
         
-        let html = '<div class="products-list">';
+        let html = '<div class="row">';
         
-        products.forEach((product, index) => {
-            const price = product.sale_price || product.price;
-            const subtotal = price * product.quantity;
-            const hasDiscount = product.sale_price && product.sale_price < product.regular_price;
-            
+        products.forEach((product) => {
+            const qty = parseInt(product.quantity || 0, 10);
+            const regularPrice = (product.regular_price !== null && product.regular_price !== undefined) ? Number(product.regular_price) : 0;
+            const salePrice = (product.sale_price !== null && product.sale_price !== undefined) ? Number(product.sale_price) : null;
+            const hasDiscount = (salePrice !== null) && (regularPrice > 0) && (salePrice < regularPrice);
+            const finalUnitPrice = hasDiscount ? salePrice : Number(product.price || 0);
+            const subtotal = finalUnitPrice * qty;
+            const imageUrl = product.image_url || '';
+
+            const safeTitle = (product.title || '').toString().replace(/'/g, "\\'").replace(/\"/g, '\\"');
+            const safePermalink = (product.permalink || '#').toString().replace(/'/g, "\\'").replace(/\"/g, '\\"');
+
             html += `
-                <div class="product-summary-item" data-product-id="${product.id}">
-                    <div class="product-summary-header">
-                        <div class="product-info">
-                            <h6 class="product-name">${product.title}</h6>
-                            ${product.sku ? `<small class="text-muted">SKU: ${product.sku}</small>` : ''}
+                <div class="col-md-6 col-lg-4 mb-6">
+                    <div class="card product-card position-relative" data-product-id="${product.id}">
+                        <div class="position-relative overflow-hidden">
+                            ${imageUrl ? `
+                                <img src="${imageUrl}" class="card-img-top" alt="${safeTitle}" style="height: 220px; object-fit: cover; transition: transform 0.3s ease;" loading="lazy">
+                            ` : `
+                                <div class="d-flex align-items-center justify-content-center bg-light" style="height: 220px;">
+                                    <i class="fas fa-image text-muted fa-3x"></i>
+                                </div>
+                            `}
+
+                            ${hasDiscount ? '<div class="position-absolute top-0 end-0 m-3"><span class="badge bg-danger fs-6 px-3 py-2 rounded-pill shadow">¡Oferta!</span></div>' : ''}
                         </div>
-                        <div class="product-quantity">
-                            <span class="quantity-badge">${product.quantity}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="product-summary-details">
-                        <div class="price-breakdown">
-                            <div class="unit-price">
-                                <span class="label">Precio unitario:</span>
-                                <span class="value">$${price.toLocaleString('es-CO')}</span>
-                                ${hasDiscount ? `<span class="original-price">$${product.regular_price.toLocaleString('es-CO')}</span>` : ''}
+
+                        <div class="card-body d-flex flex-column p-3 card-body-product">
+                            <h6 class="card-title fw-bold mb-2 product-title-clickable" 
+                                onclick="window.open('${safePermalink}', '_blank')"
+                                title="Click para ver detalles del producto"
+                                style="color: #2c3e50; line-height: 1.3; cursor: pointer; transition: all 0.3s ease;">${product.title}</h6>
+
+                            ${product.sku ? `
+                                <div class="mb-2">
+                                    <span class="product-sku badge bg-light text-dark">SKU: ${product.sku}</span>
+                                </div>
+                            ` : ''}
+
+                            ${hasDiscount ? `
+                                <div class="price mb-3">
+                                    <div class="d-flex align-items-center justify-content-between box-prices">
+                                        <div>
+                                            <span class="sale-price text-danger fw-bold fs-5">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                            <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${regularPrice.toLocaleString('es-CO')}</span>
+                                        </div>
+                                        <span class="badge bg-danger rounded-pill">Oferta</span>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="price mb-3">
+                                    <div class="d-flex align-items-center justify-content-between box-prices">
+                                        <span class="current-price text-primary fw-bold fs-5">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                    </div>
+                                </div>
+                            `}
+
+                            <div class="d-flex align-items-center justify-content-between">
+                                <small class="text-muted">Subtotal: <strong>$${subtotal.toLocaleString('es-CO')}</strong></small>
                             </div>
-                            <div class="subtotal">
-                                <span class="label">Subtotal:</span>
-                                <span class="value font-weight-bold">$${subtotal.toLocaleString('es-CO')}</span>
+
+                            <div class="product-actions d-flex justify-content-between align-items-center mt-auto">
+                                <button class="btn btn-secondary btn-custom btn-circular btn-sm position-absolute text-white" 
+                                        onclick="shareProductLink('${safePermalink}', '${safeTitle}')" 
+                                        title="Compartir enlace">
+                                    <i class="fas fa-share-alt"></i>
+                                </button>
+                                <span class="badge badge-qty bg-success bg-custom rounded-pill position-absolute" title="Cantidad">${qty}</span>
                             </div>
                         </div>
-                        
-                        ${hasDiscount ? '<div class="discount-indicator"><i class="fas fa-tag text-success me-1"></i>Producto en oferta</div>' : ''}
                     </div>
                 </div>
             `;
-            
-            // Agregar separador si no es el último producto
-            if (index < products.length - 1) {
-                html += '<hr class="product-separator">';
-            }
         });
         
         html += '</div>';
@@ -381,56 +415,56 @@ class OrderSummary {
                 <div class="info-item">
                     <i class="fas fa-hashtag text-muted me-2"></i>
                     <div>
-                        <strong>Pedido:</strong><br>
+                        <strong>Pedido: </strong>
                         <span class="text-muted">${orderId ? '#' + orderId : 'No disponible'}</span>
                     </div>
                 </div>
-
+                <hr>
                 <div class="info-item">
                     <i class="fas fa-calendar text-muted me-2"></i>
                     <div>
-                        <strong>Fecha:</strong><br>
+                        <strong>Fecha: </strong>
                         <span class="text-muted">${orderDate}</span>
                     </div>
                 </div>
-
+                <hr>
                 <div class="info-item">
                     <i class="fas fa-user-tie text-muted me-2"></i>
                     <div>
-                        <strong>Vendedor:</strong><br>
+                        <strong>Vendedor: </strong>
                         <span class="text-muted">${window.currentUser || 'Sistema'}</span>
                     </div>
                 </div>
-
+                <hr>
                 <div class="info-item">
                     <i class="fas fa-truck text-muted me-2"></i>
                     <div>
-                        <strong>Costo de Envío:</strong><br>
+                        <strong>Costo de Envío: </strong>
                         <span class="text-muted">${(orderShipping !== null) ? ('$' + orderShipping.toLocaleString('es-CO')) : 'No especificado'}</span>
                     </div>
                 </div>
-
+                <hr>
                 <div class="info-item">
                     <i class="fas fa-tags text-muted me-2"></i>
                     <div>
-                        <strong>Descuento:</strong><br>
+                        <strong>Descuento: </strong>
                         <span class="text-muted">${(discountToShow !== null && discountToShow !== undefined) ? ('$' + Number(discountToShow).toLocaleString('es-CO')) : 'No especificado'}</span>
                     </div>
                 </div>
-
+                <hr>
                 <div class="info-item">
                     <i class="fas fa-credit-card text-muted me-2"></i>
                     <div>
-                        <strong>Método de Pago:</strong><br>
+                        <strong>Método de Pago: </strong>
                         <span class="text-muted">${paymentMethodTitle || 'No especificado'}</span>
                     </div>
                 </div>
-
                 ${orderNotes ? `
+                <hr>
                 <div class="info-item">
                     <i class="fas fa-comment-alt text-muted me-2"></i>
                     <div>
-                        <strong>Notas:</strong><br>
+                        <strong>Notas:</strong>
                         <span class="text-muted">${orderNotes}</span>
                     </div>
                 </div>
@@ -475,6 +509,25 @@ class OrderSummary {
                 toast.parentNode.removeChild(toast);
             }
         }, 5000);
+    }
+}
+
+function shareProductLink(productUrl, productTitle) {
+    try {
+        if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(productUrl || '').then(() => {
+                if (window.orderSummary && typeof window.orderSummary.showNotification === 'function') {
+                    window.orderSummary.showNotification('Enlace copiado al portapapeles', 'success');
+                }
+            }).catch(() => {
+                prompt('Copia el enlace:', productUrl || '');
+            });
+            return;
+        }
+
+        prompt('Copia el enlace:', productUrl || '');
+    } catch (e) {
+        prompt('Copia el enlace:', productUrl || '');
     }
 }
 

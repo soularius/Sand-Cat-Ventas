@@ -245,6 +245,18 @@
   border-color: #dc3545;
 }
 
+#products-summary .product-card {
+  box-shadow: 0 0 0.9rem 6px rgba(0, 0, 0, 0.1);
+}
+
+#products-summary .product-actions {
+  border: 0;
+}
+
+.mb-6 {
+  margin-bottom: 3rem;
+}
+
 .product-header {
   margin-bottom: 1rem;
 }
@@ -1448,14 +1460,6 @@ a.a-custom:hover {
   padding: 20px 0;
 }
 
-.product-card {
-  background: white;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  margin-bottom: 30px;
-}
-
 .product-header {
   background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
   color: white;
@@ -1962,20 +1966,6 @@ a.a-custom:hover {
 /* Estilos para el buscador de productos */
 .products-grid {
     gap: 1.5rem;
-}
-
-.product-card {
-    transition: all 0.3s ease;
-    border: 1px solid #e9ecef;
-    border-radius: 12px;
-    overflow: unset;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.product-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-    border-color: #007bff;
 }
 
 .product-card .card-img-top {
@@ -2923,6 +2913,43 @@ html {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+.badge-OFF {
+  top: -5px;
+  right: 0px;
+}
+
+/* Product Title Clickable (both cart and product cards) */
+.product-title-clickable {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.product-title-clickable:hover {
+  color: var(--primary-color) !important;
+  text-decoration: underline !important;
+  font-weight: 600;
+  transform: translateY(-1px);
+}
+
+/* Specific styles for product card titles */
+.card-title.product-title-clickable:hover {
+  color: var(--accent-color) !important;
+}
+
+.badge-qty {
+  left: -15px;
+  top: -15px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50% !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  transition: all 0.3s ease;
+}
+
 /* Responsive Design for Order Summary */
 @media (max-width: 768px) {
   .summary-panel .panel-body {
@@ -2950,22 +2977,4 @@ html {
   .action-buttons .col-md-6 {
     margin-bottom: 1rem;
   }
-}
-
-/* Product Title Clickable (both cart and product cards) */
-.product-title-clickable {
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.product-title-clickable:hover {
-  color: var(--primary-color) !important;
-  text-decoration: underline !important;
-  font-weight: 600;
-  transform: translateY(-1px);
-}
-
-/* Specific styles for product card titles */
-.card-title.product-title-clickable:hover {
-  color: var(--accent-color) !important;
 }

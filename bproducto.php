@@ -111,9 +111,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                             </div>
 
                             <!-- Category Filter -->
-                            <div class="category-filter mt-3">
+                            <div class="form-group category-filter mt-3">
                                 <h6>Filtrar por Categoría</h6>
-                                <select class="form-select form-select-sm" id="categoryFilter">
+                                <select class="form-control form-select form-select-sm" id="categoryFilter">
                                     <option value="">Todas las categorías</option>
                                     <option value="loading" disabled>Cargando categorías...</option>
                                 </select>
@@ -428,8 +428,8 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                             <span class="product-sku badge bg-light text-dark">SKU: ${product.sku}</span>
                         </div>` : '';
                     html += `
-                        <div class="col-md-6 col-lg-4 mb-4">
-                            <div class="card product-card shadow-sm ${product.card_border_class}" data-product-id="${product.id}">
+                        <div class="col-md-6 col-lg-4 mb-6">
+                            <div class="card product-card ${product.card_border_class}" data-product-id="${product.id}">
                                 <div class="position-relative overflow-hidden">
                                     <img src="${product.image_url}" 
                                          class="card-img-top" 
@@ -464,6 +464,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                                 data-product-price="${product.price.replace(/[.,]/g, '')}"
                                                 data-product-regular-price="${product.regular_price ? product.regular_price.replace(/[.,]/g, '') : ''}"
                                                 data-product-sale-price="${product.sale_price ? product.sale_price.replace(/[.,]/g, '') : ''}"
+                                                data-product-image-url="${product.image_url || ''}"
                                                 data-product-sku="${product.sku || ''}"
                                                 data-product-permalink="${product.permalink}"
                                                 ${!product.is_available ? 'disabled' : ''}
@@ -639,12 +640,14 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 // Agregar al carrito usando el sistema existente
                 if (window.cart) {
                     const prodPermalink = btn.data('product-permalink');
+                    const prodImageUrl = btn.data('product-image-url');
                     const product = {
                         id: prodId,
                         title: prodName,
                         price: prodPrice,
                         regular_price: prodRegularPrice,
                         sale_price: prodSalePrice,
+                        image_url: prodImageUrl,
                         sku: prodSku || '',
                         permalink: prodPermalink || '#',
                         available: true,

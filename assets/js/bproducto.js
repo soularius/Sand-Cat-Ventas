@@ -80,6 +80,7 @@ class ProductCart {
                 sale_price: product.sale_price ? this.parseCOP(product.sale_price) : null,
                 stock: parseInt(product.stock || 0),
                 sku: product.sku || '',
+                image_url: product.image_url || '',
                 permalink: product.permalink || '#',
                 quantity: quantity,
                 available: product.available
@@ -221,15 +222,15 @@ class ProductCart {
                             onclick="viewProductDetails('${item.id}', '${escapedTitle}', '${escapedPermalink}')" 
                             title="Click para ver detalles del producto"
                             style="cursor: pointer; color: var(--primary-color); text-decoration: underline;">${item.title}</h6>
-                        <small class="text-muted">SKU: ${item.sku || 'N/A'}</small>
-                        <div class="price-info">
+                        <small class="text-muted text-uppercase fw-bold">SKU: ${item.sku || 'N/A'}</small>
+                        <div class="d-flex align-items-center justify-content-between position-relative">
                             ${hasDiscount ? `
                                 <div class="d-flex align-items-center justify-content-between box-prices">
                                     <div>
                                         <span class="sale-price text-danger fw-bold">$${finalUnitPrice.toLocaleString('es-CO')}</span>
                                         <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${regularPrice.toLocaleString('es-CO')}</span>
                                     </div>
-                                    <span class="badge bg-danger rounded-pill">Oferta</span>
+                                    <span class="badge bg-danger rounded-pill position-absolute badge-OFF">Oferta</span>
                                 </div>
                                 <div class="text-success small mt-1">Ahorra $${(regularPrice - salePrice).toLocaleString('es-CO')}</div>
                             ` : `
