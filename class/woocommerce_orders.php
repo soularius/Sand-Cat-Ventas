@@ -127,6 +127,65 @@ class WooCommerceOrders
         return $returnInsertId ? (int)$insertId : 0;
     }
 
+    /**
+     * Actualiza una fila filtrando SOLO columnas existentes.
+     */
+    private function updateRowByWhere(string $table, array $data, string $whereClause): bool
+    {
+        $cols = $this->getTableColumns($table);
+        if (!$cols) throw new Exception("Tabla no existe o no se pudo describir: {$table}");
+
+        // Filtrar datos: solo columnas existentes
+        $filtered = [];
+        foreach ($data as $k => $v) {
+            if (isset($cols[$k])) $filtered[$k] = $v;
+        }
+        if (!$filtered) throw new Exception("No hay columnas válidas para actualizar en {$table}");
+
+        $sets = [];
+        $values = [];
+        $types = '';
+        
+        foreach ($filtered as $field => $value) {
+            $sets[] = "`{$field}` = ?";
+            if (is_int($value)) {
+                $types .= 'i';
+            } elseif (is_float($value)) {
+                $types .= 'd';
+            } else {
+                $types .= 's';
+                if ($value === null) $value = null;
+                else $value = (string)$value;
+            }
+            $values[] = $value;
+        }
+
+        $sql = "UPDATE {$table} SET " . implode(', ', $sets) . " WHERE {$whereClause}";
+        $stmt = mysqli_prepare($this->wp_connection, $sql);
+        if (!$stmt) throw new Exception("Prepare failed ({$table}): " . mysqli_error($this->wp_connection));
+
+        // bind_param requiere referencias
+        if (!empty($values)) {
+            $bindArgs = [];
+            $bindArgs[] = $types;
+            foreach ($values as $i => $v) {
+                $bindArgs[] = &$values[$i];
+            }
+            if (!call_user_func_array([$stmt, 'bind_param'], $bindArgs)) {
+                throw new Exception("bind_param failed ({$table}): " . mysqli_error($this->wp_connection));
+            }
+        }
+
+        $result = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+        
+        if (!$result) {
+            throw new Exception("Execute failed ({$table}): " . mysqli_error($this->wp_connection));
+        }
+
+        return true;
+    }
+
     private function execRaw(string $sql): void
     {
         $res = mysqli_query($this->wp_connection, $sql);
@@ -176,6 +235,176 @@ class WooCommerceOrders
     }
 
     /* ==============================================================
+     *  FUNCIONES AUXILIARES PARA USUARIOS
+     * ============================================================ */
+
+    /**
+     * Busca un usuario WordPress por email, o lo crea si no existe
+     * Retorna el user_id para vincular con el pedido
+     */
+    private function findOrCreateWordPressUser(array $customerData): int
+    {
+        $email = trim((string)($customerData['_billing_email'] ?? ''));
+        $firstName = trim((string)($customerData['nombre1'] ?? $customerData['_shipping_first_name'] ?? ''));
+        $lastName = trim((string)($customerData['nombre2'] ?? $customerData['_shipping_last_name'] ?? ''));
+        
+        if (empty($email)) {
+            return 0; // Sin email no podemos crear usuario
+        }
+
+        // 1. Buscar usuario existente por email
+        $emailEscaped = mysqli_real_escape_string($this->wp_connection, $email);
+        $query = "SELECT ID FROM miau_users WHERE user_email = '$emailEscaped' LIMIT 1";
+        $result = mysqli_query($this->wp_connection, $query);
+        
+        if ($result && mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+            return (int)$row['ID'];
+        }
+
+        // 2. Crear nuevo usuario WordPress
+        if (empty($firstName) || empty($lastName)) {
+            return 0; // Necesitamos nombre completo para crear usuario
+        }
+
+        // Generar username único: nombre.apellido
+        $firstNameClean = strtolower(preg_replace('/[^a-z0-9]/', '', $firstName));
+        $lastNameClean = strtolower(preg_replace('/[^a-z0-9]/', '', $lastName));
+        $username = $firstNameClean . '.' . $lastNameClean;
+        
+        // Verificar unicidad del username
+        $originalUsername = $username;
+        $usernameEscaped = mysqli_real_escape_string($this->wp_connection, $username);
+        $checkQuery = "SELECT ID FROM miau_users WHERE user_login = '$usernameEscaped' LIMIT 1";
+        $checkResult = mysqli_query($this->wp_connection, $checkQuery);
+        
+        // Si existe, agregar dígitos aleatorios
+        if ($checkResult && mysqli_num_rows($checkResult) > 0) {
+            do {
+                $randomDigits = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
+                $username = $originalUsername . '.' . $randomDigits;
+                $usernameEscaped = mysqli_real_escape_string($this->wp_connection, $username);
+                $checkQuery = "SELECT ID FROM miau_users WHERE user_login = '$usernameEscaped' LIMIT 1";
+                $checkResult = mysqli_query($this->wp_connection, $checkQuery);
+            } while ($checkResult && mysqli_num_rows($checkResult) > 0);
+        }
+
+        // Generar contraseña aleatoria
+        $tempPassword = substr(str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 12);
+        $hashedPassword = password_hash($tempPassword, PASSWORD_DEFAULT);
+        
+        $displayName = $firstName . ' ' . $lastName;
+        $userNicename = strtolower(preg_replace('/[^a-zA-Z0-9\-]/', '-', $displayName));
+        
+        date_default_timezone_set('America/Bogota');
+        $now = date('Y-m-d H:i:s');
+        
+        // Crear usuario en miau_users
+        $userId = $this->insertRow('miau_users', [
+            'user_login' => $username,
+            'user_pass' => $hashedPassword,
+            'user_nicename' => $userNicename,
+            'user_email' => $email,
+            'user_registered' => $now,
+            'user_status' => 0,
+            'display_name' => $displayName,
+        ]);
+        
+        if ($userId > 0) {
+            // Agregar metadatos del usuario (rol guest_customer)
+            $userMeta = [
+                'miau_capabilities' => 'a:1:{s:14:"guest_customer";b:1;}',
+                'miau_user_level' => '0',
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'billing_first_name' => $firstName,
+                'billing_last_name' => $lastName,
+                'billing_email' => $email,
+                'shipping_first_name' => $firstName,
+                'shipping_last_name' => $lastName,
+            ];
+            
+            // Agregar campos adicionales si existen
+            if (!empty($customerData['_billing_phone'])) {
+                $userMeta['billing_phone'] = (string)$customerData['_billing_phone'];
+            }
+            if (!empty($customerData['_shipping_address_1'])) {
+                $userMeta['billing_address_1'] = (string)$customerData['_shipping_address_1'];
+                $userMeta['shipping_address_1'] = (string)$customerData['_shipping_address_1'];
+            }
+            if (!empty($customerData['_shipping_city'])) {
+                $userMeta['billing_city'] = (string)$customerData['_shipping_city'];
+                $userMeta['shipping_city'] = (string)$customerData['_shipping_city'];
+            }
+            if (!empty($customerData['_shipping_state'])) {
+                $userMeta['billing_state'] = (string)$customerData['_shipping_state'];
+                $userMeta['shipping_state'] = (string)$customerData['_shipping_state'];
+            }
+            
+            foreach ($userMeta as $metaKey => $metaValue) {
+                $this->insertRow('miau_usermeta', [
+                    'user_id' => $userId,
+                    'meta_key' => $metaKey,
+                    'meta_value' => $metaValue,
+                ]);
+            }
+        }
+        
+        return $userId;
+    }
+
+    /**
+     * Crea o actualiza el cliente en miau_wc_customer_lookup
+     * Esta tabla es crítica para que WooCommerce reconozca al cliente
+     */
+    private function upsertWooCommerceCustomer(int $userId, array $customerData): void
+    {
+        if (!$this->tableExists('miau_wc_customer_lookup')) {
+            return; // Tabla no existe, skip
+        }
+
+        $email = trim((string)($customerData['_billing_email'] ?? ''));
+        $firstName = trim((string)($customerData['nombre1'] ?? $customerData['_shipping_first_name'] ?? ''));
+        $lastName = trim((string)($customerData['nombre2'] ?? $customerData['_shipping_last_name'] ?? ''));
+        $city = trim((string)($customerData['_shipping_city'] ?? ''));
+        $state = trim((string)($customerData['_shipping_state'] ?? ''));
+        
+        if (empty($email)) {
+            return; // Sin email no podemos crear cliente
+        }
+
+        date_default_timezone_set('America/Bogota');
+        $now = date('Y-m-d H:i:s');
+
+        // Verificar si el cliente ya existe
+        $emailEscaped = mysqli_real_escape_string($this->wp_connection, $email);
+        $checkQuery = "SELECT customer_id FROM miau_wc_customer_lookup WHERE email = '$emailEscaped' LIMIT 1";
+        $checkResult = mysqli_query($this->wp_connection, $checkQuery);
+
+        $customerLookupData = [
+            'user_id' => $userId,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'date_last_active' => $now,
+            'country' => 'CO',
+            'city' => $city,
+            'state' => $state,
+        ];
+
+        if ($checkResult && mysqli_num_rows($checkResult) > 0) {
+            // Cliente existe, actualizar
+            $row = mysqli_fetch_assoc($checkResult);
+            $existingCustomerId = (int)$row['customer_id'];
+            
+            $this->updateRowByWhere('miau_wc_customer_lookup', $customerLookupData, "customer_id = $existingCustomerId");
+        } else {
+            // Cliente no existe, crear nuevo
+            $this->insertRow('miau_wc_customer_lookup', $customerLookupData);
+        }
+    }
+
+    /* ==============================================================
      *  ✅ CREAR ORDEN SOLO DB
      * ============================================================ */
 
@@ -204,6 +433,19 @@ class WooCommerceOrders
 
         $customer = $orderData['customer_data'] ?? [];
         $form = $orderData['form_data'] ?? [];
+
+        // 🔥 CRÍTICO: Buscar o crear usuario WordPress para vinculación
+        $customerId = $this->findOrCreateWordPressUser($customer);
+        
+        if ($customerId === 0) {
+            return ['success' => false, 'error' => 'No se pudo crear o encontrar usuario WordPress. Email y nombre son requeridos.', 'debug' => $debug];
+        }
+        
+        $debug['steps'][] = ['wordpress_user_id' => $customerId];
+
+        // 🔥 CRÍTICO: Crear/actualizar cliente en WooCommerce lookup
+        $this->upsertWooCommerceCustomer($customerId, $customer);
+        $debug['steps'][] = ['woocommerce_customer_updated' => true];
 
         // Normalizar valores
         $firstName = (string)($customer['nombre1'] ?? $customer['_shipping_first_name'] ?? '');
@@ -275,7 +517,7 @@ class WooCommerceOrders
              *    (Así el order_id queda alineado con WordPress/WooCommerce)
              * ------------------------------------------------------------ */
             $postId = $this->insertRow('miau_posts', [
-                'post_author' => 1,
+                'post_author' => $customerId, // 🔥 VINCULACIÓN CRÍTICA
                 'post_status' => $statusPosts,
                 'comment_status' => 'closed',
                 'ping_status' => 'closed',
@@ -297,6 +539,9 @@ class WooCommerceOrders
              * 2) Insertar meta básica (Legacy)
              * ------------------------------------------------------------ */
             $metaPairs = [
+                // 🔥 CRÍTICO: Campo que vincula pedido con usuario
+                '_customer_user'       => (string)$customerId,
+                
                 '_shipping_first_name' => $firstName,
                 '_shipping_last_name'  => $lastName,
                 '_billing_first_name'  => $firstName,
@@ -334,6 +579,11 @@ class WooCommerceOrders
                 '_recorded_sales'      => 'yes',
                 '_order_stock_reduced' => 'yes',
                 '_created_via'         => 'external_db',
+                
+                // Campos adicionales para compatibilidad WooCommerce
+                '_order_key'           => 'wc_order_' . bin2hex(random_bytes(8)),
+                '_prices_include_tax'  => 'no',
+                '_order_version'       => '8.0.0',
             ];
 
             foreach ($metaPairs as $k => $v) {
@@ -522,7 +772,7 @@ class WooCommerceOrders
                     'total_amount' => (float)$finalTotal,
                     'shipping_amount' => (float)$shippingCost,
                     'discount_amount' => (float)$cartDiscount,
-                    'customer_id' => 0,
+                    'customer_id' => $customerId, // 🔥 VINCULACIÓN CRÍTICA
                     'billing_email' => $email,
                     'billing_phone' => $phone,
                     'payment_method' => $paymentMethod,
@@ -608,10 +858,10 @@ class WooCommerceOrders
              * ------------------------------------------------------------ */
             $itemsQty = array_sum(array_map(fn($p) => (int)($p['quantity'] ?? 0), $orderData['products'] ?? []));
 
-            $this->bestEffortInsertStatsAndLookups($postId, $statusHPOS, $nowLocal, $nowGmt, $itemsTotal, $itemsSubtotal, $shippingCost, $cartDiscount, $finalTotal, $orderData['products'] ?? []);
+            $this->bestEffortInsertStatsAndLookups($postId, $statusHPOS, $nowLocal, $nowGmt, $itemsTotal, $itemsSubtotal, $shippingCost, $cartDiscount, $finalTotal, $orderData['products'] ?? [], $customerId);
             // ✅ FIX sumatoria envío en Woo
-            $this->upsertOperationalData($postId, $nowGmt, $shippingCost, $cartDiscount);
-            $this->upsertOrderStats($postId, $nowLocal, $nowGmt, $statusHPOS, $itemsQty, $shippingCost, $finalTotal);
+            $this->upsertOperationalData($postId, $nowGmt, $shippingCost, $cartDiscount, $customerId);
+            $this->upsertOrderStats($postId, $nowLocal, $nowGmt, $statusHPOS, $itemsQty, $shippingCost, $finalTotal, $customerId);
 
             mysqli_commit($this->wp_connection);
 
@@ -646,7 +896,8 @@ class WooCommerceOrders
         int $shippingCost,
         int $cartDiscount,
         int $finalTotal,
-        array $products
+        array $products,
+        int $customerId = 0
     ): void {
         // 1) wc_order_stats
         if ($this->tableExists('miau_wc_order_stats')) {
@@ -663,7 +914,7 @@ class WooCommerceOrders
                     'net_total' => (float)$finalTotal,
                     'returning_customer' => 0,
                     'status' => $status,
-                    'customer_id' => 0,
+                    'customer_id' => $customerId, // 🔥 VINCULACIÓN CRÍTICA
                 ]);
             } catch (Exception $e) {
                 // no-op
@@ -687,7 +938,7 @@ class WooCommerceOrders
                         'order_id' => $orderId,
                         'product_id' => $pid,
                         'variation_id' => 0,
-                        'customer_id' => 0,
+                        'customer_id' => $customerId, // 🔥 VINCULACIÓN CRÍTICA
                         'date_created' => $nowLocal,
                         'product_qty' => $qty,
                         'product_net_revenue' => (float)$gross,
@@ -929,25 +1180,6 @@ class WooCommerceOrders
         return $structure;
     }
 
-    private function updateRowByWhere(string $table, array $data, string $whereSql): void {
-        $cols = $this->getTableColumns($table);
-        if (!$cols) return;
-
-        $sets = [];
-        foreach ($data as $k => $v) {
-            if (!isset($cols[$k])) continue;
-            if ($v === null) {
-                $sets[] = "`{$k}`=NULL";
-            } else {
-                $val = mysqli_real_escape_string($this->wp_connection, (string)$v);
-                $sets[] = "`{$k}`='{$val}'";
-            }
-        }
-
-        if (!$sets) return;
-        $sql = "UPDATE {$table} SET " . implode(',', $sets) . " WHERE {$whereSql}";
-        $this->execRaw($sql);
-    }
 
     private function rowExists(string $table, string $whereSql): bool {
         if (!$this->tableExists($table)) return false;
@@ -958,7 +1190,7 @@ class WooCommerceOrders
     /**
      * UPSERT operacional HPOS
      */
-    private function upsertOperationalData(int $orderId, string $nowGmt, int $shippingCost, int $cartDiscount): void {
+    private function upsertOperationalData(int $orderId, string $nowGmt, int $shippingCost, int $cartDiscount, int $customerId = 0): void {
         if (!$this->tableExists('miau_wc_order_operational_data')) return;
 
         // ⚠️ OJO: usar EXACTAMENTE los nombres de columnas que tu DESCRIBE mostró
@@ -993,7 +1225,7 @@ class WooCommerceOrders
     /**
      * UPSERT stats HPOS
      */
-    private function upsertOrderStats(int $orderId, string $nowLocal, string $nowGmt, string $status, int $itemsQty, int $shippingCost, int $finalTotal): void {
+    private function upsertOrderStats(int $orderId, string $nowLocal, string $nowGmt, string $status, int $itemsQty, int $shippingCost, int $finalTotal, int $customerId = 0): void {
         if (!$this->tableExists('miau_wc_order_stats')) return;
 
         $stats = [
