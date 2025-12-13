@@ -17,6 +17,7 @@
  */
 
 require_once('config.php');
+require_once('woocommerce_customer.php');
 
 class WooCommerceOrders
 {
@@ -24,10 +25,12 @@ class WooCommerceOrders
     private mysqli $wp_connection;
     private array $table_cache = [];
     private array $columns_cache = [];
+    private WooCommerceCustomer $customerManager;
 
     public function __construct()
     {
         $this->wp_connection = DatabaseConfig::getWordPressConnection();
+        $this->customerManager = new WooCommerceCustomer();
 
         if (isset($_GET['debug_sql']) || isset($_GET['debug_orders'])) {
             echo $this->wp_connection ? "<pre>CONEXIÓN A DB: OK</pre>" : "<pre>ERROR: No se pudo conectar a la base de datos</pre>";
@@ -234,175 +237,6 @@ class WooCommerceOrders
         return $desired;
     }
 
-    /* ==============================================================
-     *  FUNCIONES AUXILIARES PARA USUARIOS
-     * ============================================================ */
-
-    /**
-     * Busca un usuario WordPress por email, o lo crea si no existe
-     * Retorna el user_id para vincular con el pedido
-     */
-    private function findOrCreateWordPressUser(array $customerData): int
-    {
-        $email = trim((string)($customerData['_billing_email'] ?? ''));
-        $firstName = trim((string)($customerData['nombre1'] ?? $customerData['_shipping_first_name'] ?? ''));
-        $lastName = trim((string)($customerData['nombre2'] ?? $customerData['_shipping_last_name'] ?? ''));
-        
-        if (empty($email)) {
-            return 0; // Sin email no podemos crear usuario
-        }
-
-        // 1. Buscar usuario existente por email
-        $emailEscaped = mysqli_real_escape_string($this->wp_connection, $email);
-        $query = "SELECT ID FROM miau_users WHERE user_email = '$emailEscaped' LIMIT 1";
-        $result = mysqli_query($this->wp_connection, $query);
-        
-        if ($result && mysqli_num_rows($result) > 0) {
-            $row = mysqli_fetch_assoc($result);
-            return (int)$row['ID'];
-        }
-
-        // 2. Crear nuevo usuario WordPress
-        if (empty($firstName) || empty($lastName)) {
-            return 0; // Necesitamos nombre completo para crear usuario
-        }
-
-        // Generar username único: nombre.apellido
-        $firstNameClean = strtolower(preg_replace('/[^a-z0-9]/', '', $firstName));
-        $lastNameClean = strtolower(preg_replace('/[^a-z0-9]/', '', $lastName));
-        $username = $firstNameClean . '.' . $lastNameClean;
-        
-        // Verificar unicidad del username
-        $originalUsername = $username;
-        $usernameEscaped = mysqli_real_escape_string($this->wp_connection, $username);
-        $checkQuery = "SELECT ID FROM miau_users WHERE user_login = '$usernameEscaped' LIMIT 1";
-        $checkResult = mysqli_query($this->wp_connection, $checkQuery);
-        
-        // Si existe, agregar dígitos aleatorios
-        if ($checkResult && mysqli_num_rows($checkResult) > 0) {
-            do {
-                $randomDigits = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
-                $username = $originalUsername . '.' . $randomDigits;
-                $usernameEscaped = mysqli_real_escape_string($this->wp_connection, $username);
-                $checkQuery = "SELECT ID FROM miau_users WHERE user_login = '$usernameEscaped' LIMIT 1";
-                $checkResult = mysqli_query($this->wp_connection, $checkQuery);
-            } while ($checkResult && mysqli_num_rows($checkResult) > 0);
-        }
-
-        // Generar contraseña aleatoria
-        $tempPassword = substr(str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 12);
-        $hashedPassword = password_hash($tempPassword, PASSWORD_DEFAULT);
-        
-        $displayName = $firstName . ' ' . $lastName;
-        $userNicename = strtolower(preg_replace('/[^a-zA-Z0-9\-]/', '-', $displayName));
-        
-        date_default_timezone_set('America/Bogota');
-        $now = date('Y-m-d H:i:s');
-        
-        // Crear usuario en miau_users
-        $userId = $this->insertRow('miau_users', [
-            'user_login' => $username,
-            'user_pass' => $hashedPassword,
-            'user_nicename' => $userNicename,
-            'user_email' => $email,
-            'user_registered' => $now,
-            'user_status' => 0,
-            'display_name' => $displayName,
-        ]);
-        
-        if ($userId > 0) {
-            // Agregar metadatos del usuario (rol guest_customer)
-            $userMeta = [
-                'miau_capabilities' => 'a:1:{s:14:"guest_customer";b:1;}',
-                'miau_user_level' => '0',
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'billing_first_name' => $firstName,
-                'billing_last_name' => $lastName,
-                'billing_email' => $email,
-                'shipping_first_name' => $firstName,
-                'shipping_last_name' => $lastName,
-            ];
-            
-            // Agregar campos adicionales si existen
-            if (!empty($customerData['_billing_phone'])) {
-                $userMeta['billing_phone'] = (string)$customerData['_billing_phone'];
-            }
-            if (!empty($customerData['_shipping_address_1'])) {
-                $userMeta['billing_address_1'] = (string)$customerData['_shipping_address_1'];
-                $userMeta['shipping_address_1'] = (string)$customerData['_shipping_address_1'];
-            }
-            if (!empty($customerData['_shipping_city'])) {
-                $userMeta['billing_city'] = (string)$customerData['_shipping_city'];
-                $userMeta['shipping_city'] = (string)$customerData['_shipping_city'];
-            }
-            if (!empty($customerData['_shipping_state'])) {
-                $userMeta['billing_state'] = (string)$customerData['_shipping_state'];
-                $userMeta['shipping_state'] = (string)$customerData['_shipping_state'];
-            }
-            
-            foreach ($userMeta as $metaKey => $metaValue) {
-                $this->insertRow('miau_usermeta', [
-                    'user_id' => $userId,
-                    'meta_key' => $metaKey,
-                    'meta_value' => $metaValue,
-                ]);
-            }
-        }
-        
-        return $userId;
-    }
-
-    /**
-     * Crea o actualiza el cliente en miau_wc_customer_lookup
-     * Esta tabla es crítica para que WooCommerce reconozca al cliente
-     */
-    private function upsertWooCommerceCustomer(int $userId, array $customerData): void
-    {
-        if (!$this->tableExists('miau_wc_customer_lookup')) {
-            return; // Tabla no existe, skip
-        }
-
-        $email = trim((string)($customerData['_billing_email'] ?? ''));
-        $firstName = trim((string)($customerData['nombre1'] ?? $customerData['_shipping_first_name'] ?? ''));
-        $lastName = trim((string)($customerData['nombre2'] ?? $customerData['_shipping_last_name'] ?? ''));
-        $city = trim((string)($customerData['_shipping_city'] ?? ''));
-        $state = trim((string)($customerData['_shipping_state'] ?? ''));
-        
-        if (empty($email)) {
-            return; // Sin email no podemos crear cliente
-        }
-
-        date_default_timezone_set('America/Bogota');
-        $now = date('Y-m-d H:i:s');
-
-        // Verificar si el cliente ya existe
-        $emailEscaped = mysqli_real_escape_string($this->wp_connection, $email);
-        $checkQuery = "SELECT customer_id FROM miau_wc_customer_lookup WHERE email = '$emailEscaped' LIMIT 1";
-        $checkResult = mysqli_query($this->wp_connection, $checkQuery);
-
-        $customerLookupData = [
-            'user_id' => $userId,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'email' => $email,
-            'date_last_active' => $now,
-            'country' => 'CO',
-            'city' => $city,
-            'state' => $state,
-        ];
-
-        if ($checkResult && mysqli_num_rows($checkResult) > 0) {
-            // Cliente existe, actualizar
-            $row = mysqli_fetch_assoc($checkResult);
-            $existingCustomerId = (int)$row['customer_id'];
-            
-            $this->updateRowByWhere('miau_wc_customer_lookup', $customerLookupData, "customer_id = $existingCustomerId");
-        } else {
-            // Cliente no existe, crear nuevo
-            $this->insertRow('miau_wc_customer_lookup', $customerLookupData);
-        }
-    }
 
     /* ==============================================================
      *  ✅ CREAR ORDEN SOLO DB
@@ -434,18 +268,20 @@ class WooCommerceOrders
         $customer = $orderData['customer_data'] ?? [];
         $form = $orderData['form_data'] ?? [];
 
-        // 🔥 CRÍTICO: Buscar o crear usuario WordPress para vinculación
-        $customerId = $this->findOrCreateWordPressUser($customer);
-        
-        if ($customerId === 0) {
-            return ['success' => false, 'error' => 'No se pudo crear o encontrar usuario WordPress. Email y nombre son requeridos.', 'debug' => $debug];
+        // 🔥 CRÍTICO: Procesar cliente usando clase dedicada
+        try {
+            $customerResult = $this->customerManager->processCustomer($customer);
+            $customerId = $customerResult['user_id'];
+            $wasCreated = $customerResult['created'];
+            
+            $debug['steps'][] = [
+                'customer_processed' => true,
+                'user_id' => $customerId,
+                'user_created' => $wasCreated
+            ];
+        } catch (Exception $e) {
+            return ['success' => false, 'error' => 'Error procesando cliente: ' . $e->getMessage(), 'debug' => $debug];
         }
-        
-        $debug['steps'][] = ['wordpress_user_id' => $customerId];
-
-        // 🔥 CRÍTICO: Crear/actualizar cliente en WooCommerce lookup
-        $this->upsertWooCommerceCustomer($customerId, $customer);
-        $debug['steps'][] = ['woocommerce_customer_updated' => true];
 
         // Normalizar valores
         $firstName = (string)($customer['nombre1'] ?? $customer['_shipping_first_name'] ?? '');
