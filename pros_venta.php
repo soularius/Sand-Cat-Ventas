@@ -829,10 +829,12 @@ include('parts/step_wizard.php');
         <!-- Observaciones -->
         <?php if (!empty($post_excerpt)): ?>
             <div class="order-card">
-                <div class="info-section">
-                    <h5><i class="fas fa-sticky-note"></i>Observaciones</h5>
-                    <div class="alert alert-info mb-0">
-                        <?php echo nl2br(htmlspecialchars($post_excerpt)); ?>
+                <div class="customer-info">
+                    <div class="info-section">
+                        <h5><i class="fas fa-sticky-note"></i>Observaciones</h5>
+                        <div class="alert alert-info mb-0">
+                            <?php echo nl2br(htmlspecialchars($post_excerpt)); ?>
+                        </div>
                     </div>
                 </div>
             </div>
