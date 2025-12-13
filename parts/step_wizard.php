@@ -103,13 +103,14 @@ function getStepCircleContent($step_number, $current_step) {
 // JavaScript para hacer los pasos clicables y navegables
 document.addEventListener('DOMContentLoaded', function() {
     const steps = document.querySelectorAll('.step-wizard .step');
+    const currentStep = parseInt('<?php echo (int)$current_step; ?>', 10);
     
     steps.forEach(function(step, index) {
         const page = step.getAttribute('data-page');
         const stepNumber = index + 1;
         
         // Solo hacer clicables los pasos completados
-        if (step.classList.contains('completed')) {
+        if (step.classList.contains('completed') && currentStep !== 5) {
             step.style.cursor = 'pointer';
             step.title = 'Ir a ' + step.querySelector('.step-label').textContent;
             
@@ -139,6 +140,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!step.classList.contains('completed') && !step.classList.contains('active')) {
             step.style.cursor = 'not-allowed';
             step.title = 'Complete los pasos anteriores primero';
+        }
+
+        // En paso 5 se bloquea navegación a pasos anteriores
+        if (currentStep === 5 && step.classList.contains('completed')) {
+            step.style.cursor = 'not-allowed';
+            step.title = 'El pedido ya fue creado. No se puede regresar a pasos anteriores.';
         }
     });
     

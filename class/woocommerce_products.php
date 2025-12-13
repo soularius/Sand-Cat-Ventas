@@ -244,6 +244,75 @@ class WooCommerceProducts {
         
         return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
     }
+
+    public function getProductsByIds(array $product_ids): array {
+        if (empty($product_ids)) {
+            return [];
+        }
+
+        $product_ids = array_values(array_unique(array_map('intval', $product_ids)));
+        $ids_string = implode(',', $product_ids);
+
+        $query = "
+            SELECT
+                p.ID as id_producto,
+                p.post_title as nombre,
+                p.guid as permalink,
+                COALESCE(pm_price.meta_value, '0') as precio,
+                COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
+                COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
+                COALESCE(pm_sku.meta_value, '') as sku
+            FROM miau_posts p
+            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
+            LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
+            LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
+            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            WHERE p.ID IN ($ids_string)
+            AND p.post_type = 'product'
+        ";
+
+        $result = mysqli_query($this->wp_connection, $query);
+        if (!$result) {
+            throw new Exception("Error en consulta de productos por IDs: " . mysqli_error($this->wp_connection));
+        }
+
+        $images = $this->getProductImages($product_ids);
+
+        $products = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $id = intval($row['id_producto'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+
+            $row['precio'] = floatval($row['precio'] ?? 0);
+            $row['precio_regular'] = floatval($row['precio_regular'] ?? 0);
+            $row['precio_oferta'] = !empty($row['precio_oferta']) ? floatval($row['precio_oferta']) : 0;
+            $row['sku'] = $row['sku'] ?? '';
+            $row['permalink'] = $row['permalink'] ?? '';
+            $row['image_url'] = $images[$id] ?? 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+
+            $products[$id] = $row;
+        }
+
+        // Completar los que no aparezcan (por ejemplo productos borrados)
+        foreach ($product_ids as $pid) {
+            if (!isset($products[$pid])) {
+                $products[$pid] = [
+                    'id_producto' => $pid,
+                    'nombre' => 'Producto',
+                    'permalink' => '',
+                    'precio' => 0,
+                    'precio_regular' => 0,
+                    'precio_oferta' => 0,
+                    'sku' => '',
+                    'image_url' => $images[$pid] ?? 'https://via.placeholder.com/200x200?text=Sin+Imagen'
+                ];
+            }
+        }
+
+        return $products;
+    }
     
     /**
      * Obtener múltiples imágenes de productos de una vez (optimizado)

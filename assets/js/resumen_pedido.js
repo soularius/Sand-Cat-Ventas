@@ -17,9 +17,14 @@ class OrderSummary {
     // Cargar datos del formulario (persistencia) desde localStorage
     loadFormData() {
         try {
+            // Soporte para datos inyectados por el servidor (sin cache/localStorage)
+            if (window.serverFormData) {
+                this.formData = window.serverFormData;
+            } else {
             this.formData = (window.VentasUtils && window.VentasUtils.getFormData)
                 ? window.VentasUtils.getFormData()
                 : null;
+            }
         } catch (e) {
             this.formData = null;
         }
@@ -38,6 +43,17 @@ class OrderSummary {
     // Cargar datos del pedido desde localStorage
     loadOrderData() {
         try {
+            // Soporte para datos inyectados por el servidor (sin cache/localStorage)
+            if (window.serverOrderData && window.serverOrderData.products) {
+                this.orderData = window.serverOrderData;
+                const orderIdField = document.getElementById('_order_id');
+                if (orderIdField && this.orderData && this.orderData.order_id) {
+                    orderIdField.value = this.orderData.order_id;
+                }
+                this.renderOrderSummary();
+                return;
+            }
+
             const storedData = (window.VentasUtils && window.VentasUtils.getOrderSummary)
                 ? window.VentasUtils.getOrderSummary()
                 : null;
@@ -63,6 +79,13 @@ class OrderSummary {
     // Cargar datos del cliente desde localStorage
     loadCustomerData() {
         try {
+            // Soporte para datos inyectados por el servidor
+            if (window.serverCustomerData) {
+                this.customerData = window.serverCustomerData;
+                this.renderCustomerInfo();
+                return;
+            }
+
             const storedData = (window.VentasUtils && window.VentasUtils.getCustomerData)
                 ? window.VentasUtils.getCustomerData()
                 : null;
@@ -98,8 +121,11 @@ class OrderSummary {
         // Renderizar detalles del pedido
         this.renderOrderDetails();
         
-        // Habilitar botón de crear pedido
-        document.getElementById('create-order-btn').disabled = false;
+        // Habilitar botón de crear pedido (si existe en la página)
+        const createBtn = document.getElementById('create-order-btn');
+        if (createBtn) {
+            createBtn.disabled = false;
+        }
     }
     
     // Renderizar productos
