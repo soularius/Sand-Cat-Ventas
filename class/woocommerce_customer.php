@@ -492,5 +492,224 @@ class WooCommerceCustomer
             'woocommerce_customer' => $customerData
         ];
     }
+
+    /* ==============================================================
+     *  FUNCIONES ESPECÍFICAS PARA PROS_VENTA.PHP
+     * ============================================================ */
+
+    /**
+     * Procesa códigos de ubicación para diferentes tablas de WooCommerce
+     * Maneja la lógica específica de departamentos y ciudades colombianas
+     */
+    public function processLocationCodes(string $stateCode, string $cityName): array
+    {
+        return [
+            'state_for_usermeta' => $stateCode,  // Solo clave (ej: "SAN")
+            'city_for_usermeta' => $cityName,    // Valor completo
+            'state_for_addresses' => 'CO-' . $stateCode,  // Con prefijo CO- (ej: "CO-SAN")
+            'city_for_addresses' => $cityName,   // Valor completo
+            'state_for_postmeta' => $stateCode   // Solo clave
+        ];
+    }
+
+    /**
+     * Crea un pedido básico en miau_posts (compatible con pros_venta.php)
+     * Retorna el ID del pedido creado
+     */
+    public function createBasicOrder(array $orderData): int
+    {
+        date_default_timezone_set('America/Bogota');
+        $now = date('Y-m-d H:i:s');
+        
+        $postExcerpt = trim((string)($orderData['post_excerpt'] ?? ''));
+        $customerId = (int)($orderData['customer_id'] ?? 1); // Default a admin si no se especifica
+        
+        $orderRow = [
+            'post_author' => $customerId,
+            'post_status' => 'wc-pending',  // Corregir status
+            'comment_status' => 'closed',
+            'ping_status' => 'closed',
+            'post_type' => 'shop_order',
+            'post_date' => $now,
+            'post_date_gmt' => $now,
+            'post_modified' => $now,
+            'post_modified_gmt' => $now,
+            'post_excerpt' => $postExcerpt
+        ];
+        
+        return $this->insertRow('miau_posts', $orderRow);
+    }
+
+    /**
+     * Inserta metadatos del pedido en miau_postmeta (compatible con pros_venta.php)
+     */
+    public function insertOrderMetadata(int $orderId, array $customerData, array $locationData): void
+    {
+        date_default_timezone_set('America/Bogota');
+        $now = date('Y-m-d H:i:s');
+        
+        // Extraer datos del cliente
+        $firstName = trim((string)($customerData['nombre1'] ?? $customerData['_shipping_first_name'] ?? ''));
+        $lastName = trim((string)($customerData['nombre2'] ?? $customerData['_shipping_last_name'] ?? ''));
+        $email = trim((string)($customerData['_billing_email'] ?? ''));
+        $phone = trim((string)($customerData['_billing_phone'] ?? ''));
+        $billingId = trim((string)($customerData['billing_id'] ?? ''));
+        $address1 = trim((string)($customerData['_shipping_address_1'] ?? ''));
+        $address2 = trim((string)($customerData['_shipping_address_2'] ?? ''));
+        $neighborhood = trim((string)($customerData['_billing_neighborhood'] ?? ''));
+        $city = trim((string)($customerData['_shipping_city'] ?? ''));
+        $orderShipping = trim((string)($customerData['_order_shipping'] ?? '0'));
+        $paymentMethod = trim((string)($customerData['_payment_method_title'] ?? 'Manual'));
+        
+        // Metadatos del pedido
+        $metaData = [
+            '_shipping_first_name' => $firstName,
+            '_shipping_last_name' => $lastName,
+            '_billing_first_name' => $firstName,
+            '_billing_last_name' => $lastName,
+            '_order_shipping' => $orderShipping,
+            '_paid_date' => $now,
+            '_recorded_sales' => 'yes',
+            'billing_id' => $billingId,
+            '_billing_id' => $billingId,
+            '_billing_dni' => $billingId,
+            '_billing_email' => $email,
+            'Card number' => $email, // Campo legacy
+            '_billing_phone' => $phone,
+            '_shipping_address_1' => $address1,
+            '_billing_address_1' => $address1,
+            '_cart_discount' => '0',
+            '_billing_neighborhood' => $neighborhood,
+            'billing_neighborhood' => $neighborhood,
+            '_shipping_city' => $city,
+            '_billing_city' => $city,
+            '_shipping_state' => $locationData['state_for_postmeta'],
+            '_billing_state' => $locationData['state_for_postmeta'],
+            '_payment_method_title' => $paymentMethod,
+            '_billing_country' => 'CO',
+            '_shipping_country' => 'CO',
+            '_order_stock_reduced' => 'yes',
+            '_billing_address_2' => $address2,
+            '_order_total' => '0', // Se actualizará después
+            '_shipping_address_2' => $address2,
+            // Campos críticos para vinculación
+            '_customer_user' => (string)($customerData['customer_id'] ?? '0'),
+            '_order_key' => 'wc_order_' . bin2hex(random_bytes(8)),
+            '_prices_include_tax' => 'no',
+            '_order_version' => '8.0.0'
+        ];
+        
+        // Insertar cada metadato
+        foreach ($metaData as $metaKey => $metaValue) {
+            $this->insertRow('miau_postmeta', [
+                'post_id' => $orderId,
+                'meta_key' => $metaKey,
+                'meta_value' => $metaValue
+            ]);
+        }
+    }
+
+    /**
+     * Inserta direcciones en miau_wc_order_addresses
+     */
+    public function insertOrderAddresses(int $orderId, array $customerData, array $locationData): void
+    {
+        if (!$this->tableExists('miau_wc_order_addresses')) {
+            return; // Tabla no existe
+        }
+        
+        $firstName = trim((string)($customerData['nombre1'] ?? $customerData['_shipping_first_name'] ?? ''));
+        $lastName = trim((string)($customerData['nombre2'] ?? $customerData['_shipping_last_name'] ?? ''));
+        $email = trim((string)($customerData['_billing_email'] ?? ''));
+        $phone = trim((string)($customerData['_billing_phone'] ?? ''));
+        $address1 = trim((string)($customerData['_shipping_address_1'] ?? ''));
+        $address2 = trim((string)($customerData['_shipping_address_2'] ?? ''));
+        
+        // Dirección de facturación
+        $this->insertRow('miau_wc_order_addresses', [
+            'order_id' => $orderId,
+            'address_type' => 'billing',
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'company' => null,
+            'address_1' => $address1,
+            'address_2' => $address2,
+            'city' => $locationData['city_for_addresses'],
+            'state' => $locationData['state_for_addresses'],
+            'postcode' => null,
+            'country' => 'CO',
+            'email' => $email,
+            'phone' => $phone
+        ]);
+        
+        // Dirección de envío
+        $this->insertRow('miau_wc_order_addresses', [
+            'order_id' => $orderId,
+            'address_type' => 'shipping',
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'company' => null,
+            'address_1' => $address1,
+            'address_2' => $address2,
+            'city' => $locationData['city_for_addresses'],
+            'state' => $locationData['state_for_addresses'],
+            'postcode' => null,
+            'country' => 'CO',
+            'email' => null,
+            'phone' => null
+        ]);
+    }
+
+    /**
+     * Proceso completo para crear pedido desde pros_venta.php
+     * Combina creación de usuario, pedido y metadatos
+     */
+    public function createOrderFromProsVenta(array $formData): array
+    {
+        try {
+            // 1. Procesar cliente
+            $customerResult = $this->processCustomer($formData);
+            $customerId = $customerResult['user_id'];
+            
+            // 2. Procesar ubicación
+            $stateCode = trim((string)($formData['_shipping_state'] ?? ''));
+            $cityName = trim((string)($formData['_shipping_city'] ?? ''));
+            $locationData = $this->processLocationCodes($stateCode, $cityName);
+            
+            // 3. Crear pedido básico
+            $orderData = [
+                'post_excerpt' => trim((string)($formData['post_expcerpt'] ?? '')),
+                'customer_id' => $customerId
+            ];
+            $orderId = $this->createBasicOrder($orderData);
+            
+            if ($orderId === 0) {
+                throw new Exception('No se pudo crear el pedido en miau_posts');
+            }
+            
+            // 4. Agregar customer_id a formData para metadatos
+            $formData['customer_id'] = $customerId;
+            
+            // 5. Insertar metadatos
+            $this->insertOrderMetadata($orderId, $formData, $locationData);
+            
+            // 6. Insertar direcciones
+            $this->insertOrderAddresses($orderId, $formData, $locationData);
+            
+            return [
+                'success' => true,
+                'order_id' => $orderId,
+                'customer_id' => $customerId,
+                'customer_created' => $customerResult['created'],
+                'location_data' => $locationData
+            ];
+            
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
 }
 ?>
