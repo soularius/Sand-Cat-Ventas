@@ -3,12 +3,36 @@ class OrderSummary {
     constructor() {
         this.orderData = null;
         this.customerData = null;
+        this.formData = null;
         this.init();
     }
     
     init() {
+        // Importante: cargar primero formData, ya que renderOrderDetails depende de esto
+        this.loadFormData();
         this.loadOrderData();
         this.loadCustomerData();
+    }
+
+    // Cargar datos del formulario (persistencia) desde localStorage
+    loadFormData() {
+        try {
+            this.formData = (window.VentasUtils && window.VentasUtils.getFormData)
+                ? window.VentasUtils.getFormData()
+                : null;
+        } catch (e) {
+            this.formData = null;
+        }
+
+        // Si ya se renderizó el resumen (orderData existe), re-renderizar detalles del pedido
+        // para asegurar que se pinten los valores cuando formData ya esté disponible.
+        try {
+            if (this.orderData) {
+                this.renderOrderDetails();
+            }
+        } catch (e) {
+            // no-op
+        }
     }
     
     // Cargar datos del pedido desde localStorage
@@ -280,7 +304,7 @@ class OrderSummary {
     // Renderizar detalles del pedido
     renderOrderDetails() {
         const container = document.getElementById('order-details');
-        
+
         const orderDate = new Date().toLocaleDateString('es-CO', {
             year: 'numeric',
             month: 'long',
@@ -288,9 +312,58 @@ class OrderSummary {
             hour: '2-digit',
             minute: '2-digit'
         });
-        
+
+        const paymentMethodTitle = (this.formData && this.formData._payment_method_title)
+            ? this.formData._payment_method_title
+            : ((this.orderData && this.orderData._payment_method_title)
+                ? this.orderData._payment_method_title
+                : ((this.customerData && this.customerData._payment_method_title) ? this.customerData._payment_method_title : ''));
+
+        const orderShippingRaw = (this.formData && this.formData._order_shipping)
+            ? this.formData._order_shipping
+            : ((this.orderData && this.orderData._order_shipping) ? this.orderData._order_shipping : '');
+        const cartDiscountRaw = (this.formData && this.formData._cart_discount)
+            ? this.formData._cart_discount
+            : ((this.orderData && this.orderData._cart_discount) ? this.orderData._cart_discount : '');
+        const orderNotes = (this.formData && this.formData.post_expcerpt)
+            ? this.formData.post_expcerpt
+            : ((this.orderData && this.orderData.post_expcerpt) ? this.orderData.post_expcerpt : '');
+
+        console.log('[OrderSummary] order details sources:', {
+            hasFormData: !!this.formData,
+            hasOrderData: !!this.orderData,
+            hasCustomerData: !!this.customerData,
+            orderShippingRaw,
+            cartDiscountRaw,
+            paymentMethodTitle,
+            orderNotes
+        });
+
+        const parseMoney = (value) => {
+            if (value === null || value === undefined) return null;
+            const cleaned = value.toString().replace(/[^\d]/g, '');
+            if (!cleaned) return null;
+            const n = parseInt(cleaned, 10);
+            return Number.isFinite(n) ? n : null;
+        };
+
+        const orderShipping = parseMoney(orderShippingRaw);
+        const cartDiscount = parseMoney(cartDiscountRaw);
+
+        const orderId = (this.orderData && this.orderData.order_id)
+            ? this.orderData.order_id
+            : (this.customerData && this.customerData.order_id ? this.customerData.order_id : '');
+
         const html = `
             <div class="order-info">
+                <div class="info-item">
+                    <i class="fas fa-hashtag text-muted me-2"></i>
+                    <div>
+                        <strong>Pedido:</strong><br>
+                        <span class="text-muted">${orderId ? '#' + orderId : 'No disponible'}</span>
+                    </div>
+                </div>
+
                 <div class="info-item">
                     <i class="fas fa-calendar text-muted me-2"></i>
                     <div>
@@ -298,7 +371,7 @@ class OrderSummary {
                         <span class="text-muted">${orderDate}</span>
                     </div>
                 </div>
-                
+
                 <div class="info-item">
                     <i class="fas fa-user-tie text-muted me-2"></i>
                     <div>
@@ -306,25 +379,43 @@ class OrderSummary {
                         <span class="text-muted">${window.currentUser || 'Sistema'}</span>
                     </div>
                 </div>
-                
+
                 <div class="info-item">
                     <i class="fas fa-truck text-muted me-2"></i>
                     <div>
-                        <strong>Método de Envío:</strong><br>
-                        <span class="text-muted">Por definir</span>
+                        <strong>Costo de Envío:</strong><br>
+                        <span class="text-muted">${(orderShipping !== null) ? ('$' + orderShipping.toLocaleString('es-CO')) : 'No especificado'}</span>
                     </div>
                 </div>
-                
+
+                <div class="info-item">
+                    <i class="fas fa-tags text-muted me-2"></i>
+                    <div>
+                        <strong>Descuento:</strong><br>
+                        <span class="text-muted">${(cartDiscount !== null) ? ('$' + cartDiscount.toLocaleString('es-CO')) : 'No especificado'}</span>
+                    </div>
+                </div>
+
                 <div class="info-item">
                     <i class="fas fa-credit-card text-muted me-2"></i>
                     <div>
                         <strong>Método de Pago:</strong><br>
-                        <span class="text-muted">Por definir</span>
+                        <span class="text-muted">${paymentMethodTitle || 'No especificado'}</span>
                     </div>
                 </div>
+
+                ${orderNotes ? `
+                <div class="info-item">
+                    <i class="fas fa-comment-alt text-muted me-2"></i>
+                    <div>
+                        <strong>Notas:</strong><br>
+                        <span class="text-muted">${orderNotes}</span>
+                    </div>
+                </div>
+                ` : ''}
             </div>
         `;
-        
+
         container.innerHTML = html;
     }
     

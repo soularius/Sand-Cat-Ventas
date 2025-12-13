@@ -537,7 +537,7 @@ $(document).ready(function() {
 </script>
 
 <!-- Sistema de Persistencia de Formularios -->
-<script src="js/form-persistence.js"></script>
+<script src="assets/js/form-persistence.js"></script>
 
 <script>
 // Inicializar persistencia para el formulario de datos de venta
@@ -551,7 +551,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Inicializar persistencia
-        initFormPersistence(form.id);
+        initFormPersistence(form.id, 'ventas_wizard_form_data');
+
+        // Guardar explícitamente al enviar para evitar perder datos por navegación rápida
+        form.addEventListener('submit', function() {
+            try {
+                if (window.formPersistenceInstance && typeof window.formPersistenceInstance.saveFormData === 'function') {
+                    window.formPersistenceInstance.saveFormData();
+                }
+            } catch (e) {
+                // no-op
+            }
+        });
         
         console.log('Persistencia inicializada para datos del cliente');
         

@@ -934,7 +934,7 @@ include('parts/step_wizard.php');
         <?php endif; ?>
 
 <!-- Sistema de Persistencia de Formularios -->
-<script src="js/form-persistence.js"></script>
+<script src="assets/js/form-persistence.js"></script>
 
 <script>
 // Inicializar persistencia para el formulario de productos
@@ -948,7 +948,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Inicializar persistencia
-        initFormPersistence(form.id);
+        initFormPersistence(form.id, 'ventas_wizard_form_data');
         
         console.log('Persistencia inicializada para productos');
     }

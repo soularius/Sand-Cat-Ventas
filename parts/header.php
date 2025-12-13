@@ -63,5 +63,24 @@
         window.VentasUtils.getOrderSummary = function() {
             return window.VentasUtils.getLocalStorageJSON('ventas_order_summary', null);
         };
+        window.VentasUtils.getFormData = function() {
+            const wizard = window.VentasUtils.getLocalStorageJSON('ventas_wizard_form_data', null);
+            if (wizard && (wizard._order_shipping || wizard._payment_method_title || wizard.billing_id)) {
+                return wizard;
+            }
+
+            const legacy = window.VentasUtils.getLocalStorageJSON('ventas_form_data', null);
+            if (legacy && (legacy._order_shipping || legacy._payment_method_title || legacy.billing_id)) {
+                // Migrar a la key nueva para evitar duplicación y choques futuros
+                try {
+                    localStorage.setItem('ventas_wizard_form_data', JSON.stringify(legacy));
+                } catch (e) {
+                    // no-op
+                }
+                return legacy;
+            }
+
+            return wizard || legacy;
+        };
     </script>
 </head>

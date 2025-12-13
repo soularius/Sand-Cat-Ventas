@@ -334,9 +334,17 @@ class FormPersistence {
  * Inicializar persistencia para formulario específico
  */
 window.initFormPersistence = function(formId) {
+    const desiredKey = arguments[1] || 'ventas_form_data';
     if (!window.formPersistenceInstance) {
-        window.formPersistenceInstance = new FormPersistence(formId);
+        window.formPersistenceInstance = new FormPersistence(formId, desiredKey);
+        return window.formPersistenceInstance;
     }
+
+    // Si ya existe pero con otra key, recrear para evitar colisiones (ej. wizard vs otros módulos)
+    if (window.formPersistenceInstance.storageKey !== desiredKey || window.formPersistenceInstance.formId !== formId) {
+        window.formPersistenceInstance = new FormPersistence(formId, desiredKey);
+    }
+
     return window.formPersistenceInstance;
 };
 

@@ -529,6 +529,18 @@ function proceedToSummary() {
         cart.showNotification('Debes agregar al menos un producto', 'warning');
         return;
     }
+
+    // Recuperar datos persistidos del formulario (pasos 1/2)
+    const persistedFormData = (window.VentasUtils && window.VentasUtils.getFormData)
+        ? window.VentasUtils.getFormData()
+        : (() => {
+            try {
+                const raw = localStorage.getItem('ventas_wizard_form_data') || localStorage.getItem('ventas_form_data');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                return null;
+            }
+        })();
     
     // Obtener datos del cliente desde la sesión/formulario si están disponibles
     const customerData = {
@@ -552,6 +564,10 @@ function proceedToSummary() {
         products: items,
         total_items: cart.getTotalItems(),
         total_price: cart.getTotalPrice(),
+        _order_shipping: persistedFormData?._order_shipping || '',
+        _cart_discount: persistedFormData?._cart_discount || '',
+        _payment_method_title: persistedFormData?._payment_method_title || '',
+        post_expcerpt: persistedFormData?.post_expcerpt || '',
         timestamp: new Date().toISOString()
     };
     
