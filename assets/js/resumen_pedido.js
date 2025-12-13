@@ -171,13 +171,15 @@ class OrderSummary {
                             ` : `
                                 <div class="price mb-3">
                                     <div class="d-flex align-items-center justify-content-between box-prices">
-                                        <span class="current-price text-primary fw-bold fs-5">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                        <span class="text-primary fw-normal fs-6">P/U</span>
+                                        <span class="current-price text-primary fw-bold fs-6">$${finalUnitPrice.toLocaleString('es-CO')}</span>
                                     </div>
                                 </div>
                             `}
 
                             <div class="d-flex align-items-center justify-content-between">
-                                <small class="text-muted">Subtotal: <strong>$${subtotal.toLocaleString('es-CO')}</strong></small>
+                                <span class="current-price text-error fw-bold fs-5">Total: </span>
+                                <span class="current-price text-error fw-bold fs-5">$${subtotal.toLocaleString('es-CO')}</span>
                             </div>
 
                             <div class="product-actions d-flex justify-content-between align-items-center mt-auto">
@@ -186,7 +188,7 @@ class OrderSummary {
                                         title="Compartir enlace">
                                     <i class="fas fa-share-alt"></i>
                                 </button>
-                                <span class="badge badge-qty bg-success bg-custom rounded-pill position-absolute" title="Cantidad">${qty}</span>
+                                <span class="badge badge-qty bg-cuertar bg-custom rounded-pill position-absolute" title="Cantidad">x${qty}</span>
                             </div>
                         </div>
                     </div>
@@ -202,6 +204,20 @@ class OrderSummary {
     renderOrderTotal() {
         const container = document.getElementById('order-total');
         const products = this.orderData.products;
+
+        const parseMoney = (value) => {
+            if (value === null || value === undefined) return 0;
+            if (typeof value === 'number' && Number.isFinite(value)) return value;
+            const cleaned = value.toString().replace(/[^\d]/g, '');
+            if (!cleaned) return 0;
+            const n = parseInt(cleaned, 10);
+            return Number.isFinite(n) ? n : 0;
+        };
+
+        const shippingRaw = (this.formData && this.formData._order_shipping)
+            ? this.formData._order_shipping
+            : ((this.orderData && this.orderData._order_shipping) ? this.orderData._order_shipping : 0);
+        const shippingCost = parseMoney(shippingRaw);
         
         // Calcular totales
         let subtotal = 0;
@@ -219,7 +235,7 @@ class OrderSummary {
             }
         });
         
-        const finalTotal = subtotal - totalDiscount;
+        const finalTotal = (subtotal - totalDiscount) + shippingCost;
         
         let html = `
             <div class="order-totals">
@@ -236,6 +252,17 @@ class OrderSummary {
                         <i class="fas fa-tag me-1"></i>Descuentos:
                     </span>
                     <span class="value text-success">-$${totalDiscount.toLocaleString('es-CO')}</span>
+                </div>
+            `;
+        }
+
+        if (shippingCost > 0) {
+            html += `
+                <div class="total-line">
+                    <span class="label">
+                        <i class="fas fa-truck me-1"></i>Envío:
+                    </span>
+                    <span class="value">$${shippingCost.toLocaleString('es-CO')}</span>
                 </div>
             `;
         }
