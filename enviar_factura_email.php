@@ -160,7 +160,11 @@ try {
             END AS sale_price,     -- precio unitario con descuentos (del pedido)
 
             /* SKU: variación si existe, si no producto */
-            COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') AS sku
+            COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') AS sku,
+
+            /* IDs para obtener imagen y link del producto */
+            CAST(IM.product_id AS UNSIGNED) AS product_id,
+            CAST(IM.variation_id AS UNSIGNED) AS variation_id
 
         FROM miau_woocommerce_order_items I
 
@@ -210,6 +214,10 @@ try {
         while ($producto = $productos_result->fetch_assoc()) {
             // Calcular total_producto para compatibilidad con pdf_generator.php
             $producto['total_producto'] = $producto['line_total'];
+            
+            // URL del producto en la tienda (mantener enlaces pero eliminar lógica de imágenes)
+            $producto['product_url'] = $_ENV['WOOCOMMERCE_BASE_URL'] . '/?p=' . $producto['product_id'];
+            
             $productos_array[] = $producto;
         }
     }
@@ -272,44 +280,217 @@ try {
     $mail->isHTML(true);
     $mail->Subject = "Factura #$factura_formateada - Pedido #$orden_id";
     
+    // Construir tabla de productos para el email (sin imágenes para evitar bloqueos)
+    $productos_html = '';
+    if (!empty($productos_array)) {
+        foreach ($productos_array as $producto) {
+            $precio_unitario = $producto['cantidad'] > 0 ? $producto['total_producto'] / $producto['cantidad'] : 0;
+            $sku_html = !empty($producto['sku']) ? "<small style='color: #666; font-style: italic;'>SKU: {$producto['sku']}</small><br>" : '';
+            
+            // URL del producto (mantener enlaces pero sin imágenes)
+            $product_url = !empty($producto['product_url']) ? $producto['product_url'] : '#';
+            
+            $productos_html .= "
+                <tr>
+                    <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: center; vertical-align: top;'>{$producto['cantidad']}</td>
+                    <td style='padding: 8px; border-bottom: 1px solid #ddd; vertical-align: top;'>
+                        {$sku_html}
+                        <a href='$product_url' target='_blank' style='color: #333; text-decoration: none; font-weight: 500;'>
+                            {$producto['nombre_producto']}
+                        </a>
+                    </td>
+                    <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right; vertical-align: top;'>$" . number_format($precio_unitario, 0) . "</td>
+                    <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right; vertical-align: top;'>$" . number_format($producto['total_producto'], 0) . "</td>
+                </tr>";
+        }
+    }
+
+    // Construir dirección completa
+    $direccion_completa = '';
+    if (!empty($orden['direccion_1'])) {
+        $direccion_completa = $orden['direccion_1'];
+        if (!empty($orden['direccion_2'])) {
+            $direccion_completa .= ', ' . $orden['direccion_2'];
+        }
+    }
+
+    $ubicacion = '';
+    if (!empty($orden['ciudad'])) {
+        $ubicacion = $orden['ciudad'];
+    }
+    if (!empty($orden['departamento'])) {
+        $ubicacion .= ($ubicacion ? ', ' : '') . $orden['departamento'];
+    }
+    if (!empty($orden['pais'])) {
+        $pais_nombre = ($orden['pais'] === 'CO') ? 'Colombia' : $orden['pais'];
+        $ubicacion .= ($ubicacion ? ', ' : '') . $pais_nombre;
+    }
+
     $mail->Body = "
     <html>
     <head>
+        <meta charset='UTF-8'>
         <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .header { background-color: #f8f9fa; padding: 20px; text-align: center; }
-            .content { padding: 20px; }
-            .footer { background-color: #e9ecef; padding: 15px; text-align: center; font-size: 12px; }
-            .highlight { color: #dc3545; font-weight: bold; }
+            body { 
+                font-family: Arial, sans-serif; 
+                line-height: 1.6; 
+                color: #333; 
+                margin: 0; 
+                padding: 0; 
+                background-color: #f5f5f5; 
+            }
+            .container { 
+                max-width: 600px; 
+                margin: 20px auto; 
+                background-color: white; 
+                border-radius: 8px; 
+                overflow: hidden; 
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            }
+            .header { 
+                background: linear-gradient(135deg, #28a745, #20c997); 
+                color: white; 
+                padding: 30px 20px; 
+                text-align: center; 
+            }
+            .logo { 
+                max-width: 120px; 
+                height: auto; 
+                margin-bottom: 10px; 
+            }
+            .content { 
+                padding: 30px 20px; 
+            }
+            .invoice-info { 
+                background-color: #f8f9fa; 
+                padding: 20px; 
+                border-radius: 6px; 
+                margin: 20px 0; 
+            }
+            .customer-info { 
+                background-color: #e3f2fd; 
+                padding: 15px; 
+                border-radius: 6px; 
+                margin: 15px 0; 
+            }
+            .products-table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin: 20px 0; 
+            }
+            .products-table th { 
+                background-color: #28a745; 
+                color: white; 
+                padding: 12px 8px; 
+                text-align: left; 
+            }
+            .products-table td { 
+                padding: 8px; 
+                border-bottom: 1px solid #ddd; 
+            }
+            .total-section { 
+                background-color: #f8f9fa; 
+                padding: 15px; 
+                border-radius: 6px; 
+                margin: 20px 0; 
+                text-align: right; 
+            }
+            .footer { 
+                background-color: #343a40; 
+                color: white; 
+                padding: 20px; 
+                text-align: center; 
+                font-size: 14px; 
+            }
+            .highlight { 
+                color: #dc3545; 
+                font-weight: bold; 
+            }
+            .btn { 
+                display: inline-block; 
+                padding: 12px 24px; 
+                background-color: #28a745; 
+                color: white; 
+                text-decoration: none; 
+                border-radius: 4px; 
+                margin: 10px 0; 
+            }
         </style>
     </head>
     <body>
-        <div class='header'>
-            <h2>Sand Y Cat - Hugo Alejandro López</h2>
-            <p>Factura Electrónica</p>
-        </div>
-        
-        <div class='content'>
-            <p>Estimado/a <strong>{$orden['nombre_cliente']} {$orden['apellido_cliente']}</strong>,</p>
+        <div class='container'>
+            <div class='header'>
+                <img src='http://localhost/ventas/assets/img/logo.png' alt='Sand Y Cat Logo' class='logo'>
+                <h2>SAND Y CAT</h2>
+                <p>Hugo Alejandro López</p>
+                <p>Factura Electrónica</p>
+            </div>
             
-            <p>Adjunto encontrará la factura correspondiente a su pedido:</p>
+            <div class='content'>
+                <h3>¡Gracias por su compra!</h3>
+                <p>Estimado/a <strong>{$orden['nombre_cliente']} {$orden['apellido_cliente']}</strong>,</p>
+                
+                <p>Su pedido ha sido procesado exitosamente. Adjunto encontrará la factura en formato PDF.</p>
+                
+                <div class='invoice-info'>
+                    <h4>Información de la Factura</h4>
+                    <p><strong>Número de Factura:</strong> <span class='highlight'>$factura_formateada</span></p>
+                    <p><strong>Número de Pedido:</strong> #$orden_id</p>
+                    <p><strong>Fecha:</strong> " . date('d/m/Y H:i', strtotime($orden['fecha_orden'])) . "</p>
+                    <p><strong>Método de Pago:</strong> {$orden['titulo_metodo_pago']}</p>
+                </div>
+
+                <div class='customer-info'>
+                    <h4>Datos del Cliente</h4>
+                    <p><strong>Cliente:</strong> {$orden['nombre_cliente']} {$orden['apellido_cliente']}</p>" .
+                    (!empty($orden['dni']) ? "<p><strong>DNI:</strong> {$orden['dni']}</p>" : "") . "
+                    <p><strong>Email:</strong> {$orden['email_cliente']}</p>
+                    <p><strong>Teléfono:</strong> {$orden['telefono_cliente']}</p>" .
+                    (!empty($direccion_completa) ? "<p><strong>Dirección:</strong> $direccion_completa</p>" : "") .
+                    (!empty($orden['barrio']) ? "<p><strong>Barrio:</strong> {$orden['barrio']}</p>" : "") .
+                    (!empty($ubicacion) ? "<p><strong>Ubicación:</strong> $ubicacion</p>" : "") . "
+                </div>
+
+                <h4>Detalle de Productos</h4>
+                <table class='products-table'>
+                    <thead>
+                        <tr>
+                            <th style='text-align: center;'>Cant.</th>
+                            <th>Descripción</th>
+                            <th style='text-align: right;'>V. Unit.</th>
+                            <th style='text-align: right;'>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        $productos_html" .
+                        ($orden['envio'] > 0 ? "
+                        <tr>
+                            <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: center;'>1</td>
+                            <td style='padding: 8px; border-bottom: 1px solid #ddd;'>Domicilio</td>
+                            <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>$" . number_format($orden['envio'], 0) . "</td>
+                            <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>$" . number_format($orden['envio'], 0) . "</td>
+                        </tr>" : "") . "
+                    </tbody>
+                </table>
+
+                <div class='total-section'>" .
+                    ($orden['descuento'] > 0 ? "<p><strong>Descuento:</strong> <span style='color: #dc3545;'>-$" . number_format($orden['descuento'], 0) . "</span></p>" : "") . "
+                    <h3><strong>TOTAL: $" . number_format($orden['total'], 0) . "</strong></h3>
+                </div>
+
+                <p>Si tiene alguna pregunta sobre su pedido, no dude en contactarnos.</p>
+                
+                <p style='text-align: center;'>
+                    <a href='$woocommerce_url' class='btn'>Ver Pedido en Línea</a>
+                </p>
+            </div>
             
-            <ul>
-                <li><strong>Número de Factura:</strong> <span class='highlight'>$factura_formateada</span></li>
-                <li><strong>Número de Pedido:</strong> #$orden_id</li>
-                <li><strong>Fecha:</strong> " . date('d/m/Y H:i', strtotime($orden['fecha_orden'])) . "</li>
-                <li><strong>Total:</strong> $" . number_format($orden['total'], 2) . "</li>
-            </ul>
-            
-            <p>Gracias por su compra. Si tiene alguna pregunta, no dude en contactarnos.</p>
-        </div>
-        
-        <div class='footer'>
-            <p>Sand Y Cat - Hugo Alejandro López<br>
-            NIT: 79690971<br>
-            Teléfono: 6016378243<br>
-            Dirección: Cra. 61 No. 78-25<br>
-            www.sandycat.com.co</p>
+            <div class='footer'>
+                <p><strong>Sand Y Cat - Hugo Alejandro López</strong></p>
+                <p>NIT: 79690971 | Teléfono: 6016378243</p>
+                <p>Dirección: Cra. 61 No. 78-25</p>
+                <p>www.sandycat.com.co</p>
+            </div>
         </div>
     </body>
     </html>";

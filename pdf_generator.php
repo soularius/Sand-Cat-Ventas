@@ -264,7 +264,8 @@ function generarHTMLFactura($datos) {
                 $sku = $row_productos['product_sku'] ?? '';
                 
                 // Truncar nombre del producto para evitar desbordamientos
-                $nomprod_truncado = truncarTexto($nomprod, 35);
+                #$nomprod_truncado = truncarTexto($nomprod, 35);
+                $nomprod_truncado = $nomprod;
                 $descripcion_completa = "";
 
                 // Agregar SKU si existe
@@ -318,7 +319,8 @@ function generarHTMLFactura($datos) {
                 $precio_unitario = $producto['total_producto'] / $producto['cantidad'];
                 
                 // Truncar nombre del producto para evitar desbordamientos
-                $nomprod_truncado = truncarTexto($producto['nombre_producto'], 35);
+                #$nomprod_truncado = truncarTexto($producto['nombre_producto'], 35);
+                $nomprod_truncado = $producto['nombre_producto'];
                 $descripcion_completa = "";
 
                 // Agregar SKU si existe (ARRIBA del nombre, igual que MySQL)
