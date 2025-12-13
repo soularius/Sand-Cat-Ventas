@@ -310,18 +310,14 @@ include("parts/header.php");
                                                         <strong class="ms-2">${customer.first_name} ${customer.last_name}</strong>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            
-                                            <!-- Contacto -->
-                                            <div class="row mb-3">
-                                                <div class="col-md-6">
+                                                <div class="col-md-12">
                                                     <div class="d-flex align-items-center mb-2">
                                                         <i class="fas fa-envelope text-muted me-2"></i>
                                                         <span class="text-muted small">Email:</span>
                                                         <span class="ms-2 text-truncate">${customer.email || 'No registrado'}</span>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-12">
                                                     <div class="d-flex align-items-center mb-2">
                                                         <i class="fas fa-phone text-muted me-2"></i>
                                                         <span class="text-muted small">Teléfono:</span>

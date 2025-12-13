@@ -635,6 +635,7 @@ function createFinalOrder() {
         total_items: orderSummary.orderData.total_items,
         total_price: orderSummary.orderData.total_price,
         customer_data: orderSummary.customerData,
+        form_data: orderSummary.formData,
         timestamp: new Date().toISOString()
     };
     
@@ -655,11 +656,14 @@ function createFinalOrder() {
             // Limpiar localStorage
             localStorage.removeItem('ventas_cart_products');
             localStorage.removeItem('ventas_order_summary');
-            
-            // Mostrar modal de éxito
-            document.getElementById('order-number').textContent = response.order_id;
-            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-            successModal.show();
+
+            // Redirigir al paso 5 (Detalle del Pedido)
+            if (response.order_id) {
+                window.location.href = 'detalle_pedido.php?id-orden=' + encodeURIComponent(response.order_id);
+                return;
+            }
+
+            orderSummary.showNotification('Pedido creado, pero no se recibió el ID de la orden.', 'warning');
         } else {
             orderSummary.showNotification(response.message || 'Error creando el pedido', 'danger');
         }

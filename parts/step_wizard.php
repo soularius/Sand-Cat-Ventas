@@ -32,6 +32,11 @@ $default_steps = [
         'label' => 'Resumen del Pedido',
         'icon' => 'fas fa-clipboard-check',
         'page' => 'resumen_pedido.php'
+    ],
+    5 => [
+        'label' => 'Detalle del Pedido',
+        'icon' => 'fas fa-check-circle',
+        'page' => 'detalle_pedido.php'
     ]
 ];
 
