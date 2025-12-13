@@ -693,11 +693,6 @@
   color: var(--primary-color);
 }
 
-.discount-line .label,
-.discount-line .value {
-  color: var(--success-color) !important;
-}
-
 .total-separator {
   margin: 1rem 0;
   border-color: var(--primary-color);
@@ -995,6 +990,10 @@ body {
 }
 
 /* Status Text Colors */
+.text-cuertar {
+  color: var(--cuertar-color) !important;
+}
+
 .text-info {
   color: var(--info-color) !important;
 }
@@ -2800,11 +2799,6 @@ html {
 .total-line .value {
   font-weight: 600;
   color: var(--primary-color);
-}
-
-.discount-line .label,
-.discount-line .value {
-  color: var(--success-color) !important;
 }
 
 .total-separator {

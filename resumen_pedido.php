@@ -56,7 +56,7 @@ $pes2 = '';
                 <!-- Customer Info Panel -->
                 <div class="col-lg-4 col-md-12 mb-4">
                     <div class="summary-panel">
-                        <div class="panel-header bg-info bg-custom">
+                        <div class="panel-header bg-primary bg-custom">
                             <h5 class="text-white">
                                 <i class="fas fa-user me-2"></i>Información del Cliente
                             </h5>
@@ -99,7 +99,7 @@ $pes2 = '';
                                 <h5 class="text-white">
                                     <i class="fas fa-shopping-cart me-2"></i>Productos Seleccionados
                                 </h5>
-                                <span class="badge bg-light text-dark" id="products-count">0</span>
+                                <span class="badge text-white fs-4" id="products-count">0</span>
                             </div>
                         </div>
                         

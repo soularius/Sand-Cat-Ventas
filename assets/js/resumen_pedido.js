@@ -87,7 +87,7 @@ class OrderSummary {
         }
         
         // Actualizar contador de productos
-        document.getElementById('products-count').textContent = this.orderData.total_items;
+        document.getElementById('products-count').textContent = "×" + this.orderData.total_items + " Items";
         
         // Renderizar productos
         this.renderProducts();
@@ -188,7 +188,7 @@ class OrderSummary {
                                         title="Compartir enlace">
                                     <i class="fas fa-share-alt"></i>
                                 </button>
-                                <span class="badge badge-qty bg-cuertar bg-custom rounded-pill position-absolute" title="Cantidad">x${qty}</span>
+                                <span class="badge badge-qty bg-cuertar bg-custom rounded-pill position-absolute" title="Cantidad">×${qty}</span>
                             </div>
                         </div>
                     </div>
@@ -240,18 +240,20 @@ class OrderSummary {
         let html = `
             <div class="order-totals">
                 <div class="total-line">
-                    <span class="label">Subtotal:</span>
-                    <span class="value">$${subtotal.toLocaleString('es-CO')}</span>
+                    <span class="label text-draft fs-6">
+                        <i class="fa-solid fa-piggy-bank me-1"></i>Subtotal:
+                    </span>
+                    <span class="value text-draft fs-6">$${subtotal.toLocaleString('es-CO')}</span>
                 </div>
         `;
         
         if (totalDiscount > 0) {
             html += `
                 <div class="total-line discount-line">
-                    <span class="label text-success">
+                    <span class="label text-cuertar fs-6">
                         <i class="fas fa-tag me-1"></i>Descuentos:
                     </span>
-                    <span class="value text-success">-$${totalDiscount.toLocaleString('es-CO')}</span>
+                    <span class="value text-cuertar fs-6">-$${totalDiscount.toLocaleString('es-CO')}</span>
                 </div>
             `;
         }
@@ -259,10 +261,10 @@ class OrderSummary {
         if (shippingCost > 0) {
             html += `
                 <div class="total-line">
-                    <span class="label">
+                    <span class="label text-pending fs-6">
                         <i class="fas fa-truck me-1"></i>Envío:
                     </span>
-                    <span class="value">$${shippingCost.toLocaleString('es-CO')}</span>
+                    <span class="value text-pending fs-6">$${shippingCost.toLocaleString('es-CO')}</span>
                 </div>
             `;
         }
@@ -270,8 +272,11 @@ class OrderSummary {
         html += `
                 <hr class="total-separator">
                 <div class="total-line final-total">
-                    <span class="label">Total Final:</span>
-                    <span class="value">$${finalTotal.toLocaleString('es-CO')}</span>
+                    <span class="label text-primary fw-bold fs-5">
+                        <i class="fa-solid fa-money-bill-transfer me-1"></i>
+                        Total Final:
+                    </span>
+                    <span class="value text-primary fw-bold fs-5">$${finalTotal.toLocaleString('es-CO')}</span>
                 </div>
                 
                 <div class="total-summary mt-3">
