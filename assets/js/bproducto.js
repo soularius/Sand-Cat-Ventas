@@ -7,6 +7,16 @@ class ProductCart {
         console.log('Cart loaded in constructor:', this.cart);
         this.init();
     }
+
+    // Normalizar valores monetarios (COP) que pueden venir como "20.400" / "10,000" / "$20.400"
+    parseCOP(value) {
+        if (value === null || value === undefined) return 0;
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+        const cleaned = value.toString().replace(/[^\d]/g, '');
+        if (!cleaned) return 0;
+        const n = parseInt(cleaned, 10);
+        return Number.isFinite(n) ? n : 0;
+    }
     
     init() {
         console.log('ProductCart init called');
@@ -18,7 +28,22 @@ class ProductCart {
     loadCart() {
         try {
             const stored = localStorage.getItem(this.storageKey);
-            return stored ? JSON.parse(stored) : {};
+            const cart = stored ? JSON.parse(stored) : {};
+
+            // Normalizar números para evitar errores por separadores de miles
+            Object.keys(cart).forEach((productId) => {
+                const item = cart[productId];
+                if (!item) return;
+                item.price = this.parseCOP(item.price);
+                item.regular_price = this.parseCOP(item.regular_price);
+                item.sale_price = item.sale_price !== null && item.sale_price !== undefined
+                    ? this.parseCOP(item.sale_price)
+                    : null;
+                item.stock = parseInt(item.stock || 0, 10);
+                item.quantity = parseInt(item.quantity || 0, 10);
+            });
+
+            return cart;
         } catch (e) {
             console.error('Error cargando carrito:', e);
             return {};
@@ -50,9 +75,9 @@ class ProductCart {
             this.cart[productId] = {
                 id: product.id,
                 title: product.title,
-                price: parseFloat(product.price || 0),
-                regular_price: parseFloat(product.regular_price || 0),
-                sale_price: product.sale_price ? parseFloat(product.sale_price) : null,
+                price: this.parseCOP(product.price || 0),
+                regular_price: this.parseCOP(product.regular_price || 0),
+                sale_price: product.sale_price ? this.parseCOP(product.sale_price) : null,
                 stock: parseInt(product.stock || 0),
                 sku: product.sku || '',
                 permalink: product.permalink || '#',
@@ -105,8 +130,8 @@ class ProductCart {
     // Obtener total del carrito
     getTotalPrice() {
         return Object.values(this.cart).reduce((total, item) => {
-            const price = item.sale_price || item.price;
-            return total + (price * item.quantity);
+            const unitPrice = (item.sale_price !== null && item.sale_price !== undefined) ? item.sale_price : item.price;
+            return total + (this.parseCOP(unitPrice) * (parseInt(item.quantity || 0, 10)));
         }, 0);
     }
     
@@ -167,10 +192,23 @@ class ProductCart {
         }
         
         let html = '<div class="cart-items">';
+
+        // Totales para mostrar descuentos
+        let subtotalRegular = 0;
+        let totalDiscount = 0;
         
         items.forEach(item => {
-            const price = item.sale_price || item.price;
-            const subtotal = price * item.quantity;
+            const regularPrice = this.parseCOP(item.regular_price || item.price || 0);
+            const salePrice = (item.sale_price !== null && item.sale_price !== undefined) ? this.parseCOP(item.sale_price) : null;
+            const finalUnitPrice = (salePrice !== null) ? salePrice : this.parseCOP(item.price || 0);
+            const hasDiscount = (salePrice !== null) && (salePrice < regularPrice);
+
+            const subtotalFinal = finalUnitPrice * item.quantity;
+            const subtotalReg = regularPrice * item.quantity;
+            const itemDiscount = hasDiscount ? ((regularPrice - salePrice) * item.quantity) : 0;
+
+            subtotalRegular += subtotalReg;
+            totalDiscount += itemDiscount;
             
             // Escapar caracteres especiales para evitar problemas en el HTML
             const escapedTitle = item.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
@@ -185,8 +223,18 @@ class ProductCart {
                             style="cursor: pointer; color: var(--primary-color); text-decoration: underline;">${item.title}</h6>
                         <small class="text-muted">SKU: ${item.sku || 'N/A'}</small>
                         <div class="price-info">
-                            <span class="price">$${price.toLocaleString('es-CO')}</span>
-                            ${item.sale_price ? `<span class="regular-price">$${item.regular_price.toLocaleString('es-CO')}</span>` : ''}
+                            ${hasDiscount ? `
+                                <div class="d-flex align-items-center justify-content-between box-prices">
+                                    <div>
+                                        <span class="sale-price text-danger fw-bold">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                        <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${regularPrice.toLocaleString('es-CO')}</span>
+                                    </div>
+                                    <span class="badge bg-danger rounded-pill">Oferta</span>
+                                </div>
+                                <div class="text-success small mt-1">Ahorra $${(regularPrice - salePrice).toLocaleString('es-CO')}</div>
+                            ` : `
+                                <span class="current-price text-primary fw-bold">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                            `}
                         </div>
                     </div>
                     <div class="item-controls">
@@ -202,7 +250,8 @@ class ProductCart {
                             </button>
                         </div>
                         <div class="item-subtotal">
-                            <strong>$${subtotal.toLocaleString('es-CO')}</strong>
+                            <strong>$${subtotalFinal.toLocaleString('es-CO')}</strong>
+                            ${itemDiscount > 0 ? `<div class="text-success small">-$${itemDiscount.toLocaleString('es-CO')}</div>` : ''}
                         </div>
                         <button class="btn btn-sm btn-outline-danger" onclick="cart.removeProduct('${item.id}')">
                             <i class="fas fa-trash"></i>
@@ -212,12 +261,26 @@ class ProductCart {
             `;
         });
         
+        const totalFinal = subtotalRegular - totalDiscount;
+
         html += `
             </div>
             <div class="cart-summary">
                 <div class="d-flex justify-content-between">
-                    <strong>Total: $${this.getTotalPrice().toLocaleString('es-CO')}</strong>
+                    <span class="text-muted">Subtotal:</span>
+                    <strong>$${subtotalRegular.toLocaleString('es-CO')}</strong>
+                </div>
+                <div class="d-flex justify-content-between ${totalDiscount > 0 ? '' : 'd-none'}">
+                    <span class="text-success">Descuento:</span>
+                    <strong class="text-success">-$${totalDiscount.toLocaleString('es-CO')}</strong>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <strong>Total:</strong>
+                    <strong>$${totalFinal.toLocaleString('es-CO')}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
                     <span class="text-muted">${this.getTotalItems()} productos</span>
+                    ${totalDiscount > 0 ? `<span class="text-success">Ahorras $${totalDiscount.toLocaleString('es-CO')}</span>` : ''}
                 </div>
                 <div class="cart-actions mt-3">
                     <button class="btn btn-danger btn-custom btn-sm" onclick="cart.clearCart()">

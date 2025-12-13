@@ -296,14 +296,14 @@ include("parts/header.php");
                                         <div class="card-body">
                                             <!-- Información Personal -->
                                             <div class="row mb-3">
-                                                <div class="col-md-6">
+                                                <div class="col-md-12">
                                                     <div class="d-flex align-items-center mb-2">
                                                         <i class="fas fa-id-card text-muted me-2"></i>
                                                         <span class="text-muted small">DNI:</span>
                                                         <strong class="ms-2">${customer.dni || 'No registrado'}</strong>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-12">
                                                     <div class="d-flex align-items-center mb-2">
                                                         <i class="fas fa-user text-muted me-2"></i>
                                                         <span class="text-muted small">Nombre:</span>

@@ -462,6 +462,8 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                                 data-product-id="${product.id}" 
                                                 data-product-name="${product.title}"
                                                 data-product-price="${product.price.replace(/[.,]/g, '')}"
+                                                data-product-regular-price="${product.regular_price ? product.regular_price.replace(/[.,]/g, '') : ''}"
+                                                data-product-sale-price="${product.sale_price ? product.sale_price.replace(/[.,]/g, '') : ''}"
                                                 data-product-sku="${product.sku || ''}"
                                                 data-product-permalink="${product.permalink}"
                                                 ${!product.is_available ? 'disabled' : ''}
@@ -610,6 +612,8 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 const prodId = btn.data('product-id');
                 const prodName = btn.data('product-name');
                 const prodPrice = btn.data('product-price');
+                const prodRegularPrice = btn.data('product-regular-price');
+                const prodSalePrice = btn.data('product-sale-price');
                 const prodSku = btn.data('product-sku');
 
                 // Verificar si el botón está en estado "eliminar" (tiene X)
@@ -639,6 +643,8 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         id: prodId,
                         title: prodName,
                         price: prodPrice,
+                        regular_price: prodRegularPrice,
+                        sale_price: prodSalePrice,
                         sku: prodSku || '',
                         permalink: prodPermalink || '#',
                         available: true,
