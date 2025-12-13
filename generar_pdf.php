@@ -32,26 +32,40 @@ if (mysqli_num_rows($result_factura) == 0) {
     die("Factura no encontrada");
 }
 
-// Obtener datos de la orden desde WooCommerce HPOS
+// Obtener datos de la orden desde postmeta (más confiable)
 $query_orden = "
     SELECT 
-        o.id as order_id,
-        o.date_created_gmt as fecha_orden,
-        o.status as estado,
-        COALESCE(o.total_amount, 0) as total,
-        COALESCE(o.shipping_amount, 0) as envio,
-        COALESCE(o.discount_amount, 0) as descuento,
-        COALESCE(o.billing_email, '') as email_cliente,
-        COALESCE(ba.first_name, '') as nombre_cliente,
-        COALESCE(ba.last_name, '') as apellido_cliente,
-        COALESCE(ba.phone, '') as telefono_cliente,
-        COALESCE(ba.email, o.billing_email) as email_completo,
-        COALESCE(o.payment_method_title, '') as titulo_metodo_pago
-    FROM miau_wc_orders o
-    LEFT JOIN miau_wc_order_addresses ba 
-        ON o.id = ba.order_id 
-        AND ba.address_type = 'billing'
-    WHERE o.id = '$orden_id' AND o.type = 'shop_order'
+        p.ID as order_id,
+        p.post_date as fecha_orden,
+        p.post_status as estado,
+        COALESCE(pm_total.meta_value, 0) as total,
+        COALESCE(pm_email.meta_value, '') as email_cliente,
+        COALESCE(pm_fname.meta_value, '') as nombre_cliente,
+        COALESCE(pm_lname.meta_value, '') as apellido_cliente,
+        COALESCE(pm_phone.meta_value, '') as telefono_cliente,
+        COALESCE(pm_method.meta_value, '') as titulo_metodo_pago,
+        COALESCE(pm_address1.meta_value, '') as direccion_1,
+        COALESCE(pm_address2.meta_value, '') as direccion_2,
+        COALESCE(pm_city.meta_value, '') as ciudad,
+        COALESCE(pm_state.meta_value, '') as departamento,
+        COALESCE(pm_country.meta_value, '') as pais,
+        COALESCE(pm_barrio.meta_value, '') as barrio,
+        COALESCE(pm_dni.meta_value, '') as dni
+    FROM miau_posts p
+    LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
+    LEFT JOIN miau_postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
+    LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
+    LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
+    LEFT JOIN miau_postmeta pm_phone ON p.ID = pm_phone.post_id AND pm_phone.meta_key = '_billing_phone'
+    LEFT JOIN miau_postmeta pm_method ON p.ID = pm_method.post_id AND pm_method.meta_key = '_payment_method_title'
+    LEFT JOIN miau_postmeta pm_address1 ON p.ID = pm_address1.post_id AND pm_address1.meta_key = '_billing_address_1'
+    LEFT JOIN miau_postmeta pm_address2 ON p.ID = pm_address2.post_id AND pm_address2.meta_key = '_billing_address_2'
+    LEFT JOIN miau_postmeta pm_city ON p.ID = pm_city.post_id AND pm_city.meta_key = '_billing_city'
+    LEFT JOIN miau_postmeta pm_state ON p.ID = pm_state.post_id AND pm_state.meta_key = '_billing_state'
+    LEFT JOIN miau_postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
+    LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_barrio'
+    LEFT JOIN miau_postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_dni'
+    WHERE p.ID = '$orden_id' AND p.post_type = 'shop_order'
 ";
 
 $result_orden = mysqli_query($miau, $query_orden);
@@ -61,22 +75,49 @@ if (mysqli_num_rows($result_orden) == 0) {
 
 $orden = mysqli_fetch_assoc($result_orden);
 
-// Obtener productos de la orden
+// Obtener envío y descuento desde postmeta (no están en HPOS)
+$query_meta = "
+    SELECT meta_key, meta_value 
+    FROM miau_postmeta 
+    WHERE post_id = '$orden_id' 
+    AND meta_key IN ('_order_shipping', '_cart_discount')
+";
+$result_meta = mysqli_query($miau, $query_meta);
+$envio = 0;
+$descuento = 0;
+
+while ($meta = mysqli_fetch_assoc($result_meta)) {
+    if ($meta['meta_key'] == '_order_shipping') {
+        $envio = (float)$meta['meta_value'];
+    } elseif ($meta['meta_key'] == '_cart_discount') {
+        $descuento = (float)$meta['meta_value'];
+    }
+}
+
+// Obtener productos de la orden desde order_items y postmeta
 $query_productos = "
     SELECT 
         I.order_item_id, 
-        order_item_name, 
-        I.order_id, 
-        L.order_id, 
-        order_item_type, 
-        product_qty, 
-        product_net_revenue, 
-        coupon_amount, 
-        shipping_amount, 
-        L.order_item_id 
+        I.order_item_name,
+        I.order_id,
+        COALESCE(pm_qty.meta_value, 1) as product_qty,
+        COALESCE(pm_total.meta_value, 0) as line_total,
+        COALESCE(pm_subtotal.meta_value, 0) as line_subtotal,
+        COALESCE(pm_regular_price.meta_value, 0) as regular_price,
+        COALESCE(pm_sale_price.meta_value, 0) as sale_price,
+        COALESCE(pm_sku.meta_value, '') as product_sku
     FROM miau_woocommerce_order_items I 
-    RIGHT JOIN miau_wc_order_product_lookup L ON I.order_item_id = L.order_item_id 
-    WHERE I.order_id = '$orden_id' AND order_item_type='line_item'
+    LEFT JOIN miau_woocommerce_order_itemmeta pm_qty 
+        ON I.order_item_id = pm_qty.order_item_id AND pm_qty.meta_key = '_qty'
+    LEFT JOIN miau_woocommerce_order_itemmeta pm_total 
+        ON I.order_item_id = pm_total.order_item_id AND pm_total.meta_key = '_line_total'
+    LEFT JOIN miau_woocommerce_order_itemmeta pm_subtotal 
+        ON I.order_item_id = pm_subtotal.order_item_id AND pm_subtotal.meta_key = '_line_subtotal'
+    LEFT JOIN miau_woocommerce_order_itemmeta pm_regular_price 
+        ON I.order_item_id = pm_regular_price.order_item_id AND pm_regular_price.meta_key = '_regular_price'
+    LEFT JOIN miau_woocommerce_order_itemmeta pm_sale_price 
+        ON I.order_item_id = pm_sale_price.order_item_id AND pm_sale_price.meta_key = '_sale_price'
+    WHERE I.order_id = '$orden_id' AND I.order_item_type = 'line_item'
 ";
 $productos = mysqli_query($miau, $query_productos);
 
@@ -102,9 +143,16 @@ $datos_pdf = [
     'orden_id' => $orden_id,
     'woocommerce_url' => $woocommerce_url,
     'productos' => $productos,
-    'envio' => (float)($orden['envio'] ?? 0),
-    'descuento' => (float)($orden['descuento'] ?? 0),
-    'metodo' => (string)($orden['titulo_metodo_pago'] ?? '')
+    'envio' => $envio,
+    'descuento' => $descuento,
+    'metodo' => (string)($orden['titulo_metodo_pago'] ?? ''),
+    'direccion_1' => $orden['direccion_1'],
+    'direccion_2' => $orden['direccion_2'],
+    'ciudad' => $orden['ciudad'],
+    'departamento' => $orden['departamento'],
+    'pais' => $orden['pais'],
+    'barrio' => $orden['barrio'],
+    'dni' => $orden['dni']
 ];
 
 // Determinar modo de salida

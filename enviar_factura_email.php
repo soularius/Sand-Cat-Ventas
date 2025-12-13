@@ -48,9 +48,6 @@ try {
     $query = "SELECT 
         o.id as orden_id,
         o.total_amount as total,
-        COALESCE(o.shipping_amount, 0) as envio,
-        COALESCE(o.discount_amount, 0) as descuento,
-        COALESCE(o.payment_method_title, '') as titulo_metodo_pago,
         o.date_created_gmt as fecha_orden,
         ba.first_name as nombre_cliente,
         ba.last_name as apellido_cliente,
@@ -69,6 +66,27 @@ try {
     if (!$orden) {
         throw new Exception("Orden no encontrada");
     }
+
+    // Obtener envío/descuento/método desde legacy postmeta (compatibilidad)
+    $metaQuery = "SELECT meta_key, meta_value FROM miau_postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title')";
+    $metaStmt = $miau->prepare($metaQuery);
+    $meta = ['_order_shipping' => '0', '_cart_discount' => '0', '_payment_method_title' => ''];
+    if ($metaStmt) {
+        $metaStmt->bind_param('i', $orden_id);
+        $metaStmt->execute();
+        $metaRes = $metaStmt->get_result();
+        if ($metaRes) {
+            while ($row = $metaRes->fetch_assoc()) {
+                $k = (string)($row['meta_key'] ?? '');
+                $meta[$k] = (string)($row['meta_value'] ?? '');
+            }
+        }
+        $metaStmt->close();
+    }
+
+    $orden['envio'] = (float)preg_replace('/[^0-9]/', '', (string)($meta['_order_shipping'] ?? '0'));
+    $orden['descuento'] = (float)preg_replace('/[^0-9]/', '', (string)($meta['_cart_discount'] ?? '0'));
+    $orden['titulo_metodo_pago'] = (string)($meta['_payment_method_title'] ?? '');
 
     // Verificar que el cliente tenga email
     if (empty($orden['email_cliente'])) {

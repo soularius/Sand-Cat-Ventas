@@ -1048,6 +1048,323 @@ class WooCommerceOrders
         return $labels[$status] ?? ucfirst(str_replace(['wc-', '_'], ['', ' '], (string)$status));
     }
 
+    /**
+     * Método simple para probar conexión y obtener órdenes básicas
+     */
+    public function getSimpleOrders($limit = 5) {
+        // Primero intentar con HPOS
+        $query = "SELECT * FROM miau_wc_orders LIMIT $limit";
+        $result = mysqli_query($this->wp_connection, $query);
+        
+        if ($result && mysqli_num_rows($result) > 0) {
+            $orders = [];
+            while ($row = mysqli_fetch_assoc($result)) {
+                $orders[] = $row;
+            }
+            return ['source' => 'HPOS', 'data' => $orders];
+        }
+        
+        // Si no funciona HPOS, intentar con posts tradicional
+        $query = "SELECT ID, post_date, post_status, post_type FROM miau_posts WHERE post_type = 'shop_order' LIMIT $limit";
+        $result = mysqli_query($this->wp_connection, $query);
+        
+        if ($result && mysqli_num_rows($result) > 0) {
+            $orders = [];
+            while ($row = mysqli_fetch_assoc($result)) {
+                $orders[] = $row;
+            }
+            return ['source' => 'Posts', 'data' => $orders];
+        }
+        
+        return ['source' => 'None', 'data' => [], 'error' => mysqli_error($this->wp_connection)];
+    }
+
+    
+    /**
+     * Mostrar las consultas SQL para probar manualmente
+     */
+    public function showQueries() {
+        $queries = [];
+        
+        // Consulta para verificar tablas
+        $queries['verificar_tablas'] = "SHOW TABLES LIKE 'miau_%';";
+        
+        // Consulta HPOS principal (todas las órdenes)
+        $queries['hpos_orders'] = "
+                                SELECT 
+                                    o.id AS order_id,
+                                    o.date_created_gmt AS fecha_orden,
+                                    o.status AS estado,
+                                    COALESCE(o.total_amount, 0) AS total,
+                                    COALESCE(o.billing_email, '') AS email_cliente,
+                                    COALESCE(o.customer_id, 0) AS customer_id,
+                                    COALESCE(ba.first_name, '') AS nombre_cliente,
+                                    COALESCE(ba.last_name, '') AS apellido_cliente,
+                                    COALESCE(ba.phone, '') AS telefono_cliente,
+                                    COALESCE(ba.email, o.billing_email) AS email_completo
+                                FROM miau_wc_orders o
+                                LEFT JOIN miau_wc_order_addresses ba 
+                                    ON o.id = ba.order_id 
+                                    AND ba.address_type = 'billing'
+                                WHERE o.type = 'shop_order'
+                                ORDER BY o.date_created_gmt DESC
+                                LIMIT 10;";
+        
+        // Consulta simple HPOS
+        $queries['hpos_simple'] = "SELECT * FROM miau_wc_orders WHERE type = 'shop_order' LIMIT 5;";
+        
+        // Consulta para obtener todos los estados disponibles
+        $queries['estados_disponibles'] = "
+                                SELECT DISTINCT 
+                                    o.status AS estado
+                                FROM miau_wc_orders o
+                                WHERE o.type = 'shop_order'
+                                ORDER BY o.status;";
+        
+        // Consulta posts tradicional
+        $queries['posts_orders'] = "
+                                SELECT 
+                                    p.ID as order_id,
+                                    p.post_date as fecha_orden,
+                                    p.post_status as estado,
+                                    pm_total.meta_value as total,
+                                    pm_email.meta_value as email_cliente
+                                FROM miau_posts p
+                                LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
+                                LEFT JOIN miau_postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
+                                WHERE p.post_type = 'shop_order'
+                                AND p.post_status IN ('wc-processing', 'wc-on-hold', 'wc-completed')
+                                ORDER BY p.post_date DESC
+                                LIMIT 5;";
+        
+        // Consulta simple posts
+        $queries['posts_simple'] = "SELECT ID, post_date, post_status, post_type FROM miau_posts WHERE post_type = 'shop_order' LIMIT 5;";
+        
+        // Verificar estructura de tablas
+        $queries['describe_hpos'] = "DESCRIBE miau_wc_orders;";
+        $queries['describe_addresses'] = "DESCRIBE miau_wc_order_addresses;";
+        $queries['describe_posts'] = "DESCRIBE miau_posts;";
+        
+        return $queries;
+    }
+
+    /**
+     * Obtener todos los estados disponibles en las órdenes
+     */
+    public function getAllOrderStatuses() {
+        $query = "
+            SELECT DISTINCT 
+                o.status as estado,
+                COUNT(*) as cantidad
+            FROM miau_wc_orders o
+            WHERE o.type = 'shop_order'
+            GROUP BY o.status
+            ORDER BY cantidad DESC
+        ";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        
+        if (!$result) {
+            return ['error' => mysqli_error($this->wp_connection)];
+        }
+        
+        $estados = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $estados[] = [
+                'estado' => $row['estado'],
+                'cantidad' => $row['cantidad'],
+                'etiqueta' => $this->getStatusLabel($row['estado'])
+            ];
+        }
+        
+        return $estados;
+    }
+    
+     
+    /**
+     * Buscar órdenes por cliente, email o ID
+     */
+    public function searchOrders($search_term, $status = 'all', $limit = 50) {
+        $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
+        
+        $status_condition = '';
+        if ($status !== 'all') {
+            $status_condition = "AND o.status = '$status'";
+        }
+        
+        $query = "
+            SELECT 
+                o.id AS order_id,
+                o.date_created_gmt AS fecha_orden,
+                o.status AS estado,
+                COALESCE(o.total_amount, 0) AS total,
+                COALESCE(o.billing_email, '') AS email_cliente,
+                COALESCE(o.customer_id, 0) AS customer_id,
+                COALESCE(ba.first_name, '') AS nombre_cliente,
+                COALESCE(ba.last_name, '') AS apellido_cliente,
+                COALESCE(ba.phone, '') AS telefono_cliente,
+                COALESCE(ba.email, o.billing_email) AS email_completo
+            FROM miau_wc_orders o
+            LEFT JOIN miau_wc_order_addresses ba 
+                ON o.id = ba.order_id 
+                AND ba.address_type = 'billing'
+            WHERE o.type = 'shop_order'
+            $status_condition
+            AND (
+                o.id LIKE '%$search_term%' 
+                OR ba.first_name LIKE '%$search_term%'
+                OR ba.last_name LIKE '%$search_term%'
+                OR o.billing_email LIKE '%$search_term%'
+                OR ba.phone LIKE '%$search_term%'
+            )
+            ORDER BY o.date_created_gmt DESC
+            LIMIT $limit
+        ";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        
+        if (!$result) {
+            die("Error en búsqueda de órdenes: " . mysqli_error($this->wp_connection));
+        }
+        
+        $orders = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $row['total'] = floatval($row['total'] ?? 0);
+            $row['nombre_completo'] = trim(($row['nombre_cliente'] ?? '') . ' ' . ($row['apellido_cliente'] ?? ''));
+            $row['estado_legible'] = $this->getStatusLabel($row['estado']);
+            $row['fecha_formateada'] = date('d/m/Y H:i', strtotime($row['fecha_orden']));
+            
+            // Asegurar que todos los campos existan y usar el email más completo
+            $row['email_cliente'] = $row['email_completo'] ?: $row['email_cliente'];
+            $row['telefono_cliente'] = $row['telefono_cliente'] ?? '';
+            
+            $orders[] = $row;
+        }
+        
+        return $orders;
+    }
+    
+    /**
+     * Obtener todas las órdenes de WooCommerce
+     */
+    public function getAllOrders($status = 'all', $limit = 100, $offset = 0) {
+        $status_condition = '';
+        if ($status !== 'all') {
+            $status_condition = "AND o.status = '$status'";
+        }
+        
+        $query = "
+            SELECT 
+                o.id AS order_id,
+                o.date_created_gmt AS fecha_orden,
+                o.status AS estado,
+                COALESCE(o.total_amount, 0) AS total,
+                COALESCE(o.billing_email, '') AS email_cliente,
+                COALESCE(o.customer_id, 0) AS customer_id,
+                COALESCE(ba.first_name, '') AS nombre_cliente,
+                COALESCE(ba.last_name, '') AS apellido_cliente,
+                COALESCE(ba.phone, '') AS telefono_cliente,
+                COALESCE(ba.email, o.billing_email) AS email_completo
+            FROM miau_wc_orders o
+            LEFT JOIN miau_wc_order_addresses ba 
+                ON o.id = ba.order_id 
+                AND ba.address_type = 'billing'
+            WHERE o.type = 'shop_order'
+            $status_condition
+            ORDER BY o.date_created_gmt DESC
+            LIMIT $limit OFFSET $offset
+        ";
+        
+        // DEBUG: Mostrar la consulta que se va a ejecutar
+        if (isset($_GET['debug_sql'])) {
+            echo "<pre>CONSULTA SQL:\n" . $query . "\n</pre>";
+        }
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        
+        if (!$result) {
+            die("Error en consulta de órdenes: " . mysqli_error($this->wp_connection));
+        }
+        
+        // DEBUG: Verificar si hay resultados
+        $num_rows = mysqli_num_rows($result);
+        if (isset($_GET['debug_sql'])) {
+            echo "<pre>NÚMERO DE FILAS ENCONTRADAS: " . $num_rows . "\n</pre>";
+        }
+        
+        $orders = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            // DEBUG: Mostrar datos crudos de la primera fila
+            if (isset($_GET['debug_sql']) && count($orders) == 0) {
+                echo "<pre>PRIMERA FILA CRUDA:\n";
+                var_dump($row);
+                echo "</pre>";
+            }
+            
+            // Formatear datos para compatibilidad
+            $row['total'] = floatval($row['total'] ?? 0);
+            $row['nombre_completo'] = trim(($row['nombre_cliente'] ?? '') . ' ' . ($row['apellido_cliente'] ?? ''));
+            $row['estado_legible'] = $this->getStatusLabel($row['estado']);
+            $row['fecha_formateada'] = date('d/m/Y H:i', strtotime($row['fecha_orden']));
+            
+            // Asegurar que todos los campos existan y usar el email más completo
+            $row['email_cliente'] = $row['email_completo'] ?: $row['email_cliente'];
+            $row['telefono_cliente'] = $row['telefono_cliente'] ?? '';
+            $row['direccion_cliente'] = '';
+            $row['ciudad_cliente'] = '';
+            
+            $orders[] = $row;
+        }
+        
+        // DEBUG: Mostrar el array final
+        if (isset($_GET['debug_sql'])) {
+            echo "<pre>TOTAL DE ÓRDENES PROCESADAS: " . count($orders) . "\n";
+            if (count($orders) > 0) {
+                echo "PRIMERA ORDEN PROCESADA:\n";
+                var_dump($orders[0]);
+            }
+            echo "</pre>";
+        }
+        
+        return $orders;
+    }
+
+    /**
+     * Obtener estadísticas de órdenes
+     */
+    public function getOrderStats($days = 30) {
+        $date_from = date('Y-m-d', strtotime("-$days days"));
+        
+        $query = "
+            SELECT 
+                o.status as estado,
+                COUNT(*) as cantidad,
+                SUM(COALESCE(o.total_amount, 0)) as total_ventas
+            FROM miau_wc_orders o
+            WHERE o.type = 'shop_order'
+            AND o.date_created_gmt >= '$date_from'
+            GROUP BY o.status
+            ORDER BY cantidad DESC
+        ";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        
+        if (!$result) {
+            die("Error al obtener estadísticas: " . mysqli_error($this->wp_connection));
+        }
+        
+        $stats = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $row['cantidad'] = intval($row['cantidad']);
+            $row['total_ventas'] = floatval($row['total_ventas']);
+            $row['estado_legible'] = $this->getStatusLabel($row['estado']);
+            
+            $stats[] = $row;
+        }
+        
+        return $stats;
+    }
+
     public function __destruct()
     {
         if (!empty($this->wp_connection)) {

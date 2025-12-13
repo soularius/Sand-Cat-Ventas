@@ -5,6 +5,30 @@
  */
 
 /**
+ * Convierte código de departamento a nombre completo
+ * @param string $codigo Código del departamento (ej: "SAN", "ANT")
+ * @return string Nombre completo del departamento
+ */
+function convertirCodigoDepartamento($codigo) {
+    // Cargar datos de departamentos desde el plugin Colombia
+    $states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
+    
+    if (file_exists($states_file)) {
+        $colombia_states = include($states_file);
+        
+        // Buscar el nombre del departamento por código
+        foreach ($colombia_states as $code => $name) {
+            if (strtoupper($code) === strtoupper($codigo)) {
+                return $name;
+            }
+        }
+    }
+    
+    // Si no se encuentra, devolver el código original
+    return $codigo;
+}
+
+/**
  * Genera el HTML completo para una factura PDF
  * 
  * @param array $datos Datos necesarios para el PDF
@@ -32,6 +56,13 @@ function generarHTMLFactura($datos) {
     $envio = $datos['envio'] ?? 0;
     $descuento = $datos['descuento'] ?? 0;
     $metodo = $datos['metodo'] ?? '';
+    
+    // Nuevos campos de dirección
+    $direccion_1 = $datos['direccion_1'] ?? '';
+    $direccion_2 = $datos['direccion_2'] ?? '';
+    $pais = $datos['pais'] ?? '';
+    $barrio = $datos['barrio'] ?? '';
+    $dni = $datos['dni'] ?? '';
 
     // Generar HTML base
     $cuerpo = '
@@ -42,6 +73,15 @@ function generarHTMLFactura($datos) {
     @page { 
       sheet-size: 80mm 297mm; 
       size: auto;
+    }
+    .precio-tachado {
+      text-decoration: line-through;
+      color: #666;
+      font-size: 0.9em;
+    }
+    .precio-descuento {
+      color: #d9534f;
+      font-weight: bold;
     }
     </style>
     <body>
@@ -80,7 +120,23 @@ function generarHTMLFactura($datos) {
         <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Cliente: </strong>'.strtoupper($nombre1).' '.strtoupper($nombre2).'</td>
       </tr>';
 
-    // Agregar documento si existe (para fact.php)
+    // Agregar método de pago arriba con los datos del cliente
+    if (!empty($metodo)) {
+        $cuerpo .= '
+      <tr>
+        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Método de Pago: </strong>'.$metodo.'</td>
+      </tr>';
+    }
+
+    // Agregar DNI del cliente
+    if (!empty($dni)) {
+        $cuerpo .= '
+      <tr>
+        <td colspan="4">DNI: '.$dni.'</td>
+      </tr>';
+    }
+    
+    // Agregar documento si existe (para fact.php - compatibilidad)
     if (!empty($documento)) {
         $cuerpo .= '
       <tr>
@@ -88,7 +144,64 @@ function generarHTMLFactura($datos) {
       </tr>';
     }
 
-    // Agregar dirección si existe (para fact.php)
+    $cuerpo .= '
+      <tr>
+        <td colspan="4">Teléfono: '.$celular.'</td>
+      </tr>
+      <tr>
+        <td colspan="4" style="word-wrap: break-word; width: 180">Email: '.$correo.'</td>
+      </tr>';
+
+    // Agregar dirección completa del cliente
+    $direccion_completa = '';
+    if (!empty($direccion_1)) {
+        $direccion_completa = $direccion_1;
+        if (!empty($direccion_2)) {
+            $direccion_completa .= ', ' . $direccion_2;
+        }
+    }
+    
+    if (!empty($direccion_completa)) {
+        $cuerpo .= '
+      <tr>
+        <td colspan="4" style="word-wrap: break-word; width: 180">Dirección: '.$direccion_completa.'</td>
+      </tr>';
+    }
+
+    // Agregar barrio si existe
+    if (!empty($barrio)) {
+        $cuerpo .= '
+      <tr>
+        <td colspan="4" style="word-wrap: break-word; width: 180">Barrio: '.$barrio.'</td>
+      </tr>';
+    }
+
+    // Agregar ciudad, departamento y país
+    $ubicacion = '';
+    if (!empty($ciudad)) {
+        $ubicacion = $ciudad;
+        
+        // Convertir código de departamento a nombre completo
+        if (!empty($departamento)) {
+            $departamento_nombre = convertirCodigoDepartamento($departamento);
+            $ubicacion .= ', ' . $departamento_nombre;
+        }
+        
+        // Convertir código de país a nombre completo
+        if (!empty($pais)) {
+            $pais_nombre = ($pais === 'CO') ? 'Colombia' : $pais;
+            $ubicacion .= ', ' . $pais_nombre;
+        }
+    }
+    
+    if (!empty($ubicacion)) {
+        $cuerpo .= '
+      <tr>
+        <td colspan="4" style="word-wrap: break-word; width: 180">Ubicación: '.$ubicacion.'</td>
+      </tr>';
+    }
+
+    // Agregar dirección si existe (para fact.php - compatibilidad)
     if (!empty($direccion)) {
         $cuerpo .= '
       <tr>
@@ -104,20 +217,9 @@ function generarHTMLFactura($datos) {
       </tr>';
     }
 
-    // Agregar ciudad si existe (para fact.php)
-    if (!empty($ciudad)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180">Ciudad: '.$ciudad.' ('.$departamento.')</td>
-      </tr>';
-    }
-
     $cuerpo .= '
       <tr>
-        <td colspan="4">Teléfono: '.$celular.'</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin;">Email: '.$correo.'</td>
+        <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin;"></td>
       </tr>
       <tr>
         <td style="text-align: center"><strong>Cant.</strong></td>
@@ -132,16 +234,48 @@ function generarHTMLFactura($datos) {
         if (is_resource($productos) || (is_object($productos) && get_class($productos) === 'mysqli_result')) {
             while ($row_productos = mysqli_fetch_assoc($productos)) {
                 $nomprod = $row_productos['order_item_name'];
-                $cant = $row_productos['product_qty'];
-                $vunit = number_format(($row_productos['coupon_amount']+$row_productos['product_net_revenue'])/$cant);
-                $vtot = number_format($row_productos['coupon_amount']+$row_productos['product_net_revenue']);
+                $cant = (int)$row_productos['product_qty'];
+                $line_total = (float)$row_productos['line_total'];
+                $line_subtotal = (float)$row_productos['line_subtotal'];
+                $regular_price = (float)$row_productos['regular_price'];
+                $sale_price = (float)$row_productos['sale_price'];
+                
+                // Calcular precio unitario correctamente
+                $vunit = $cant > 0 ? $line_total / $cant : 0;
+                
+                // Detectar si hay descuento
+                $hay_descuento = false;
+                $precio_original = 0;
+                $precio_con_descuento = $vunit;
+                
+                // Si hay diferencia entre subtotal y total, hay descuento
+                if ($line_subtotal > $line_total && $line_subtotal > 0) {
+                    $hay_descuento = true;
+                    $precio_original = $cant > 0 ? $line_subtotal / $cant : 0;
+                    $precio_con_descuento = $vunit;
+                }
+                // O si hay precio regular y precio de oferta diferentes
+                else if ($regular_price > 0 && $sale_price > 0 && $regular_price > $sale_price) {
+                    $hay_descuento = true;
+                    $precio_original = $regular_price;
+                    $precio_con_descuento = $sale_price;
+                }
+                
+                // Generar HTML del precio unitario
+                $precio_html = '';
+                if ($hay_descuento) {
+                    $precio_html = '<span class="precio-tachado">'.number_format($precio_original).'</span><br>';
+                    $precio_html .= '<span class="precio-descuento">'.number_format($precio_con_descuento).'</span>';
+                } else {
+                    $precio_html = number_format($vunit);
+                }
                 
                 $cuerpo .= '
       <tr>
         <td style="text-align: center; vertical-align: top">'.$cant.'</td>
         <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$nomprod.'</td>
-        <td style="text-align: right; vertical-align: top">'.$vunit.'</td>
-        <td style="text-align: right; vertical-align: top">'.$vtot.'</td>
+        <td style="text-align: right; vertical-align: top">'.$precio_html.'</td>
+        <td style="text-align: right; vertical-align: top">'.number_format($line_total).'</td>
       </tr>';
             }
         }
@@ -169,12 +303,12 @@ function generarHTMLFactura($datos) {
       </tr>';
     }
 
-    // Agregar envío si existe (para fact.php)
+    // Agregar domicilio si existe (para fact.php)
     if ($envio > 0) {
         $cuerpo .= '
       <tr>
         <td style="text-align: center; vertical-align: top">1</td>
-        <td style="word-wrap: break-word; width: 180; vertical-align: top">Envío</td>
+        <td style="word-wrap: break-word; width: 180; vertical-align: top">Domicilio</td>
         <td style="text-align: right; vertical-align: top">'.number_format($envio).'</td>
         <td style="text-align: right; vertical-align: top">'.number_format($envio).'</td>
       </tr>';
@@ -184,17 +318,8 @@ function generarHTMLFactura($datos) {
     if ($descuento > 0) {
         $cuerpo .= '
       <tr>
-        <td colspan="3" style="text-align: right; vertical-align: right;word-wrap: break-word; width: 120">Descuento:</td>
-        <td style="text-align: right">'.number_format($descuento).'</td>
-      </tr>';
-    }
-
-    // Agregar método de pago si existe (para fact.php)
-    if (!empty($metodo)) {
-        $cuerpo .= '
-      <tr> 
-        <td colspan="3" style="text-align: right; vertical-align: right;word-wrap: break-word; width: 120">'.$metodo.'</td>
-        <td style="text-align: right">'.number_format($vtotal).'</td>
+        <td colspan="3" style="text-align: right; vertical-align: right;word-wrap: break-word; width: 120"><span class="precio-descuento">Descuento:</span></td>
+        <td style="text-align: right"><span class="precio-descuento">-'.number_format($descuento).'</span></td>
       </tr>';
     }
 
