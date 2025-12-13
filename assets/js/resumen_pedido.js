@@ -281,13 +281,13 @@ class OrderSummary {
                 
                 <div class="total-summary mt-3">
                     <div class="summary-stats">
-                        <div class="stat-item">
-                            <i class="fas fa-box text-primary"></i>
+                        <div class="stat-item text-primary">
+                            <i class="fas fa-box me-1"></i>
                             <span>${this.orderData.total_items} productos</span>
                         </div>
                         ${totalDiscount > 0 ? `
-                        <div class="stat-item">
-                            <i class="fas fa-percentage text-success"></i>
+                        <div class="stat-item text-cuertar">
+                            <i class="fas fa-percentage me-1"></i>
                             <span>$${totalDiscount.toLocaleString('es-CO')} ahorrados</span>
                         </div>
                         ` : ''}
