@@ -494,16 +494,244 @@ class WooCommerceCustomer
     }
 
     /* ==============================================================
+     *  FUNCIONES REUTILIZABLES PARA PROCESAMIENTO DE FORMULARIOS
+     * ============================================================ */
+
+    /**
+     * Captura y valida datos del formulario de pros_venta.php
+     * Centraliza la lógica de captura de datos POST
+     */
+    public function captureFormData(array $formFields): array
+    {
+        return Utils::capturePostData($formFields);
+    }
+
+    /**
+     * Carga datos de un pedido existente desde la base de datos
+     * Útil para editar pedidos o continuar desde pasos anteriores
+     */
+    public function loadExistingOrderData(int $orderId): array
+    {
+        if ($orderId <= 0) {
+            return [];
+        }
+
+        $query = "SELECT pm.meta_key, pm.meta_value 
+                  FROM miau_postmeta pm 
+                  WHERE pm.post_id = ? AND pm.meta_key IN (
+                      '_shipping_first_name', '_shipping_last_name', 'billing_id',
+                      '_billing_email', '_billing_phone', '_shipping_address_1',
+                      '_shipping_address_2', '_billing_neighborhood', '_shipping_city',
+                      '_shipping_state', 'post_excerpt', '_order_shipping',
+                      '_cart_discount', '_payment_method_title'
+                  )";
+        
+        $stmt = mysqli_prepare($this->wp_connection, $query);
+        if (!$stmt) {
+            Utils::logError("Error preparando consulta de pedido existente: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceCustomer');
+            return [];
+        }
+
+        mysqli_stmt_bind_param($stmt, 'i', $orderId);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        
+        $existingData = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            $existingData[$row['meta_key']] = $row['meta_value'];
+        }
+        
+        mysqli_stmt_close($stmt);
+        
+        if (!empty($existingData)) {
+            Utils::logError("Datos cargados para order_id: $orderId", 'INFO', 'WooCommerceCustomer');
+        }
+        
+        return $existingData;
+    }
+
+    /**
+     * Convierte datos de metadatos a formato de formulario
+     * Mapea los meta_keys a los nombres de campos del formulario
+     */
+    public function convertMetadataToFormData(array $metadata): array
+    {
+        return [
+            'nombre1' => $metadata['_shipping_first_name'] ?? '',
+            'nombre2' => $metadata['_shipping_last_name'] ?? '',
+            'billing_id' => $metadata['billing_id'] ?? '',
+            '_billing_email' => $metadata['_billing_email'] ?? '',
+            '_billing_phone' => $metadata['_billing_phone'] ?? '',
+            '_shipping_address_1' => $metadata['_shipping_address_1'] ?? '',
+            '_shipping_address_2' => $metadata['_shipping_address_2'] ?? '',
+            '_billing_neighborhood' => $metadata['_billing_neighborhood'] ?? '',
+            '_shipping_city' => $metadata['_shipping_city'] ?? '',
+            '_shipping_state' => $metadata['_shipping_state'] ?? '',
+            'post_expcerpt' => $metadata['post_excerpt'] ?? '',
+            '_order_shipping' => $metadata['_order_shipping'] ?? '',
+            '_cart_discount' => $metadata['_cart_discount'] ?? '',
+            '_payment_method_title' => $metadata['_payment_method_title'] ?? ''
+        ];
+    }
+
+    /**
+     * Procesa un pedido existente y combina con nuevos datos del formulario
+     * Útil para flujos de edición de pedidos
+     */
+    public function processExistingOrder(int $orderId, array $newFormData): array
+    {
+        // Si no hay datos nuevos del formulario, cargar los existentes
+        if ($orderId > 0 && empty($newFormData['nombre1'])) {
+            $existingMetadata = $this->loadExistingOrderData($orderId);
+            if (!empty($existingMetadata)) {
+                $formData = $this->convertMetadataToFormData($existingMetadata);
+                $formData['_order_id'] = $orderId; // Mantener referencia al order_id
+                return $formData;
+            }
+        }
+        
+        return $newFormData;
+    }
+
+    /**
+     * Asigna variables de compatibilidad desde formData
+     * Centraliza la lógica de asignación de variables legacy
+     */
+    public function assignCompatibilityVariables(array $formData): array
+    {
+        return [
+            '_shipping_first_name' => $formData['nombre1'] ?? '',
+            '_shipping_last_name' => $formData['nombre2'] ?? '',
+            'billing_id' => $formData['billing_id'] ?? '',
+            '_billing_email' => $formData['_billing_email'] ?? '',
+            '_billing_phone' => $formData['_billing_phone'] ?? '',
+            '_shipping_address_1' => $formData['_shipping_address_1'] ?? '',
+            '_shipping_address_2' => $formData['_shipping_address_2'] ?? '',
+            '_billing_neighborhood' => $formData['_billing_neighborhood'] ?? '',
+            '_shipping_city' => $formData['_shipping_city'] ?? '',
+            '_shipping_state' => $formData['_shipping_state'] ?? '',
+            'post_expcerpt' => $formData['post_expcerpt'] ?? '',
+            '_order_shipping' => $formData['_order_shipping'] ?? '',
+            '_cart_discount' => $formData['_cart_discount'] ?? '',
+            '_payment_method_title' => $formData['_payment_method_title'] ?? '',
+            'metodo' => $formData['_payment_method_title'] ?? ''
+        ];
+    }
+
+    /**
+     * Procesa completamente un formulario de pros_venta.php
+     * Función principal que combina toda la lógica de procesamiento
+     */
+    public function processCompleteForm(array $formFields, int $existingOrderId = 0): array
+    {
+        // 1. Capturar datos del formulario
+        $formData = $this->captureFormData($formFields);
+        
+        // 2. Procesar pedido existente si aplica
+        $formData = $this->processExistingOrder($existingOrderId, $formData);
+        
+        // 3. Asignar variables de compatibilidad
+        $compatibilityVars = $this->assignCompatibilityVariables($formData);
+        
+        // 4. Procesar códigos de ubicación
+        $locationData = $this->processLocationCodes(
+            $formData['_shipping_state'] ?? '', 
+            $formData['_shipping_city'] ?? ''
+        );
+        
+        return [
+            'form_data' => $formData,
+            'compatibility_vars' => $compatibilityVars,
+            'location_data' => $locationData,
+            'existing_order_id' => $existingOrderId
+        ];
+    }
+
+    /**
+     * Función optimizada para pros_venta.php - Solo gestiona clientes
+     * No crea pedidos, solo procesa y crea/actualiza clientes
+     */
+    public function processCustomerOnly(array $formFields, int $existingOrderId = 0): array
+    {
+        // 1. Procesar formulario completo
+        $processedForm = $this->processCompleteForm($formFields, $existingOrderId);
+        
+        // 2. Solo procesar cliente si hay datos del formulario
+        if (!empty($processedForm['form_data']['nombre1'])) {
+            try {
+                $customerResult = $this->processCustomer($processedForm['form_data']);
+                
+                return [
+                    'success' => true,
+                    'customer_id' => $customerResult['user_id'],
+                    'customer_created' => $customerResult['created'],
+                    'customer_data' => $customerResult,
+                    'form_data' => $processedForm['form_data'],
+                    'compatibility_vars' => $processedForm['compatibility_vars'],
+                    'location_data' => $processedForm['location_data'],
+                    'existing_order_id' => $processedForm['existing_order_id']
+                ];
+                
+            } catch (Exception $e) {
+                return [
+                    'success' => false,
+                    'error' => $e->getMessage(),
+                    'form_data' => $processedForm['form_data'],
+                    'compatibility_vars' => $processedForm['compatibility_vars'],
+                    'location_data' => $processedForm['location_data']
+                ];
+            }
+        }
+        
+        // Si no hay datos de formulario, solo retornar datos procesados
+        return [
+            'success' => true,
+            'customer_processed' => false,
+            'form_data' => $processedForm['form_data'],
+            'compatibility_vars' => $processedForm['compatibility_vars'],
+            'location_data' => $processedForm['location_data'],
+            'existing_order_id' => $processedForm['existing_order_id']
+        ];
+    }
+
+    /* ==============================================================
      *  FUNCIONES ESPECÍFICAS PARA PROS_VENTA.PHP
      * ============================================================ */
 
     /**
+     * Función ultra-optimizada para pros_venta.php
+     * Solo procesa formulario y gestiona cliente - NO crea pedidos
+     */
+    public function handleProsVentaForm(): array
+    {
+        // Campos específicos de pros_venta.php
+        $formFields = [
+            'nombre1', 'nombre2', 'billing_id', '_billing_email', '_billing_phone',
+            '_shipping_address_1', '_shipping_address_2', '_billing_neighborhood',
+            '_shipping_city', '_shipping_state', 'post_expcerpt', '_order_shipping',
+            '_cart_discount', '_payment_method_title', '_order_id'
+        ];
+        
+        // Procesar solo cliente
+        return $this->processCustomerOnly($formFields, (int)($_POST['_order_id'] ?? 0));
+    }
+
+    /**
      * Procesa códigos de ubicación para diferentes tablas de WooCommerce
      * Maneja la lógica específica de departamentos y ciudades colombianas
+     * Mejorado para manejar códigos que ya tienen prefijo CO-
      */
     public function processLocationCodes(string $stateCode, string $cityName): array
     {
+        // Procesar el código del departamento - extraer solo la parte después del guión si existe
+        $originalState = $stateCode;
+        if (strpos($stateCode, '-') !== false) {
+            $stateCode = substr($stateCode, strpos($stateCode, '-') + 1);
+        }
+        
         return [
+            'original_state' => $originalState,
+            'original_city' => $cityName,
             'state_for_usermeta' => $stateCode,  // Solo clave (ej: "SAN")
             'city_for_usermeta' => $cityName,    // Valor completo
             'state_for_addresses' => 'CO-' . $stateCode,  // Con prefijo CO- (ej: "CO-SAN")
@@ -699,6 +927,78 @@ class WooCommerceCustomer
             return [
                 'success' => true,
                 'order_id' => $orderId,
+                'customer_id' => $customerId,
+                'customer_created' => $customerResult['created'],
+                'location_data' => $locationData
+            ];
+            
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Función específica para pros_venta.php cuando solo necesita crear pedidos
+     * Separada de la gestión de clientes para mayor claridad
+     */
+    public function createOrderOnly(array $formData, int $customerId): array
+    {
+        try {
+            // 1. Procesar códigos de ubicación
+            $locationData = $this->processLocationCodes(
+                $formData['_shipping_state'] ?? '', 
+                $formData['_shipping_city'] ?? ''
+            );
+            
+            // 2. Crear pedido básico
+            $orderId = $this->createBasicOrder([
+                'post_excerpt' => $formData['post_expcerpt'] ?? '',
+                'customer_id' => $customerId
+            ]);
+            
+            // 3. Insertar metadatos del pedido
+            $formData['customer_id'] = $customerId;
+            $this->insertOrderMetadata($orderId, $formData, $locationData);
+            
+            // 4. Insertar direcciones del pedido
+            $this->insertOrderAddresses($orderId, $formData, $locationData);
+            
+            return [
+                'success' => true,
+                'order_id' => $orderId,
+                'location_data' => $locationData
+            ];
+            
+        } catch (Exception $e) {
+            Utils::logError("Error en createOrderOnly: " . $e->getMessage(), 'ERROR', 'WooCommerceCustomer');
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Función específica para solo gestionar clientes sin crear pedidos
+     * Optimizada para el flujo de pros_venta.php
+     */
+    public function manageCustomerOnly(array $formData): array
+    {
+        try {
+            // 1. Procesar cliente
+            $customerResult = $this->processCustomer($formData);
+            $customerId = $customerResult['user_id'];
+            
+            // 2. Procesar ubicación
+            $stateCode = trim((string)($formData['_shipping_state'] ?? ''));
+            $cityName = trim((string)($formData['_shipping_city'] ?? ''));
+            $locationData = $this->processLocationCodes($stateCode, $cityName);
+            
+            return [
+                'success' => true,
                 'customer_id' => $customerId,
                 'customer_created' => $customerResult['created'],
                 'location_data' => $locationData

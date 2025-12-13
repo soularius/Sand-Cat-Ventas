@@ -9,10 +9,7 @@ require_once('class/autoload.php');
 // 2. Incluir el manejador de login común
 require_once('parts/login_handler.php');
 
-// 3. Incluir las clases refactorizadas
-require_once('class/woocommerce_customer.php');
-
-// 4. Lógica de autenticación y procesamiento
+// 3. Lógica de autenticación y procesamiento
 // Requerir autenticación - redirige a index.php si no está logueado
 requireLogin("index.php");
 
@@ -132,64 +129,223 @@ $metodo = $formData['_payment_method_title'];
 date_default_timezone_set('America/Bogota');
 $hoy = date('Y-m-d H:i:s');
 
-// ============================================================================
-// 🚀 LÓGICA REFACTORIZADA USANDO WooCommerceCustomer
-// ============================================================================
-
 if (Utils::captureValue('nombre1', 'POST')) {
-    try {
-        // Inicializar el manejador de clientes refactorizado
-        $customerManager = new WooCommerceCustomer();
-        
-        // Crear pedido usando la clase refactorizada
-        $result = $customerManager->createOrderFromProsVenta($formData);
-        
-        if ($result['success']) {
-            $elid = $result['order_id'];
-            $customerId = $result['customer_id'];
-            $customerCreated = $result['customer_created'];
-            
-            // Log de éxito
-            $logMessage = "✅ Pedido creado exitosamente con clase refactorizada:";
-            $logMessage .= " Order ID: $elid,";
-            $logMessage .= " Customer ID: $customerId,";
-            $logMessage .= " Cliente nuevo: " . ($customerCreated ? 'Sí' : 'No');
-            Utils::logError($logMessage, 'INFO', 'pros_venta.php');
-            
-            // Mostrar mensaje de éxito al usuario (opcional)
-            if (isset($_GET['debug'])) {
-                echo "<div style='background: #d4edda; color: #155724; padding: 15px; border: 1px solid #c3e6cb; border-radius: 5px; margin: 10px 0;'>";
-                echo "<h4>✅ Pedido Creado Exitosamente</h4>";
-                echo "<strong>ID del Pedido:</strong> $elid<br>";
-                echo "<strong>Cliente:</strong> $_shipping_first_name $_shipping_last_name<br>";
-                echo "<strong>Email:</strong> $_billing_email<br>";
-                echo "<strong>Estado:</strong> " . ($customerCreated ? 'Cliente nuevo creado' : 'Cliente existente actualizado') . "<br>";
-                echo "</div>";
-            }
-            
-        } else {
-            // Error en la creación
-            $errorMessage = "❌ Error creando pedido: " . $result['error'];
-            Utils::logError($errorMessage, 'ERROR', 'pros_venta.php');
-            
-            echo "<div style='background: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px; margin: 10px 0;'>";
-            echo "<h4>❌ Error al Crear Pedido</h4>";
-            echo "<strong>Error:</strong> " . htmlspecialchars($result['error']) . "<br>";
-            echo "</div>";
-        }
-        
-    } catch (Exception $e) {
-        // Excepción no capturada
-        $errorMessage = "💥 Excepción en creación de pedido: " . $e->getMessage();
-        Utils::logError($errorMessage, 'ERROR', 'pros_venta.php');
-        
-        echo "<div style='background: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px; margin: 10px 0;'>";
-        echo "<h4>💥 Error Crítico</h4>";
-        echo "<strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage()) . "<br>";
-        echo "<strong>Archivo:</strong> " . $e->getFile() . "<br>";
-        echo "<strong>Línea:</strong> " . $e->getLine() . "<br>";
-        echo "</div>";
+
+    $query = "INSERT INTO miau_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_excerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
+    mysqli_query($miau, $query);
+    // $query = "INSERT INTO miau_posts (post_author, post_status, comment_status, ping_status, post_type, post_date, post_date_gmt, post_modified, post_modified_gmt, post_expcerpt) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy', '$post_expcerpt')";
+    // mysqli_query($sandycat, $query);
+
+
+    if ($query) {
+        $elid = mysqli_insert_id($miau);
+    } else {
+        echo "No se inserto el registro correctamente.";
     }
+    /* $query2 = "INSERT INTO miau_postmeta (_shipping_first_name, _shipping_last_name, billing_id, _billing_email, _billing_phone, _shipping_address_1) VALUES ('1', 'wc_pendient', 'closed', 'closed', 'shop_order', '$hoy', '$hoy', '$hoy', '$hoy')";
+	mysqli_query($sandycat, $query2); */
+
+    $query2 = "INSERT INTO miau_postmeta (
+        post_id,
+        meta_key,
+        meta_value
+    )
+    VALUES
+        (
+            '$elid',
+            '_shipping_first_name',
+            '$_shipping_first_name'
+        ),
+        (
+            '$elid',
+            '_shipping_last_name',
+            '$_shipping_last_name'
+        ),
+        (
+            '$elid',
+            '_billing_first_name',
+            '$_shipping_first_name'
+        ),
+        (
+            '$elid',
+            '_billing_last_name',
+            '$_shipping_last_name'
+        ),
+        (
+            '$elid',
+            '_order_shipping',
+            '$_order_shipping'
+        ),
+        (
+            '$elid',
+            '_paid_date',
+            '$hoy'
+        ),
+        (
+            '$elid',
+            '_recorded_sales',
+            'yes'
+        ),
+        (
+            '$elid',
+            'billing_id',
+            '$billing_id'
+        ),
+        (
+            '$elid',
+            '_billing_id',
+            '$billing_id'
+        ),
+        (
+            '$elid',
+            '_billing_dni',
+            '$billing_id'
+        ),
+        (
+            '$elid',
+            '_billing_email',
+            '$_billing_email'
+        ),
+        (
+            '$elid',
+            'Card number',
+            '$_billing_email'
+        ),
+        (
+            '$elid',
+            '_billing_phone',
+            '$_billing_phone'
+        ),
+        (
+            '$elid',
+            '_shipping_address_1',
+            '$_shipping_address_1'
+        ),
+        (
+            '$elid',
+            '_billing_address_1',
+            '$_shipping_address_1'
+        ),
+        (
+            '$elid',
+            '_cart_discount',
+            '0'
+        ),
+        (
+            '$elid',
+            '_billing_neighborhood',
+            '$_billing_neighborhood'
+        ),
+        (
+            '$elid',
+            'billing_neighborhood',
+            '$_billing_neighborhood'
+        ),
+        (
+            '$elid',
+            '_shipping_city',
+            '$_shipping_city'
+        ),
+        (
+            '$elid',
+            '_billing_city',
+            '$_shipping_city'
+        ),
+        (
+            '$elid',
+            '_shipping_state',
+            '$state_for_postmeta'
+        ),
+        (
+            '$elid',
+            '_billing_state',
+            '$state_for_postmeta'
+        ),
+        (
+            '$elid',
+            '_payment_method_title',
+            '$_payment_method_title'
+        ),
+        (
+            '$elid',
+            '_billing_country',
+            'Co'
+        ),
+        (
+            '$elid',
+            '_shipping_country',
+            'Co'
+        ),
+        (
+            '$elid',
+            '_order_stock_reduced',
+            'yes'
+        ),
+        (
+            '$elid',
+            '_billing_address_2',
+            '$_shipping_address_2'
+        ),
+        (
+            '$elid',
+            '_order_total',
+            '0'
+        ),
+        (
+            '$elid',
+            '_shipping_address_2',
+            '$_shipping_address_2'
+        )";
+    mysqli_query($miau, $query2);
+
+    // Insertar direcciones en miau_wc_order_addresses
+    $query_addresses = "INSERT INTO miau_wc_order_addresses (
+        order_id,
+        address_type,
+        first_name,
+        last_name,
+        company,
+        address_1,
+        address_2,
+        city,
+        state,
+        postcode,
+        country,
+        email,
+        phone
+    )
+    VALUES
+        (
+            '$elid',
+            'billing',
+            '$_shipping_first_name',
+            '$_shipping_last_name',
+            NULL,
+            '$_shipping_address_1',
+            '$_shipping_address_2',
+            '$city_for_addresses',
+            '$state_for_addresses',
+            NULL,
+            'CO',
+            '$_billing_email',
+            '$_billing_phone'
+        ),
+        (
+            '$elid',
+            'shipping',
+            '$_shipping_first_name',
+            '$_shipping_last_name',
+            NULL,
+            '$_shipping_address_1',
+            '$_shipping_address_2',
+            '$city_for_addresses',
+            '$state_for_addresses',
+            NULL,
+            'CO',
+            NULL,
+            NULL
+        )";
+    mysqli_query($miau, $query_addresses);
 
     // Verificar si el cliente ya existe en WooCommerce
     $query_cliente = sprintf("SELECT customer_id, email FROM miau_wc_customer_lookup WHERE email = '$_billing_email'");
@@ -290,6 +446,36 @@ if (Utils::captureValue('nombre1', 'POST')) {
     } else {
         $user_id = $row_usuario_wp['ID'];
         error_log("Usuario WordPress ya existe: ID=$user_id, Email=$_billing_email");
+        
+        // ACTUALIZAR metadatos del usuario existente
+        $query_update_usermeta = "INSERT INTO miau_usermeta (user_id, meta_key, meta_value) VALUES 
+            ('$user_id', 'first_name', '$_shipping_first_name'),
+            ('$user_id', 'last_name', '$_shipping_last_name'),
+            ('$user_id', 'billing_first_name', '$_shipping_first_name'),
+            ('$user_id', 'billing_last_name', '$_shipping_last_name'),
+            ('$user_id', 'billing_email', '$_billing_email'),
+            ('$user_id', 'billing_phone', '$_billing_phone'),
+            ('$user_id', 'billing_address_1', '$_shipping_address_1'),
+            ('$user_id', 'billing_address_2', '$_shipping_address_2'),
+            ('$user_id', 'billing_city', '$city_for_usermeta'),
+            ('$user_id', 'billing_state', '$state_for_usermeta'),
+            ('$user_id', 'billing_country', 'CO'),
+            ('$user_id', 'billing_barrio', '$_billing_neighborhood'),
+            ('$user_id', 'billing_dni', '$billing_id'),
+            ('$user_id', 'shipping_first_name', '$_shipping_first_name'),
+            ('$user_id', 'shipping_last_name', '$_shipping_last_name'),
+            ('$user_id', 'shipping_address_1', '$_shipping_address_1'),
+            ('$user_id', 'shipping_address_2', '$_shipping_address_2'),
+            ('$user_id', 'shipping_city', '$city_for_usermeta'),
+            ('$user_id', 'shipping_state', '$state_for_usermeta'),
+            ('$user_id', 'shipping_country', 'CO'),
+            ('$user_id', 'shipping_barrio', '$_billing_neighborhood'),
+            ('$user_id', 'shipping_dni', '$billing_id')
+        ON DUPLICATE KEY UPDATE
+            meta_value = VALUES(meta_value)";
+        
+        mysqli_query($miau, $query_update_usermeta);
+        error_log("Metadatos de usuario WordPress actualizados: ID=$user_id, Email=$_billing_email");
     }
 
     // Si no existe el cliente en WooCommerce, crearlo
@@ -319,6 +505,21 @@ if (Utils::captureValue('nombre1', 'POST')) {
             error_log("Cliente WooCommerce creado: ID=$customer_id, User_ID=$user_id, Email=$_billing_email");
         } else {
             error_log("Error creando cliente WooCommerce: " . mysqli_error($miau));
+        }
+    } else {
+        // ACTUALIZAR cliente WooCommerce existente
+        $query_update_customer = "UPDATE miau_wc_customer_lookup SET 
+            first_name = '$_shipping_first_name',
+            last_name = '$_shipping_last_name',
+            date_last_active = '$hoy',
+            city = '$city_for_usermeta',
+            state = '$state_for_usermeta'
+            WHERE email = '$_billing_email'";
+        
+        if (mysqli_query($miau, $query_update_customer)) {
+            error_log("Cliente WooCommerce actualizado: Email=$_billing_email");
+        } else {
+            error_log("Error actualizando cliente WooCommerce: " . mysqli_error($miau));
         }
     }
 }
