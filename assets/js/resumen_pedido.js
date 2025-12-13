@@ -589,6 +589,11 @@ $(document).ready(function() {
 
 // Volver a productos
 function goBackToProducts() {
+    if (typeof window.showStepNavigationModal === 'function') {
+        window.showStepNavigationModal('Productos', 'bproducto.php', 3);
+        return;
+    }
+
     if (confirm('¿Estás seguro de que quieres volver? Los cambios no guardados se perderán.')) {
         const orderId = orderSummary && orderSummary.orderData ? orderSummary.orderData.order_id : '';
         if (orderId) {
