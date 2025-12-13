@@ -94,31 +94,122 @@ while ($meta = mysqli_fetch_assoc($result_meta)) {
     }
 }
 
-// Obtener productos de la orden desde order_items y postmeta
 $query_productos = "
-    SELECT 
-        I.order_item_id, 
+    SELECT
+        I.order_item_id,
         I.order_item_name,
         I.order_id,
-        COALESCE(pm_qty.meta_value, 1) as product_qty,
-        COALESCE(pm_total.meta_value, 0) as line_total,
-        COALESCE(pm_subtotal.meta_value, 0) as line_subtotal,
-        COALESCE(pm_regular_price.meta_value, 0) as regular_price,
-        COALESCE(pm_sale_price.meta_value, 0) as sale_price,
-        COALESCE(pm_sku.meta_value, '') as product_sku
-    FROM miau_woocommerce_order_items I 
-    LEFT JOIN miau_woocommerce_order_itemmeta pm_qty 
-        ON I.order_item_id = pm_qty.order_item_id AND pm_qty.meta_key = '_qty'
-    LEFT JOIN miau_woocommerce_order_itemmeta pm_total 
-        ON I.order_item_id = pm_total.order_item_id AND pm_total.meta_key = '_line_total'
-    LEFT JOIN miau_woocommerce_order_itemmeta pm_subtotal 
-        ON I.order_item_id = pm_subtotal.order_item_id AND pm_subtotal.meta_key = '_line_subtotal'
-    LEFT JOIN miau_woocommerce_order_itemmeta pm_regular_price 
-        ON I.order_item_id = pm_regular_price.order_item_id AND pm_regular_price.meta_key = '_regular_price'
-    LEFT JOIN miau_woocommerce_order_itemmeta pm_sale_price 
-        ON I.order_item_id = pm_sale_price.order_item_id AND pm_sale_price.meta_key = '_sale_price'
-    WHERE I.order_id = '$orden_id' AND I.order_item_type = 'line_item'
+
+        /* Cantidad y totales desde el pedido (lo que realmente se facturó) */
+        COALESCE(CAST(IM.qty AS UNSIGNED), 1) AS product_qty,
+
+        COALESCE(CAST(IM.line_total AS DECIMAL(18,2)), 0)    AS line_total,
+        COALESCE(CAST(IM.line_subtotal AS DECIMAL(18,2)), 0) AS line_subtotal,
+
+        /* Unitarios basados en el pedido (RECOMENDADO para factura) */
+        CASE
+            WHEN COALESCE(CAST(IM.qty AS UNSIGNED), 1) > 0
+            THEN ROUND(COALESCE(CAST(IM.line_subtotal AS DECIMAL(18,2)), 0) / COALESCE(CAST(IM.qty AS UNSIGNED), 1), 2)
+            ELSE 0
+        END AS regular_price,  -- precio unitario sin descuentos (del pedido)
+
+        CASE
+            WHEN COALESCE(CAST(IM.qty AS UNSIGNED), 1) > 0
+            THEN ROUND(COALESCE(CAST(IM.line_total AS DECIMAL(18,2)), 0) / COALESCE(CAST(IM.qty AS UNSIGNED), 1), 2)
+            ELSE 0
+        END AS sale_price,     -- precio unitario con descuentos (del pedido)
+
+        /* SKU: variación si existe, si no producto */
+        COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') AS product_sku,
+
+        /* IDs */
+        CAST(IM.product_id AS UNSIGNED)   AS product_id,
+        CAST(IM.variation_id AS UNSIGNED) AS variation_id,
+
+        /* (Opcional) precios actuales del catálogo, por si quieres comparar */
+        COALESCE(CAST(NULLIF(PM_regular.regular_price, '') AS DECIMAL(18,2)), 0) AS catalog_regular_price,
+        COALESCE(CAST(NULLIF(PM_sale.sale_price, '') AS DECIMAL(18,2)), 0)    AS catalog_sale_price,
+        COALESCE(CAST(NULLIF(PM_price.price, '') AS DECIMAL(18,2)), 0)   AS catalog_effective_price
+
+    FROM miau_woocommerce_order_items I
+
+    /* Pivot de itemmeta: saco lo necesario en un solo join */
+    LEFT JOIN (
+        SELECT
+            order_item_id,
+            MAX(CASE WHEN meta_key = '_qty' THEN meta_value END)           AS qty,
+            MAX(CASE WHEN meta_key = '_line_total' THEN meta_value END)    AS line_total,
+            MAX(CASE WHEN meta_key = '_line_subtotal' THEN meta_value END) AS line_subtotal,
+            MAX(CASE WHEN meta_key = '_product_id' THEN meta_value END)    AS product_id,
+            MAX(CASE WHEN meta_key = '_variation_id' THEN meta_value END)  AS variation_id
+        FROM miau_woocommerce_order_itemmeta
+        WHERE meta_key IN ('_qty','_line_total','_line_subtotal','_product_id','_variation_id')
+        GROUP BY order_item_id
+    ) IM
+        ON IM.order_item_id = I.order_item_id
+
+    /* SKU usando subconsultas para evitar duplicados */
+    LEFT JOIN (
+        SELECT post_id, meta_value as sku_prod
+        FROM miau_postmeta 
+        WHERE meta_key = '_sku'
+    ) PM_sku_prod
+        ON PM_sku_prod.post_id = CAST(IM.product_id AS UNSIGNED)
+
+    LEFT JOIN (
+        SELECT post_id, meta_value as sku_var
+        FROM miau_postmeta 
+        WHERE meta_key = '_sku'
+    ) PM_sku_var
+        ON PM_sku_var.post_id = CAST(IM.variation_id AS UNSIGNED)
+
+    /* Precios de catálogo usando subconsultas para evitar duplicados */
+    LEFT JOIN (
+        SELECT post_id, meta_value as regular_price
+        FROM miau_postmeta 
+        WHERE meta_key = '_regular_price'
+    ) PM_regular
+        ON PM_regular.post_id = CAST(
+            CASE
+                WHEN IM.variation_id IS NOT NULL AND IM.variation_id <> '' AND IM.variation_id <> '0'
+                THEN IM.variation_id
+                ELSE IM.product_id
+            END AS UNSIGNED
+        )
+
+    LEFT JOIN (
+        SELECT post_id, meta_value as sale_price
+        FROM miau_postmeta 
+        WHERE meta_key = '_sale_price'
+    ) PM_sale
+        ON PM_sale.post_id = CAST(
+            CASE
+                WHEN IM.variation_id IS NOT NULL AND IM.variation_id <> '' AND IM.variation_id <> '0'
+                THEN IM.variation_id
+                ELSE IM.product_id
+            END AS UNSIGNED
+        )
+
+    LEFT JOIN (
+        SELECT post_id, meta_value as price
+        FROM miau_postmeta 
+        WHERE meta_key = '_price'
+    ) PM_price
+        ON PM_price.post_id = CAST(
+            CASE
+                WHEN IM.variation_id IS NOT NULL AND IM.variation_id <> '' AND IM.variation_id <> '0'
+                THEN IM.variation_id
+                ELSE IM.product_id
+            END AS UNSIGNED
+        )
+
+    WHERE
+        I.order_id = '$orden_id'
+        AND I.order_item_type = 'line_item'
+    GROUP BY I.order_item_id;
+
 ";
+
 $productos = mysqli_query($miau, $query_productos);
 
 // Preparar datos para el generador de PDF

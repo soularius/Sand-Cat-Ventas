@@ -29,6 +29,19 @@ function convertirCodigoDepartamento($codigo) {
 }
 
 /**
+ * Trunca texto largo para evitar desbordamientos
+ * @param string $texto Texto a truncar
+ * @param int $limite Límite de caracteres (por defecto 35)
+ * @return string Texto truncado con "..." si es necesario
+ */
+function truncarTexto($texto, $limite = 35) {
+    if (mb_strlen($texto, 'UTF-8') > $limite) {
+        return mb_substr($texto, 0, $limite - 3, 'UTF-8') . '...';
+    }
+    return $texto;
+}
+
+/**
  * Genera el HTML completo para una factura PDF
  * 
  * @param array $datos Datos necesarios para el PDF
@@ -67,6 +80,10 @@ function generarHTMLFactura($datos) {
     // Generar HTML base
     $cuerpo = '
     <html>
+    <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    </head>
     <title>Factura POS '.$datos['factura_num'].'</title>
     <link rel="shortcut icon" href="http://localhost/ventas/assets/img/logo.png" type="image/x-icon" />
     <style>
@@ -82,6 +99,11 @@ function generarHTMLFactura($datos) {
     .precio-descuento {
       color: #d9534f;
       font-weight: bold;
+    }
+    .sku-text {
+      font-size: 1rem;
+      color: #8b8b8b;
+      font-weight: 400;
     }
     </style>
     <body>
@@ -239,6 +261,17 @@ function generarHTMLFactura($datos) {
                 $line_subtotal = (float)$row_productos['line_subtotal'];
                 $regular_price = (float)$row_productos['regular_price'];
                 $sale_price = (float)$row_productos['sale_price'];
+                $sku = $row_productos['product_sku'] ?? '';
+                
+                // Truncar nombre del producto para evitar desbordamientos
+                $nomprod_truncado = truncarTexto($nomprod, 35);
+                $descripcion_completa = "";
+
+                // Agregar SKU si existe
+                if (!empty($sku)) {
+                    $descripcion_completa .= '<span class="sku-text">SKU: '.$sku.'<br></span>';
+                }
+                $descripcion_completa .= $nomprod_truncado;
                 
                 // Calcular precio unitario correctamente
                 $vunit = $cant > 0 ? $line_total / $cant : 0;
@@ -272,10 +305,10 @@ function generarHTMLFactura($datos) {
                 
                 $cuerpo .= '
       <tr>
-        <td style="text-align: center; vertical-align: top">'.$cant.'</td>
-        <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$nomprod.'</td>
-        <td style="text-align: right; vertical-align: top">'.$precio_html.'</td>
-        <td style="text-align: right; vertical-align: top">'.number_format($line_total).'</td>
+        <td style="text-align: center; vertical-align: top"><br>'.$cant.'</td>
+        <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$descripcion_completa.'</td>
+        <td style="text-align: right; vertical-align: top"><br>'.$precio_html.'</td>
+        <td style="text-align: right; vertical-align: top"><br>'.number_format($line_total).'</td>
       </tr>';
             }
         }
@@ -283,10 +316,20 @@ function generarHTMLFactura($datos) {
         else if (is_array($productos)) {
             foreach ($productos as $producto) {
                 $precio_unitario = $producto['total_producto'] / $producto['cantidad'];
+                
+                // Truncar nombre del producto para evitar desbordamientos
+                $nomprod_truncado = truncarTexto($producto['nombre_producto'], 35);
+                
+                // Agregar SKU si existe
+                $descripcion_completa = htmlspecialchars($nomprod_truncado);
+                if (!empty($producto['sku'])) {
+                    $descripcion_completa .= '<br><span class="sku-text">SKU: '.htmlspecialchars($producto['sku']).'</span>';
+                }
+                
                 $cuerpo .= '
       <tr>
         <td style="text-align: center; vertical-align: top">'.$producto['cantidad'].'</td>
-        <td style="word-wrap: break-word; width: 180; vertical-align: top">'.htmlspecialchars($producto['nombre_producto']).'</td>
+        <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$descripcion_completa.'</td>
         <td style="text-align: right; vertical-align: top">'.number_format($precio_unitario).'</td>
         <td style="text-align: right; vertical-align: top">'.number_format($producto['total_producto']).'</td>
       </tr>';
