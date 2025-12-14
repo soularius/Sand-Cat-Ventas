@@ -1,4 +1,9 @@
-// Sistema de carrito en localStorage para productos
+// ============================================================
+// Carrito (localStorage) soportando productos con VARIACIONES
+// - La llave del item ya NO es solo product_id
+// - Ahora es cart_key = product_id + variation_id (o hash de attrs)
+// ============================================================
+
 class ProductCart {
     constructor() {
         console.log('ProductCart constructor called');
@@ -12,10 +17,52 @@ class ProductCart {
     parseCOP(value) {
         if (value === null || value === undefined) return 0;
         if (typeof value === 'number' && Number.isFinite(value)) return value;
+
         const cleaned = value.toString().replace(/[^\d]/g, '');
         if (!cleaned) return 0;
+
         const n = parseInt(cleaned, 10);
         return Number.isFinite(n) ? n : 0;
+    }
+
+    // Hash simple para attrs cuando NO hay variation_id (por seguridad)
+    // (No es criptográfico, solo evita colisiones "obvias" en UI)
+    simpleHash(str) {
+        let h = 0;
+        for (let i = 0; i < str.length; i++) {
+            h = ((h << 5) - h) + str.charCodeAt(i);
+            h |= 0;
+        }
+        return Math.abs(h);
+    }
+
+    // Construye la llave única del item del carrito
+    // - Si hay variation_id: productId:v:variationId
+    // - Si no hay variation_id pero hay atributos: productId:a:hash(attrs)
+    // - Si no hay nada: productId
+    buildCartKey(product) {
+        const productId = String(product?.id ?? product?.product_id ?? '').trim();
+        const variationId = (product?.variation_id !== null && product?.variation_id !== undefined && product?.variation_id !== '')
+            ? String(product.variation_id).trim()
+            : '';
+
+        if (!productId) return '';
+
+        if (variationId) {
+            return `${productId}:v:${variationId}`;
+        }
+
+        const attrs = product?.variation_attributes ?? product?.variation_attrs ?? null;
+        if (attrs && typeof attrs === 'object') {
+            const raw = JSON.stringify(attrs);
+            return `${productId}:a:${this.simpleHash(raw)}`;
+        }
+
+        if (typeof product?.variation_label === 'string' && product.variation_label.trim() !== '') {
+            return `${productId}:l:${this.simpleHash(product.variation_label.trim())}`;
+        }
+
+        return productId;
     }
     
     init() {
@@ -30,25 +77,40 @@ class ProductCart {
             const stored = localStorage.getItem(this.storageKey);
             const cart = stored ? JSON.parse(stored) : {};
 
-            // Normalizar números para evitar errores por separadores de miles
-            Object.keys(cart).forEach((productId) => {
-                const item = cart[productId];
+            // Normalizar y asegurar campos nuevos (cart_key, product_id, variation_id)
+            Object.keys(cart).forEach((cartKey) => {
+                const item = cart[cartKey];
                 if (!item) return;
+
+                // Si vienes de la versión anterior (key = productId), garantizamos cart_key
+                item.cart_key = item.cart_key || cartKey;
+
+                // Compatibilidad: antes guardabas item.id como id del producto
+                // Ahora guardamos explícito product_id
+                item.product_id = item.product_id || item.id || null;
+
+                // Variación (si existía en versiones nuevas)
+                item.variation_id = (item.variation_id !== undefined) ? item.variation_id : null;
+                item.variation_label = item.variation_label || '';
+                item.variation_attributes = item.variation_attributes || null;
+
+                // Normalizar precios
                 item.price = this.parseCOP(item.price);
                 item.regular_price = this.parseCOP(item.regular_price);
                 item.sale_price = (item.sale_price !== null && item.sale_price !== undefined && item.sale_price !== '')
                     ? this.parseCOP(item.sale_price)
                     : null;
 
-                // Si no hay regular_price (0) para productos sin oferta, usar price como regular
+                // Si no hay regular_price, usar price
                 if ((!item.regular_price || item.regular_price <= 0) && item.price > 0) {
                     item.regular_price = item.price;
                 }
 
-                // Si hay sale_price inválido (>= regular), no considerarlo como oferta
+                // Si sale inválido, descartarlo
                 if (item.sale_price !== null && item.sale_price >= item.regular_price) {
                     item.sale_price = null;
                 }
+
                 item.stock = parseInt(item.stock || 0, 10);
                 item.quantity = parseInt(item.quantity || 0, 10);
             });
@@ -71,34 +133,57 @@ class ProductCart {
     }
     
     // Agregar producto al carrito
+    // IMPORTANTE: retorna la cart_key para que el botón pueda "recordar"
+    // qué item exacto (variación) debe eliminar.
     addProduct(product, quantity = 1) {
         console.log('ProductCart.addProduct called with:', product, 'quantity:', quantity);
-        
-        const productId = product.id.toString();
-        console.log('Product ID (string):', productId);
-        
-        if (this.cart[productId]) {
-            console.log('Product exists in cart, updating quantity');
-            this.cart[productId].quantity += quantity;
+
+        const cartKey = this.buildCartKey(product);
+
+        if (!cartKey) {
+            console.error('No se pudo construir cart_key (producto inválido):', product);
+            this.showNotification('No se pudo agregar: producto inválido', 'warning');
+            return '';
+        }
+
+        if (this.cart[cartKey]) {
+            console.log('Item existe en carrito (misma variación), incrementando qty');
+            this.cart[cartKey].quantity += quantity;
         } else {
-            console.log('Adding new product to cart');
+            console.log('Agregando item nuevo al carrito con cart_key:', cartKey);
+
             const normalizedPrice = this.parseCOP(product.price || 0);
-            const normalizedRegular = this.parseCOP((product.regular_price !== null && product.regular_price !== undefined && product.regular_price !== '')
-                ? product.regular_price
-                : normalizedPrice);
+            const normalizedRegular = this.parseCOP(
+                (product.regular_price !== null && product.regular_price !== undefined && product.regular_price !== '')
+                    ? product.regular_price
+                    : normalizedPrice
+            );
             const normalizedSale = (product.sale_price !== null && product.sale_price !== undefined && product.sale_price !== '')
                 ? this.parseCOP(product.sale_price)
                 : null;
 
-            this.cart[productId] = {
-                id: product.id,
-                title: product.title,
+            this.cart[cartKey] = {
+                // Llaves
+                cart_key: cartKey,
+                product_id: product.id ?? product.product_id ?? null, // id del producto padre
+                variation_id: (product.variation_id !== null && product.variation_id !== undefined && product.variation_id !== '')
+                    ? String(product.variation_id)
+                    : null,
+
+                // Visual / info
+                title: product.title || 'Producto',
+                variation_label: product.variation_label || '',
+                variation_attributes: product.variation_attributes || null,
+
+                // Precios
                 price: normalizedPrice,
                 regular_price: (normalizedRegular > 0 ? normalizedRegular : normalizedPrice),
                 sale_price: (normalizedSale !== null && normalizedSale < (normalizedRegular > 0 ? normalizedRegular : normalizedPrice))
                     ? normalizedSale
                     : null,
-                stock: parseInt(product.stock || 0),
+
+                // Stock / control
+                stock: parseInt(product.stock || 0, 10),
                 sku: product.sku || '',
                 image_url: product.image_url || '',
                 permalink: product.permalink || '#',
@@ -106,35 +191,43 @@ class ProductCart {
                 available: product.available
             };
         }
-        
-        console.log('Cart after adding product:', this.cart);
+
+        console.log('Cart after add:', this.cart);
         this.saveCart();
-        this.showNotification(`${product.title} agregado al carrito`, 'success');
+
+        const label = (product.variation_label && String(product.variation_label).trim() !== '')
+            ? ` (${product.variation_label})` 
+            : '';
+
+        this.showNotification(`${product.title}${label} agregado al carrito`, 'success');
+
+        return cartKey;
     }
     
-    // Actualizar cantidad de producto
-    updateQuantity(productId, quantity) {
-        productId = productId.toString();
-        
-        if (this.cart[productId]) {
+    // Actualizar cantidad por cart_key
+    updateQuantity(cartKey, quantity) {
+        cartKey = cartKey.toString();
+
+        if (this.cart[cartKey]) {
             if (quantity <= 0) {
-                delete this.cart[productId];
+                delete this.cart[cartKey];
             } else {
-                this.cart[productId].quantity = quantity;
+                this.cart[cartKey].quantity = quantity;
             }
             this.saveCart();
         }
     }
-    
-    // Remover producto del carrito
-    removeProduct(productId) {
-        productId = productId.toString();
-        
-        if (this.cart[productId]) {
-            const productName = this.cart[productId].title;
-            delete this.cart[productId];
+
+    // Remover por cart_key
+    removeProduct(cartKey) {
+        cartKey = cartKey.toString();
+
+        if (this.cart[cartKey]) {
+            const productName = this.cart[cartKey].title;
+            const label = this.cart[cartKey].variation_label ? ` (${this.cart[cartKey].variation_label})` : '';
+            delete this.cart[cartKey];
             this.saveCart();
-            this.showNotification(`${productName} removido del carrito`, 'info');
+            this.showNotification(`${productName}${label} removido del carrito`, 'info');
         }
     }
     
@@ -231,18 +324,27 @@ class ProductCart {
             subtotalRegular += subtotalReg;
             totalDiscount += itemDiscount;
             
-            // Escapar caracteres especiales para evitar problemas en el HTML
-            const escapedTitle = item.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+            const escapedTitle = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
             const escapedPermalink = (item.permalink || '#').replace(/'/g, "\\'").replace(/"/g, '\\"');
-            
+
+            const variationLine = (item.variation_label && String(item.variation_label).trim() !== '')
+                ? `<div class="text-muted small">Variación: <strong>${String(item.variation_label)}</strong></div>` 
+                : '';
+
             html += `
-                <div class="cart-item" data-product-id="${item.id}">
+                <div class="cart-item" data-cart-key="${item.cart_key}">
                     <div class="item-info">
-                        <h6 class="product-title-clickable" 
-                            onclick="viewProductDetails('${item.id}', '${escapedTitle}', '${escapedPermalink}')" 
+                        <h6 class="product-title-clickable"
+                            onclick="viewProductDetails('${item.product_id || ''}', '${escapedTitle}', '${escapedPermalink}')"
                             title="Click para ver detalles del producto"
-                            style="cursor: pointer; color: var(--primary-color); text-decoration: underline;">${item.title}</h6>
+                            style="cursor: pointer; color: var(--primary-color); text-decoration: underline;">
+                            ${item.title}
+                        </h6>
+
+                        ${variationLine}
+
                         <small class="text-muted text-uppercase fw-bold">SKU: ${item.sku || 'N/A'}</small>
+
                         <div class="d-flex align-items-center justify-content-between position-relative">
                             ${hasDiscount ? `
                                 <div class="d-flex align-items-center justify-content-between box-prices">
@@ -253,28 +355,31 @@ class ProductCart {
                                     <span class="badge bg-danger rounded-pill position-absolute badge-OFF">Oferta</span>
                                 </div>
                                 <div class="text-success small mt-1">Ahorra $${(regularPrice - salePrice).toLocaleString('es-CO')}</div>
-                            ` : `
+                            ` : ` 
                                 <span class="current-price text-primary fw-bold">$${finalUnitPrice.toLocaleString('es-CO')}</span>
                             `}
                         </div>
                     </div>
+
                     <div class="item-controls">
                         <div class="quantity-controls">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="cart.updateQuantity('${item.id}', ${item.quantity - 1})">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="cart.updateQuantity('${item.cart_key}', ${item.quantity - 1})">
                                 <i class="fas fa-minus"></i>
                             </button>
-                            <input type="text" class="form-control form-control-sm quantity-input" 
+                            <input type="text" class="form-control form-control-sm quantity-input"
                                    value="${item.quantity}" min="1" max="${item.stock}"
-                                   onchange="cart.updateQuantity('${item.id}', parseInt(this.value))">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="cart.updateQuantity('${item.id}', ${item.quantity + 1})">
+                                   onchange="cart.updateQuantity('${item.cart_key}', parseInt(this.value || '1', 10))">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="cart.updateQuantity('${item.cart_key}', ${item.quantity + 1})">
                                 <i class="fas fa-plus"></i>
                             </button>
                         </div>
+
                         <div class="item-subtotal">
                             <strong>$${subtotalFinal.toLocaleString('es-CO')}</strong>
                             ${itemDiscount > 0 ? `<div class="text-success small">-$${itemDiscount.toLocaleString('es-CO')}</div>` : ''}
                         </div>
-                        <button class="btn btn-sm btn-outline-danger" onclick="cart.removeProduct('${item.id}')">
+
+                        <button class="btn btn-sm btn-outline-danger" onclick="cart.removeProduct('${item.cart_key}')">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>

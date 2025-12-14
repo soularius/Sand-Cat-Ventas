@@ -469,6 +469,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                                 data-product-image-url="${product.image_url || ''}"
                                                 data-product-sku="${product.sku || ''}"
                                                 data-product-permalink="${product.permalink}"
+                                                data-variation-id="${product.variation_id || ''}"
+                                                data-variation-label="${(product.variation_label || '').replace(/"/g, '&quot;')}"
+                                                data-variation-attrs="${encodeURIComponent(JSON.stringify(product.variation_attributes || {}))}"
                                                 ${!product.is_available ? 'disabled' : ''}
                                                 title="${product.is_available ? 'Agregar al Pedido' : 'No Disponible'}">
                                             <i class="text-white ${product.is_available ? 'fas fa-plus' : 'fas fa-xmark'}"></i>
@@ -612,6 +615,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
             // Manejar click en agregar/eliminar producto
             $(document).on('click', '.add-product-btn', function() {
                 const btn = $(this);
+
                 const prodId = btn.data('product-id');
                 const prodName = btn.data('product-name');
                 const prodPrice = btn.data('product-price');
@@ -619,58 +623,95 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                 const prodSalePrice = btn.data('product-sale-price');
                 const prodSku = btn.data('product-sku');
 
-                // Verificar si el botón está en estado "eliminar" (tiene X)
+                // Variaciones (si vienen)
+                const variationId = btn.data('variation-id') || null;
+                const variationLabel = btn.data('variation-label') || '';
+
+                let variationAttributes = null;
+                const attrsRaw = btn.attr('data-variation-attrs');
+                if (attrsRaw) {
+                    try {
+                        variationAttributes = JSON.parse(decodeURIComponent(attrsRaw));
+                    } catch (e) {
+                        variationAttributes = null;
+                    }
+                }
+
+                // ¿Está en estado eliminar?
                 const isRemoveState = btn.find('.fa-xmark').length > 0;
 
                 if (isRemoveState) {
-                    // Eliminar producto del carrito
+                    // IMPORTANTE: eliminar por cart_key, no por productId
+                    const cartKey = btn.data('cart-key') || null;
+
                     if (window.cart) {
-                        window.cart.removeProduct(prodId);
-                        // Cambiar botón de vuelta al estado inicial
-                        btn.html('<i class="text-white fas fa-plus"></i>')
-                            .removeClass('btn-danger btn-success')
-                            .addClass('btn-success')
-                            .prop('disabled', false);
+                        if (cartKey) {
+                            window.cart.removeProduct(cartKey);
+                        } else {
+                            // Fallback: si por alguna razón no existe cartKey, intenta con prodId
+                            window.cart.removeProduct(String(prodId));
+                        }
                     }
+
+                    // Restaurar botón a "+"
+                    btn.html('<i class="text-white fas fa-plus"></i>')
+                        .removeClass('btn-danger')
+                        .addClass('btn-success')
+                        .prop('disabled', false)
+                        .removeData('cart-key');
+
                     return;
                 }
 
-                // Cambiar estado del botón a "cargando"
-                const origText = btn.html();
+                // Estado loading
                 btn.html('<i class="fas fa-spinner fa-spin me-1"></i>').prop('disabled', true);
 
-                // Agregar al carrito usando el sistema existente
                 if (window.cart) {
                     const prodPermalink = btn.data('product-permalink');
                     const prodImageUrl = btn.data('product-image-url');
+
                     const product = {
-                        id: prodId,
+                        id: prodId,                       // id del producto padre
                         title: prodName,
                         price: prodPrice,
                         regular_price: prodRegularPrice,
                         sale_price: prodSalePrice,
-                        image_url: prodImageUrl,
+                        image_url: prodImageUrl || '',
                         sku: prodSku || '',
                         permalink: prodPermalink || '#',
                         available: true,
-                        stock: 999
+                        stock: 999,
+
+                        // Variación (claves para que el carrito NO los mezcle)
+                        variation_id: variationId,                 // <- clave dura
+                        variation_label: variationLabel || '',     // <- visual
+                        variation_attributes: variationAttributes  // <- opcional
                     };
-                    window.cart.addProduct(product, 1);
+
+                    // addProduct retorna la cart_key (product + variation)
+                    const cartKey = window.cart.addProduct(product, 1);
+
+                    // Guardamos cart_key en el botón para poder remover exacto ese item
+                    if (cartKey) {
+                        btn.data('cart-key', cartKey);
+                    }
                 }
 
-                // Cambiar a estado "agregado" (check)
+                // Check
                 setTimeout(() => {
-                    btn.html('<i class="fas fa-check me-1"></i>').removeClass('btn-success').addClass('btn-success');
+                    btn.html('<i class="fas fa-check me-1"></i>')
+                        .removeClass('btn-success')
+                        .addClass('btn-success');
 
-                    // Cambiar a estado "eliminar" (X) después de 2 segundos
+                    // X
                     setTimeout(() => {
                         btn.html('<i class="fas fa-xmark me-1"></i>')
                             .removeClass('btn-success')
                             .addClass('btn-danger')
                             .prop('disabled', false)
                             .attr('title', 'Eliminar del carrito');
-                    }, 2000);
-                }, 1000);
+                    }, 1000);
+                }, 350);
             });
 
             // Función para cargar categorías

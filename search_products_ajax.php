@@ -31,22 +31,42 @@ try {
         throw new Exception('No hay conexión a la base de datos WordPress');
     }
     
-    // Construir query base
+    // Construir query base - INCLUYE PRODUCTOS Y VARIACIONES
     $query = "
         SELECT 
             p.ID as id_producto,
-            p.post_title as nombre,
+            p.post_parent as producto_padre_id,
+            p.post_type,
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN COALESCE(parent.post_title, p.post_title)
+                ELSE p.post_title 
+            END as nombre,
             p.post_content as descripcion,
             p.post_excerpt as descripcion_corta,
-            p.post_name as slug,
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN parent.post_name
+                ELSE p.post_name 
+            END as slug,
             p.guid as guid,
             COALESCE(pm_price.meta_value, '0') as precio,
             COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
             COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
             COALESCE(pm_stock.meta_value, '0') as stock,
             COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
-            COALESCE(pm_sku.meta_value, '') as sku
+            COALESCE(pm_sku.meta_value, '') as sku,
+            
+            -- Datos específicos de variaciones
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN p.ID
+                ELSE NULL 
+            END as variation_id,
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN p.post_parent
+                ELSE p.ID 
+            END as product_id
+            
         FROM miau_posts p
+        LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
         LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
         LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
         LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
@@ -62,8 +82,20 @@ try {
     }
     
     $query .= "
-        WHERE p.post_type = 'product' 
-        AND p.post_status = 'publish'";
+        WHERE p.post_status = 'publish'
+        AND (
+            -- Productos simples (sin variaciones)
+            (p.post_type = 'product' AND p.ID NOT IN (
+                SELECT DISTINCT post_parent 
+                FROM miau_posts 
+                WHERE post_type = 'product_variation' 
+                AND post_status = 'publish'
+                AND post_parent IS NOT NULL
+            ))
+            OR
+            -- Solo variaciones (no productos padre)
+            p.post_type = 'product_variation'
+        )";
     
     // Condiciones de búsqueda
     $conditions = [];
@@ -101,9 +133,50 @@ try {
         throw new Exception('Error en consulta de productos: ' . mysqli_error($miau));
     }
     
+    // Función para obtener atributos de variación
+    function getVariationAttributes($variation_id) {
+        global $miau;
+        
+        $query = "SELECT meta_key, meta_value 
+                 FROM miau_postmeta 
+                 WHERE post_id = $variation_id 
+                 AND meta_key LIKE 'attribute_%'";
+        
+        $result = mysqli_query($miau, $query);
+        $attributes = [];
+        
+        if ($result) {
+            while ($row = mysqli_fetch_assoc($result)) {
+                $attr_name = str_replace('attribute_', '', $row['meta_key']);
+                $attributes[$attr_name] = $row['meta_value'];
+            }
+        }
+        
+        return $attributes;
+    }
+    
+    // Función para construir label de variación
+    function buildVariationLabel($attributes) {
+        if (empty($attributes)) {
+            return '';
+        }
+        
+        $labels = [];
+        foreach ($attributes as $name => $value) {
+            if (!empty($value)) {
+                // Limpiar nombre del atributo (quitar pa_ si existe)
+                $clean_name = str_replace('pa_', '', $name);
+                $clean_name = ucfirst(str_replace('_', ' ', $clean_name));
+                $labels[] = "$clean_name: $value";
+            }
+        }
+        
+        return implode(', ', $labels);
+    }
+    
     $products = [];
     while ($row = mysqli_fetch_assoc($result)) {
-        // Formatear datos
+        // Formatear datos básicos
         $row['precio'] = floatval($row['precio'] ?? 0);
         $row['precio_regular'] = floatval($row['precio_regular'] ?? 0);
         $row['precio_oferta'] = !empty($row['precio_oferta']) ? floatval($row['precio_oferta']) : 0;
@@ -112,6 +185,20 @@ try {
         $row['sku'] = $row['sku'] ?? '';
         $row['descripcion_corta'] = $row['descripcion_corta'] ?? '';
         $row['descripcion'] = $row['descripcion'] ?? '';
+        
+        // Datos de variación
+        $row['variation_id'] = $row['variation_id'] ? intval($row['variation_id']) : null;
+        $row['product_id'] = intval($row['product_id']);
+        $row['es_variacion'] = ($row['post_type'] === 'product_variation');
+        
+        // Si es variación, obtener atributos y label
+        if ($row['es_variacion'] && $row['variation_id']) {
+            $row['variation_attributes'] = getVariationAttributes($row['variation_id']);
+            $row['variation_label'] = buildVariationLabel($row['variation_attributes']);
+        } else {
+            $row['variation_attributes'] = null;
+            $row['variation_label'] = '';
+        }
         
         $products[] = $row;
     }
@@ -161,10 +248,11 @@ try {
         
         if (!$include_product) continue;
         
-        // Obtener imagen del producto
-        $image_url = getSimpleProductImage($product['id_producto']);
+        // Obtener imagen del producto (usar product_id para variaciones)
+        $image_product_id = $product['es_variacion'] ? $product['product_id'] : $product['id_producto'];
+        $image_url = getSimpleProductImage($image_product_id);
         
-        // Construir permalink del producto
+        // Construir permalink del producto (usar slug del padre para variaciones)
         $base_url = env('WOOCOMMERCE_BASE_URL'); // URL base de WordPress
         $permalink = $base_url . '/producto/' . $product['slug'] . '/';
         
@@ -176,16 +264,31 @@ try {
         $has_sale = ($sale_price > 0 && $sale_price < $regular_price);
         $display_price = $has_sale ? $sale_price : $price;
         
+        // Construir título con variación
+        $title = $product['nombre'];
+        if ($product['es_variacion'] && !empty($product['variation_label'])) {
+            $title .= ' - ' . $product['variation_label'];
+        }
+        
         $processed_products[] = [
-            'id' => (int)$product['id_producto'],
-            'title' => $product['nombre'],
+            // IDs principales
+            'id' => (int)$product['id_producto'],                    // ID único (variación o producto)
+            'product_id' => (int)$product['product_id'],             // ID del producto padre
+            'variation_id' => $product['variation_id'],              // ID de variación (null si es producto)
+            
+            // Información básica
+            'title' => $title,
             'short_description' => $product['descripcion_corta'] ?? '',
             'sku' => $product['sku'] ?? '',
             'permalink' => $permalink,
+            
+            // Precios
             'price' => number_format($display_price, 0, ',', '.'),
             'regular_price' => $regular_price > 0 ? number_format($regular_price, 0, ',', '.') : null,
             'sale_price' => $sale_price > 0 ? number_format($sale_price, 0, ',', '.') : null,
             'has_sale' => $has_sale,
+            
+            // Stock y disponibilidad
             'image_url' => $image_url,
             'stock_quantity' => (int)$product['stock'],
             'is_available' => $product['en_stock'],
@@ -193,7 +296,12 @@ try {
             'stock_status_class' => $product['en_stock'] ? 'text-success' : 'text-danger',
             'availability_icon' => $product['en_stock'] ? 'fas fa-check-circle' : 'fas fa-times-circle',
             'price_badge_class' => $has_sale ? 'bg-danger' : 'bg-primary',
-            'card_border_class' => $product['en_stock'] ? 'border-success' : 'border-warning'
+            'card_border_class' => $product['en_stock'] ? 'border-success' : 'border-warning',
+            
+            // Datos de variación
+            'is_variation' => $product['es_variacion'],
+            'variation_label' => $product['variation_label'] ?? '',
+            'variation_attributes' => $product['variation_attributes'] ?? null
         ];
     }
     
