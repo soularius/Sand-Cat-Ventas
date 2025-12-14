@@ -800,78 +800,114 @@ class WooCommerceOrders
      * - Primero intenta HPOS
      * - Si no existe, cae a posts/postmeta (legacy)
      */
-    public function getOrderById($order_id) {
+    public function getOrderById($order_id)
+    {
         $order_id = (int)$order_id;
-
 
         // 1) Intentar HPOS
         if ($this->tableExists('miau_wc_orders')) {
 
+            // ✅ Traemos TODO lo que podamos desde addresses (billing)
+            $q = "
+                SELECT
+                    o.id AS order_id,
+                    o.date_created_gmt AS fecha_orden,
+                    o.status AS estado,
+                    COALESCE(o.total_amount, 0) AS total,
 
-        // ✅ Usamos phone/email desde addresses (ba), porque o.billing_phone NO existe en tu esquema.
-        $q = "
-        SELECT
-        o.id AS order_id,
-        o.date_created_gmt AS fecha_orden,
-        o.status AS estado,
-        COALESCE(o.total_amount, 0) AS total,
+                    COALESCE(NULLIF(o.billing_email,''), NULLIF(ba.email,''), '') AS email_cliente,
+                    COALESCE(NULLIF(ba.phone,''), '') AS telefono_cliente,
 
+                    COALESCE(ba.first_name, '') AS nombre_cliente,
+                    COALESCE(ba.last_name, '')  AS apellido_cliente,
+                    COALESCE(ba.address_1, '')  AS direccion_cliente,
+                    COALESCE(ba.address_2, '')  AS direccion_2,
+                    COALESCE(ba.city, '')       AS ciudad_cliente,
 
-        -- Email: preferimos el de wc_orders si viene, si no el de addresses
-        COALESCE(NULLIF(o.billing_email,''), NULLIF(ba.email,''), '') AS email_cliente,
+                    -- En HPOS addresses sí existen (si los insertaste)
+                    COALESCE(ba.state, '')      AS departamento_hpos,
+                    COALESCE(ba.country, '')    AS pais_hpos
 
+                FROM miau_wc_orders o
+                LEFT JOIN miau_wc_order_addresses ba
+                    ON o.id = ba.order_id AND ba.address_type = 'billing'
+                WHERE o.id = {$order_id}
+                LIMIT 1
+            ";
 
-        -- Teléfono: está en addresses
-        COALESCE(NULLIF(ba.phone,''), '') AS telefono_cliente,
+            $r = mysqli_query($this->wp_connection, $q);
+            if ($r && ($row = mysqli_fetch_assoc($r))) {
 
+                // � Complemento desde postmeta (legacy) porque ahí guardas DNI/Barrio/etc.
+                $row['envio']     = (float)$this->getLegacyMetaValue($order_id, '_order_shipping');
+                $row['descuento'] = (float)$this->getLegacyMetaValue($order_id, '_cart_discount');
+                $row['subtotal']  = (float)$this->getLegacyMetaValue($order_id, '_order_subtotal');
 
-        COALESCE(ba.first_name, '') AS nombre_cliente,
-        COALESCE(ba.last_name, '') AS apellido_cliente,
-        COALESCE(ba.address_1, '') AS direccion_cliente,
-        COALESCE(ba.city, '') AS ciudad_cliente
-        FROM miau_wc_orders o
-        LEFT JOIN miau_wc_order_addresses ba
-        ON o.id = ba.order_id AND ba.address_type = 'billing'
-        WHERE o.id = {$order_id}
-        LIMIT 1
-        ";
+                $row['metodo_pago']        = $this->getLegacyMetaValue($order_id, '_payment_method');
+                $row['titulo_metodo_pago'] = $this->getLegacyMetaValue($order_id, '_payment_method_title');
 
+                // ✅ DNI: tú guardas varios keys, devolvemos el primero que exista
+                $row['dni_cliente'] = $this->getLegacyMetaFirst($order_id, [
+                    '_billing_dni', 'billing_id', '_billing_id'
+                ]);
 
-        $r = mysqli_query($this->wp_connection, $q);
-        if ($r && ($row = mysqli_fetch_assoc($r))) {
-        // 🔎 Complemento desde postmeta (porque ahí guardamos envío/método/otros)
-        $row['envio'] = (float)$this->getLegacyMetaValue($order_id, '_order_shipping');
-        $row['descuento'] = (float)$this->getLegacyMetaValue($order_id, '_cart_discount');
-        $row['subtotal'] = (float)$this->getLegacyMetaValue($order_id, '_order_subtotal');
+                // ✅ Barrio: tu sistema guarda _billing_neighborhood (NO _billing_barrio)
+                $row['barrio'] = $this->getLegacyMetaFirst($order_id, [
+                    '_billing_neighborhood', 'billing_neighborhood',
+                    '_billing_barrio', 'billing_barrio' // por si algún pedido viejo lo tiene así
+                ]);
 
+                // ✅ Departamento: preferimos el legacy (más "humano"), si no, el HPOS
+                $row['departamento'] = $this->getLegacyMetaFirst($order_id, [
+                    '_billing_state', '_shipping_state'
+                ]);
+                if (trim((string)$row['departamento']) === '') {
+                    $row['departamento'] = (string)($row['departamento_hpos'] ?? '');
+                }
 
-        $row['metodo_pago'] = $this->getLegacyMetaValue($order_id, '_payment_method');
-        $row['titulo_metodo_pago'] = $this->getLegacyMetaValue($order_id, '_payment_method_title');
+                // ✅ País: preferimos legacy, si no, HPOS
+                $row['pais'] = $this->getLegacyMetaFirst($order_id, [
+                    '_billing_country', '_shipping_country'
+                ]);
+                if (trim((string)$row['pais']) === '') {
+                    $row['pais'] = (string)($row['pais_hpos'] ?? '');
+                }
 
+                // Normalizaciones para tu UI
+                $row['total'] = (float)($row['total'] ?? 0);
+                $row['nombre_completo'] = trim(($row['nombre_cliente'] ?? '') . ' ' . ($row['apellido_cliente'] ?? ''));
+                $row['estado_legible'] = $this->getStatusLabel($row['estado']);
+                $row['fecha_formateada'] = date('d/m/Y H:i', strtotime($row['fecha_orden']));
 
-        // Normalizaciones para tu UI
-        $row['total'] = (float)($row['total'] ?? 0);
-        $row['nombre_completo'] = trim(($row['nombre_cliente'] ?? '') . ' ' . ($row['apellido_cliente'] ?? ''));
-        $row['estado_legible'] = $this->getStatusLabel($row['estado']);
-        $row['fecha_formateada'] = date('d/m/Y H:i', strtotime($row['fecha_orden']));
-
-
-        return $row;
+                return $row;
+            }
         }
-        }
-
 
         // 2) Fallback legacy
         return $this->getOrderByIdLegacy($order_id);
-        }
+    }
 
     private function getLegacyMetaValue(int $postId, string $key): string
     {
-        if (!$this->tableExists('miau_postmeta')) return '';
-        $k = mysqli_real_escape_string($this->wp_connection, $key);
-        $q = "SELECT meta_value FROM miau_postmeta WHERE post_id={$postId} AND meta_key='{$k}' ORDER BY meta_id DESC LIMIT 1";
-        $r = mysqli_query($this->wp_connection, $q);
-        if ($r && ($row = mysqli_fetch_assoc($r))) return (string)($row['meta_value'] ?? '');
+        $key = mysqli_real_escape_string($this->wp_connection, $key);
+        $query = "SELECT meta_value FROM miau_postmeta WHERE post_id = {$postId} AND meta_key = '{$key}' LIMIT 1";
+        $result = mysqli_query($this->wp_connection, $query);
+        if ($result && $row = mysqli_fetch_assoc($result)) {
+            return $row['meta_value'] ?? '';
+        }
+        return '';
+    }
+
+    /**
+     * Devuelve el primer meta_value NO vacío encontrado en el orden indicado.
+     * Sirve para soportar múltiples keys (porque en tu sistema guardas varias).
+     */
+    private function getLegacyMetaFirst(int $postId, array $keys): string
+    {
+        foreach ($keys as $k) {
+            $v = trim((string)$this->getLegacyMetaValue($postId, (string)$k));
+            if ($v !== '') return $v;
+        }
         return '';
     }
 
@@ -883,32 +919,64 @@ class WooCommerceOrders
                 p.post_date as fecha_orden,
                 p.post_status as estado,
                 p.post_modified as fecha_modificacion,
+
                 COALESCE(pm_total.meta_value, '0') as total,
                 COALESCE(pm_subtotal.meta_value, '0') as subtotal,
                 COALESCE(pm_tax_total.meta_value, '0') as impuestos,
                 COALESCE(pm_shipping_total.meta_value, '0') as envio,
+                COALESCE(pm_cart_discount.meta_value, '0') as descuento,
+
                 COALESCE(pm_billing_first_name.meta_value, '') as nombre_cliente,
                 COALESCE(pm_billing_last_name.meta_value, '') as apellido_cliente,
                 COALESCE(pm_billing_email.meta_value, '') as email_cliente,
                 COALESCE(pm_billing_phone.meta_value, '') as telefono_cliente,
                 COALESCE(pm_billing_address_1.meta_value, '') as direccion_cliente,
+                COALESCE(pm_billing_address_2.meta_value, '') as direccion_2,
                 COALESCE(pm_billing_city.meta_value, '') as ciudad_cliente,
+                COALESCE(pm_billing_state.meta_value, '') as departamento,
+                COALESCE(pm_billing_country.meta_value, '') as pais,
+
+                -- ✅ Barrio: tu sistema guarda _billing_neighborhood (y billing_neighborhood)
+                COALESCE(pm_billing_neighborhood.meta_value, pm_billing_neighborhood2.meta_value, pm_billing_barrio.meta_value, '') as barrio,
+
+                -- ✅ DNI: fallback porque guardas billing_id/_billing_id además de _billing_dni
+                COALESCE(pm_billing_dni.meta_value, pm_billing_id.meta_value, pm_billing_id2.meta_value, '') as dni_cliente,
+
                 COALESCE(pm_payment_method.meta_value, '') as metodo_pago,
                 COALESCE(pm_payment_method_title.meta_value, '') as titulo_metodo_pago
+
             FROM miau_posts p
+
             LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
             LEFT JOIN miau_postmeta pm_subtotal ON p.ID = pm_subtotal.post_id AND pm_subtotal.meta_key = '_order_subtotal'
             LEFT JOIN miau_postmeta pm_tax_total ON p.ID = pm_tax_total.post_id AND pm_tax_total.meta_key = '_order_tax'
             LEFT JOIN miau_postmeta pm_shipping_total ON p.ID = pm_shipping_total.post_id AND pm_shipping_total.meta_key = '_order_shipping'
+            LEFT JOIN miau_postmeta pm_cart_discount ON p.ID = pm_cart_discount.post_id AND pm_cart_discount.meta_key = '_cart_discount'
+
             LEFT JOIN miau_postmeta pm_billing_first_name ON p.ID = pm_billing_first_name.post_id AND pm_billing_first_name.meta_key = '_billing_first_name'
             LEFT JOIN miau_postmeta pm_billing_last_name ON p.ID = pm_billing_last_name.post_id AND pm_billing_last_name.meta_key = '_billing_last_name'
             LEFT JOIN miau_postmeta pm_billing_email ON p.ID = pm_billing_email.post_id AND pm_billing_email.meta_key = '_billing_email'
             LEFT JOIN miau_postmeta pm_billing_phone ON p.ID = pm_billing_phone.post_id AND pm_billing_phone.meta_key = '_billing_phone'
             LEFT JOIN miau_postmeta pm_billing_address_1 ON p.ID = pm_billing_address_1.post_id AND pm_billing_address_1.meta_key = '_billing_address_1'
+            LEFT JOIN miau_postmeta pm_billing_address_2 ON p.ID = pm_billing_address_2.post_id AND pm_billing_address_2.meta_key = '_billing_address_2'
             LEFT JOIN miau_postmeta pm_billing_city ON p.ID = pm_billing_city.post_id AND pm_billing_city.meta_key = '_billing_city'
+            LEFT JOIN miau_postmeta pm_billing_state ON p.ID = pm_billing_state.post_id AND pm_billing_state.meta_key = '_billing_state'
+            LEFT JOIN miau_postmeta pm_billing_country ON p.ID = pm_billing_country.post_id AND pm_billing_country.meta_key = '_billing_country'
+
+            -- ✅ Barrio keys reales
+            LEFT JOIN miau_postmeta pm_billing_neighborhood ON p.ID = pm_billing_neighborhood.post_id AND pm_billing_neighborhood.meta_key = '_billing_neighborhood'
+            LEFT JOIN miau_postmeta pm_billing_neighborhood2 ON p.ID = pm_billing_neighborhood2.post_id AND pm_billing_neighborhood2.meta_key = 'billing_neighborhood'
+            LEFT JOIN miau_postmeta pm_billing_barrio ON p.ID = pm_billing_barrio.post_id AND pm_billing_barrio.meta_key = '_billing_barrio'
+
+            -- ✅ DNI keys reales
+            LEFT JOIN miau_postmeta pm_billing_dni ON p.ID = pm_billing_dni.post_id AND pm_billing_dni.meta_key = '_billing_dni'
+            LEFT JOIN miau_postmeta pm_billing_id ON p.ID = pm_billing_id.post_id AND pm_billing_id.meta_key = 'billing_id'
+            LEFT JOIN miau_postmeta pm_billing_id2 ON p.ID = pm_billing_id2.post_id AND pm_billing_id2.meta_key = '_billing_id'
+
             LEFT JOIN miau_postmeta pm_payment_method ON p.ID = pm_payment_method.post_id AND pm_payment_method.meta_key = '_payment_method'
             LEFT JOIN miau_postmeta pm_payment_method_title ON p.ID = pm_payment_method_title.post_id AND pm_payment_method_title.meta_key = '_payment_method_title'
-            WHERE p.ID = {$order_id} 
+
+            WHERE p.ID = {$order_id}
             AND p.post_type = 'shop_order'
             LIMIT 1
         ";

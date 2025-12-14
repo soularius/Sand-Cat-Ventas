@@ -91,7 +91,259 @@ class WooCommerceProducts {
     }
     
     /**
-     * Buscar productos por nombre o SKU
+     * Obtener atributos de variación
+     */
+    private function getVariationAttributes($variation_id) {
+        $variation_id = (int)$variation_id;
+        
+        $query = "SELECT meta_key, meta_value 
+                 FROM miau_postmeta 
+                 WHERE post_id = $variation_id 
+                 AND meta_key LIKE 'attribute_%'";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        $attributes = [];
+        
+        if ($result) {
+            while ($row = mysqli_fetch_assoc($result)) {
+                $attr_name = str_replace('attribute_', '', $row['meta_key']);
+                $attributes[$attr_name] = $row['meta_value'];
+            }
+            mysqli_free_result($result);
+        }
+        
+        return $attributes;
+    }
+    
+    /**
+     * Construir label de variación
+     */
+    private function buildVariationLabel($attributes) {
+        if (empty($attributes)) {
+            return '';
+        }
+        
+        $labels = [];
+        foreach ($attributes as $name => $value) {
+            if (!empty($value)) {
+                // Limpiar nombre del atributo (quitar pa_ si existe)
+                $clean_name = str_replace('pa_', '', $name);
+                // Reemplazar guiones por espacios y underscores por espacios
+                $clean_name = str_replace(['-', '_'], ' ', $clean_name);
+                $clean_name = ucfirst($clean_name);
+                $labels[] = "$clean_name: $value";
+            }
+        }
+        
+        // Separar por <br> en lugar de comas para mostrar en líneas separadas
+        return implode('<br>', $labels);
+    }
+
+    /**
+     * Buscar productos con variaciones (migrado de search_products_ajax.php)
+     */
+    public function searchProductsWithVariations($search_term = '', $limit = 50) {
+        $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
+        $limit = (int)$limit;
+        
+        $search_condition = '';
+        if (!empty($search_term)) {
+            $search_condition = "AND (
+                p.post_title LIKE '%$search_term%' 
+                OR pm_sku_prod.meta_value LIKE '%$search_term%'
+                OR pm_sku_var.meta_value LIKE '%$search_term%'
+                OR p.post_content LIKE '%$search_term%'
+            )";
+        }
+        
+        $query = "
+        SELECT 
+            p.ID as id_producto,
+            p.post_parent as producto_padre_id,
+            p.post_type,
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN 
+                    (SELECT post_title FROM miau_posts WHERE ID = p.post_parent)
+                ELSE p.post_title 
+            END as nombre,
+            p.post_content as descripcion,
+            p.post_excerpt as descripcion_corta,
+            
+            -- IDs para lógica
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN p.post_parent
+                ELSE p.ID
+            END as product_id,
+            
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN p.ID
+                ELSE NULL
+            END as variation_id,
+            
+            -- Precios con subconsultas para evitar duplicados
+            COALESCE(PM_price_var.price, PM_price_prod.price, '0') as precio,
+            COALESCE(PM_regular_var.regular_price, PM_regular_prod.regular_price, '0') as precio_regular,
+            COALESCE(PM_sale_var.sale_price, PM_sale_prod.sale_price, '') as precio_oferta,
+            
+            -- Stock y SKU
+            COALESCE(PM_stock_var.stock, PM_stock_prod.stock, '0') as stock,
+            COALESCE(PM_stock_status_var.stock_status, PM_stock_status_prod.stock_status, 'outofstock') as estado_stock,
+            COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') as sku
+            
+        FROM miau_posts p
+        
+        -- Subconsultas para precios de variaciones
+        LEFT JOIN (
+            SELECT post_id, meta_value as price
+            FROM miau_postmeta 
+            WHERE meta_key = '_price'
+        ) PM_price_var ON PM_price_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as regular_price
+            FROM miau_postmeta 
+            WHERE meta_key = '_regular_price'
+        ) PM_regular_var ON PM_regular_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as sale_price
+            FROM miau_postmeta 
+            WHERE meta_key = '_sale_price'
+        ) PM_sale_var ON PM_sale_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        -- Subconsultas para precios de productos padre
+        LEFT JOIN (
+            SELECT post_id, meta_value as price
+            FROM miau_postmeta 
+            WHERE meta_key = '_price'
+        ) PM_price_prod ON PM_price_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as regular_price
+            FROM miau_postmeta 
+            WHERE meta_key = '_regular_price'
+        ) PM_regular_prod ON PM_regular_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as sale_price
+            FROM miau_postmeta 
+            WHERE meta_key = '_sale_price'
+        ) PM_sale_prod ON PM_sale_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        -- Subconsultas para stock
+        LEFT JOIN (
+            SELECT post_id, meta_value as stock
+            FROM miau_postmeta 
+            WHERE meta_key = '_stock'
+        ) PM_stock_var ON PM_stock_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as stock
+            FROM miau_postmeta 
+            WHERE meta_key = '_stock'
+        ) PM_stock_prod ON PM_stock_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as stock_status
+            FROM miau_postmeta 
+            WHERE meta_key = '_stock_status'
+        ) PM_stock_status_var ON PM_stock_status_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as stock_status
+            FROM miau_postmeta 
+            WHERE meta_key = '_stock_status'
+        ) PM_stock_status_prod ON PM_stock_status_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        -- Subconsultas para SKU
+        LEFT JOIN (
+            SELECT post_id, meta_value as sku_var
+            FROM miau_postmeta 
+            WHERE meta_key = '_sku'
+        ) PM_sku_var ON PM_sku_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as sku_prod
+            FROM miau_postmeta 
+            WHERE meta_key = '_sku'
+        ) PM_sku_prod ON PM_sku_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        WHERE p.post_status = 'publish'
+        AND (
+            -- Productos simples (sin variaciones)
+            (p.post_type = 'product' AND p.ID NOT IN (
+                SELECT DISTINCT post_parent 
+                FROM miau_posts 
+                WHERE post_type = 'product_variation' 
+                AND post_status = 'publish'
+                AND post_parent IS NOT NULL
+            ))
+            OR
+            -- Solo variaciones (no productos padre)
+            p.post_type = 'product_variation'
+        )
+        $search_condition
+        ORDER BY p.post_title ASC
+        LIMIT $limit";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        if (!$result) {
+            throw new Exception('Error en consulta de productos con variaciones: ' . mysqli_error($this->wp_connection));
+        }
+        
+        $products = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            // Obtener atributos de variación si es una variación
+            $variation_attributes = null;
+            $variation_label = '';
+            
+            if ($row['variation_id']) {
+                $variation_attributes = $this->getVariationAttributes($row['variation_id']);
+                $variation_label = $this->buildVariationLabel($variation_attributes);
+            }
+            
+            // Construir título separando nombre padre y variación
+            $parent_name = $row['nombre'];
+            $display_title = $parent_name; // Solo nombre del padre
+            
+            $products[] = [
+                // IDs principales
+                'id' => (int)$row['id_producto'],                    // ID único (variación o producto)
+                'product_id' => (int)$row['product_id'],             // ID del producto padre
+                'variation_id' => $row['variation_id'],              // ID de variación (null si es producto)
+                
+                // Información básica
+                'title' => $display_title,
+                'parent_name' => $parent_name,                       // Nombre del producto padre
+                'variation_label' => $variation_label,               // Label formateado de variación
+                'variation_attributes' => $variation_attributes,     // Atributos raw de variación
+                
+                // Descripción
+                'descripcion' => $row['descripcion'] ?? '',
+                'descripcion_corta' => $row['descripcion_corta'] ?? '',
+                
+                // Precios
+                'precio' => (float)($row['precio'] ?? 0),
+                'precio_regular' => (float)($row['precio_regular'] ?? 0),
+                'precio_oferta' => !empty($row['precio_oferta']) ? (float)$row['precio_oferta'] : null,
+                
+                // Stock
+                'stock' => (int)($row['stock'] ?? 0),
+                'estado_stock' => $row['estado_stock'] ?? 'outofstock',
+                'is_available' => ($row['estado_stock'] === 'instock'),
+                
+                // Otros
+                'sku' => $row['sku'] ?? '',
+                'post_type' => $row['post_type']
+            ];
+        }
+        
+        mysqli_free_result($result);
+        return $products;
+    }
+
+    /**
+     * Buscar productos por nombre o SKU (versión legacy mantenida para compatibilidad)
      */
     public function searchProducts($search_term, $limit = 50) {
         $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
@@ -149,58 +401,231 @@ class WooCommerceProducts {
     /**
      * Obtener un producto específico por ID
      */
-    public function getProductById($product_id) {
-        $product_id = intval($product_id);
+    public function getProductsByIds(array $product_ids, array $variation_ids = []): array {
+        if (empty($product_ids) && empty($variation_ids)) {
+            return [];
+        }
+
+        // Limpiar y preparar IDs
+        $product_ids = array_values(array_unique(array_map('intval', array_filter($product_ids))));
+        $variation_ids = array_values(array_unique(array_map('intval', array_filter($variation_ids))));
         
+        // Combinar todos los IDs para la consulta
+        $all_ids = array_merge($product_ids, $variation_ids);
+        if (empty($all_ids)) {
+            return [];
+        }
+        
+        $ids_str = implode(',', $all_ids);
+
         $query = "
-            SELECT 
-                p.ID as id_producto,
-                p.post_title as nombre,
-                p.post_content as descripcion,
-                p.post_excerpt as descripcion_corta,
-                COALESCE(pm_price.meta_value, '0') as precio,
-                COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
-                COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
-                COALESCE(pm_stock.meta_value, '0') as stock,
-                COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
-                COALESCE(pm_sku.meta_value, '') as sku,
-                COALESCE(pm_weight.meta_value, '') as peso
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
-            LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
-            LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-            LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
-            LEFT JOIN miau_postmeta pm_weight ON p.ID = pm_weight.post_id AND pm_weight.meta_key = '_weight'
-            WHERE p.ID = $product_id 
-            AND p.post_type = 'product'
-            LIMIT 1
-        ";
+        SELECT 
+            p.ID as id_producto,
+            p.post_parent as producto_padre_id,
+            p.post_type,
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN 
+                    (SELECT post_title FROM miau_posts WHERE ID = p.post_parent)
+                ELSE p.post_title 
+            END as nombre,
+            p.post_content as descripcion,
+            p.post_excerpt as descripcion_corta,
+            
+            -- IDs para lógica
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN p.post_parent
+                ELSE p.ID
+            END as product_id,
+            
+            CASE 
+                WHEN p.post_type = 'product_variation' THEN p.ID
+                ELSE NULL
+            END as variation_id,
+            
+            -- Precios con subconsultas para evitar duplicados
+            COALESCE(PM_price_var.price, PM_price_prod.price, '0') as precio,
+            COALESCE(PM_regular_var.regular_price, PM_regular_prod.regular_price, PM_price_var.price, PM_price_prod.price, '0') as precio_regular,
+            COALESCE(PM_sale_var.sale_price, PM_sale_prod.sale_price, '') as precio_oferta,
+            
+            -- Stock y SKU
+            COALESCE(PM_stock_var.stock, PM_stock_prod.stock, '0') as stock,
+            COALESCE(PM_stock_status_var.stock_status, PM_stock_status_prod.stock_status, 'outofstock') as estado_stock,
+            COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') as sku,
+            
+            -- Imagen y permalink
+            COALESCE(PM_image_var.image_id, PM_image_prod.image_id, '') as image_id,
+            COALESCE(PM_permalink_var.permalink, PM_permalink_prod.permalink, '') as permalink
+            
+        FROM miau_posts p
         
+        -- Subconsultas para precios de variaciones
+        LEFT JOIN (
+            SELECT post_id, meta_value as price
+            FROM miau_postmeta 
+            WHERE meta_key = '_price'
+        ) PM_price_var ON PM_price_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as regular_price
+            FROM miau_postmeta 
+            WHERE meta_key = '_regular_price'
+        ) PM_regular_var ON PM_regular_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as sale_price
+            FROM miau_postmeta 
+            WHERE meta_key = '_sale_price'
+        ) PM_sale_var ON PM_sale_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        -- Subconsultas para precios de productos padre
+        LEFT JOIN (
+            SELECT post_id, meta_value as price
+            FROM miau_postmeta 
+            WHERE meta_key = '_price'
+        ) PM_price_prod ON PM_price_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as regular_price
+            FROM miau_postmeta 
+            WHERE meta_key = '_regular_price'
+        ) PM_regular_prod ON PM_regular_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as sale_price
+            FROM miau_postmeta 
+            WHERE meta_key = '_sale_price'
+        ) PM_sale_prod ON PM_sale_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        -- Subconsultas para stock
+        LEFT JOIN (
+            SELECT post_id, meta_value as stock
+            FROM miau_postmeta 
+            WHERE meta_key = '_stock'
+        ) PM_stock_var ON PM_stock_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as stock
+            FROM miau_postmeta 
+            WHERE meta_key = '_stock'
+        ) PM_stock_prod ON PM_stock_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as stock_status
+            FROM miau_postmeta 
+            WHERE meta_key = '_stock_status'
+        ) PM_stock_status_var ON PM_stock_status_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as stock_status
+            FROM miau_postmeta 
+            WHERE meta_key = '_stock_status'
+        ) PM_stock_status_prod ON PM_stock_status_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        -- Subconsultas para SKU
+        LEFT JOIN (
+            SELECT post_id, meta_value as sku_var
+            FROM miau_postmeta 
+            WHERE meta_key = '_sku'
+        ) PM_sku_var ON PM_sku_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as sku_prod
+            FROM miau_postmeta 
+            WHERE meta_key = '_sku'
+        ) PM_sku_prod ON PM_sku_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        -- Subconsultas para imagen
+        LEFT JOIN (
+            SELECT post_id, meta_value as image_id
+            FROM miau_postmeta 
+            WHERE meta_key = '_thumbnail_id'
+        ) PM_image_var ON PM_image_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as image_id
+            FROM miau_postmeta 
+            WHERE meta_key = '_thumbnail_id'
+        ) PM_image_prod ON PM_image_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        -- Subconsultas para permalink
+        LEFT JOIN (
+            SELECT post_id, meta_value as permalink
+            FROM miau_postmeta 
+            WHERE meta_key = '_product_url'
+        ) PM_permalink_var ON PM_permalink_var.post_id = p.ID AND p.post_type = 'product_variation'
+        
+        LEFT JOIN (
+            SELECT post_id, meta_value as permalink
+            FROM miau_postmeta 
+            WHERE meta_key = '_product_url'
+        ) PM_permalink_prod ON PM_permalink_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
+        
+        WHERE p.ID IN ($ids_str)
+        AND p.post_status = 'publish'
+        AND (p.post_type = 'product' OR p.post_type = 'product_variation')
+        ORDER BY p.post_title ASC";
+
         $result = mysqli_query($this->wp_connection, $query);
         
         if (!$result) {
-            die("Error en consulta de producto: " . mysqli_error($this->wp_connection));
+            throw new Exception("Error obteniendo productos por IDs: " . mysqli_error($this->wp_connection));
         }
-        
-        $product = mysqli_fetch_assoc($result);
-        
-        if ($product) {
-            // Formatear datos para compatibilidad
-            $product['precio'] = floatval($product['precio'] ?? 0);
-            $product['precio_regular'] = floatval($product['precio_regular'] ?? 0);
-            $product['precio_oferta'] = !empty($product['precio_oferta']) ? floatval($product['precio_oferta']) : 0;
-            $product['stock'] = intval($product['stock'] ?? 0);
-            $product['en_stock'] = ($product['estado_stock'] === 'instock');
-            $product['sku'] = $product['sku'] ?? '';
-            $product['descripcion_corta'] = $product['descripcion_corta'] ?? '';
-            $product['descripcion'] = $product['descripcion'] ?? '';
+
+        $products = [];
+        while ($row = mysqli_fetch_assoc($result)) {
+            // Obtener atributos de variación si es una variación
+            $variation_attributes = null;
+            $variation_label = '';
             
-            return $product;
+            if ($row['variation_id']) {
+                $variation_attributes = $this->getVariationAttributes($row['variation_id']);
+                $variation_label = $this->buildVariationLabel($variation_attributes);
+            }
+            
+            // Construir título separando nombre padre y variación
+            $parent_name = $row['nombre'];
+            $display_title = $parent_name; // Solo nombre del padre
+            
+            $products[] = [
+                // IDs principales
+                'id' => (int)$row['id_producto'],                    // ID único (variación o producto)
+                'id_producto' => (int)$row['id_producto'],           // Compatibilidad
+                'product_id' => (int)$row['product_id'],             // ID del producto padre
+                'variation_id' => $row['variation_id'],              // ID de variación (null si es producto)
+                
+                // Información básica
+                'nombre' => $display_title,
+                'title' => $display_title,
+                'parent_name' => $parent_name,                       // Nombre del producto padre
+                'variation_label' => $variation_label,               // Label formateado de variación
+                'variation_attributes' => $variation_attributes,     // Atributos raw de variación
+                
+                // Descripción
+                'descripcion' => $row['descripcion'] ?? '',
+                'descripcion_corta' => $row['descripcion_corta'] ?? '',
+                
+                // Precios
+                'precio' => (float)($row['precio'] ?? 0),
+                'precio_regular' => (float)($row['precio_regular'] ?? 0),
+                'precio_oferta' => !empty($row['precio_oferta']) ? (float)$row['precio_oferta'] : null,
+                
+                // Stock
+                'stock' => (int)($row['stock'] ?? 0),
+                'estado_stock' => $row['estado_stock'] ?? 'outofstock',
+                'en_stock' => ($row['estado_stock'] === 'instock'),
+                'is_available' => ($row['estado_stock'] === 'instock'),
+                
+                // Otros
+                'sku' => $row['sku'] ?? '',
+                'image_id' => $row['image_id'] ?? '',
+                'image_url' => '', // Se puede construir desde image_id si es necesario
+                'permalink' => $row['permalink'] ?? '',
+                'post_type' => $row['post_type']
+            ];
         }
         
-        return null;
+        mysqli_free_result($result);
+        return $products;
     }
     
     /**
@@ -245,74 +670,6 @@ class WooCommerceProducts {
         return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
     }
 
-    public function getProductsByIds(array $product_ids): array {
-        if (empty($product_ids)) {
-            return [];
-        }
-
-        $product_ids = array_values(array_unique(array_map('intval', $product_ids)));
-        $ids_string = implode(',', $product_ids);
-
-        $query = "
-            SELECT
-                p.ID as id_producto,
-                p.post_title as nombre,
-                p.guid as permalink,
-                COALESCE(pm_price.meta_value, '0') as precio,
-                COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
-                COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
-                COALESCE(pm_sku.meta_value, '') as sku
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
-            LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
-            WHERE p.ID IN ($ids_string)
-            AND p.post_type = 'product'
-        ";
-
-        $result = mysqli_query($this->wp_connection, $query);
-        if (!$result) {
-            throw new Exception("Error en consulta de productos por IDs: " . mysqli_error($this->wp_connection));
-        }
-
-        $images = $this->getProductImages($product_ids);
-
-        $products = [];
-        while ($row = mysqli_fetch_assoc($result)) {
-            $id = intval($row['id_producto'] ?? 0);
-            if ($id <= 0) {
-                continue;
-            }
-
-            $row['precio'] = floatval($row['precio'] ?? 0);
-            $row['precio_regular'] = floatval($row['precio_regular'] ?? 0);
-            $row['precio_oferta'] = !empty($row['precio_oferta']) ? floatval($row['precio_oferta']) : 0;
-            $row['sku'] = $row['sku'] ?? '';
-            $row['permalink'] = $row['permalink'] ?? '';
-            $row['image_url'] = $images[$id] ?? 'https://via.placeholder.com/200x200?text=Sin+Imagen';
-
-            $products[$id] = $row;
-        }
-
-        // Completar los que no aparezcan (por ejemplo productos borrados)
-        foreach ($product_ids as $pid) {
-            if (!isset($products[$pid])) {
-                $products[$pid] = [
-                    'id_producto' => $pid,
-                    'nombre' => 'Producto',
-                    'permalink' => '',
-                    'precio' => 0,
-                    'precio_regular' => 0,
-                    'precio_oferta' => 0,
-                    'sku' => '',
-                    'image_url' => $images[$pid] ?? 'https://via.placeholder.com/200x200?text=Sin+Imagen'
-                ];
-            }
-        }
-
-        return $products;
-    }
     
     /**
      * Obtener múltiples imágenes de productos de una vez (optimizado)

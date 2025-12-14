@@ -36,14 +36,28 @@ $items = $ordersService->getOrderItems($order_id);
 require_once('class/woocommerce_products.php');
 $productsService = new WooCommerceProducts();
 
+// Recopilar IDs de productos y variaciones específicos de los items del pedido
 $product_ids = [];
+$variation_ids = [];
+
 foreach ($items as $it) {
-    if (!empty($it['product_id'])) {
-        $product_ids[] = (int)$it['product_id'];
-    }
+    $pid = (int)($it['product_id'] ?? 0);
+    $vid = (int)($it['variation_id'] ?? 0);
+    
+    if ($pid > 0) $product_ids[] = $pid;
+    if ($vid > 0) $variation_ids[] = $vid;
 }
 
-$products_map = $productsService->getProductsByIds($product_ids);
+// Obtener productos con variaciones usando consulta directa por IDs específicos
+$products_map = [];
+if (!empty($product_ids) || !empty($variation_ids)) {
+    $products_with_variations = $productsService->getProductsByIds($product_ids, $variation_ids);
+    
+    // Crear mapa indexado por ID único
+    foreach ($products_with_variations as $prod) {
+        $products_map[$prod['id']] = $prod;
+    }
+}
 
 $products_payload = [];
 $total_items = 0;
@@ -51,27 +65,47 @@ $items_total_price = 0;
 
 foreach ($items as $it) {
     $pid = (int)($it['product_id'] ?? 0);
-    $p = $products_map[$pid] ?? null;
-
+    $vid = (int)($it['variation_id'] ?? 0);
     $qty = (int)($it['cantidad'] ?? 0);
     $total_items += $qty;
 
     $line_total = (float)($it['total_linea'] ?? 0);
     $items_total_price += $line_total;
 
-    $regular = $p ? (float)($p['precio_regular'] ?? 0) : 0;
+    // Buscar producto: primero por variation_id si existe, luego por product_id
+    $lookup_id = $vid > 0 ? $vid : $pid;
+    $p = $products_map[$lookup_id] ?? null;
+
+    // Precios desde el pedido (line_total/cantidad), no desde producto
+    $unit_price = $qty > 0 ? ($line_total / $qty) : 0;
+    $regular = $p ? (float)($p['precio_regular'] ?? $unit_price) : $unit_price;
     $sale = $p ? (float)($p['precio_oferta'] ?? 0) : 0;
-    $price = $p ? (float)($p['precio'] ?? 0) : 0;
+    $price = $unit_price; // Precio real del pedido
+
+    // Construir imagen URL correctamente - usar getProductImage siempre para productos válidos
+    $image_url = '';
+    if ($p) {
+        $image_url = $productsService->getProductImage($lookup_id);
+    } else {
+        $image_url = 'http://localhost/MIAU/wp-content/uploads/woocommerce-placeholder.webp';
+    }
 
     $products_payload[] = [
-        'id' => $pid,
-        'title' => $p ? ($p['nombre'] ?? ($it['nombre_producto'] ?? 'Producto')) : ($it['nombre_producto'] ?? 'Producto'),
+        'id' => $lookup_id,               // ID único (variación o producto)
+        'product_id' => $pid,             // ID del producto padre
+        'variation_id' => $vid > 0 ? $vid : null,  // ID de variación
+        
+        'title' => $p ? ($p['parent_name'] ?? $p['nombre'] ?? ($it['nombre_producto'] ?? 'Producto')) : ($it['nombre_producto'] ?? 'Producto'),
+        'parent_name' => $p ? ($p['parent_name'] ?? $p['nombre'] ?? ($it['nombre_producto'] ?? 'Producto')) : ($it['nombre_producto'] ?? 'Producto'),
+        'variation_label' => $p ? ($p['variation_label'] ?? '') : '',
+        'variation_attributes' => $p ? ($p['variation_attributes'] ?? null) : null,
+        
         'quantity' => $qty,
-        'price' => $price,
+        'price' => $price,                // Precio real del pedido
         'regular_price' => $regular,
-        'sale_price' => ($sale > 0 ? $sale : null),
+        'sale_price' => ($sale > 0 && $sale < $regular) ? $sale : null,
         'sku' => $p ? ($p['sku'] ?? '') : '',
-        'image_url' => $p ? ($p['image_url'] ?? '') : '',
+        'image_url' => $image_url,        // URL de imagen construida correctamente
         'permalink' => $p ? ($p['permalink'] ?? '') : ''
     ];
 }
@@ -91,13 +125,24 @@ $serverCustomerData = [
     'order_id' => (int)$order_id,
     'nombre1' => (string)($order['nombre_cliente'] ?? ''),
     'nombre2' => (string)($order['apellido_cliente'] ?? ''),
+
+    // ✅ DNI: manda ambos keys para compatibilidad con tu JS / formularios
+    'dni' => (string)($order['dni_cliente'] ?? ''),
+    'billing_id' => (string)($order['dni_cliente'] ?? ''),
+
     '_billing_email' => (string)($order['email_cliente'] ?? ''),
     '_billing_phone' => (string)($order['telefono_cliente'] ?? ''),
+
     '_shipping_address_1' => (string)($order['direccion_cliente'] ?? ''),
-    '_shipping_address_2' => '',
-    '_billing_neighborhood' => '',
+    '_shipping_address_2' => (string)($order['direccion_2'] ?? ''),
+
+    // ✅ Barrio (YA NO VACÍO)
+    '_billing_neighborhood' => (string)($order['barrio'] ?? ''),
+
+    // ✅ Ciudad / Depto / País (YA NO VACÍO)
     '_shipping_city' => (string)($order['ciudad_cliente'] ?? ''),
-    '_shipping_state' => ''
+    '_shipping_state' => (string)($order['departamento'] ?? ''),
+    '_shipping_country' => (string)($order['pais'] ?? 'CO'),
 ];
 
 $serverFormData = [
