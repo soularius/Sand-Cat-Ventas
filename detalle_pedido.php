@@ -6,7 +6,7 @@ requireLogin('facturacion.php');
 $order_id = Utils::captureValue('id-orden', 'GET', '');
 $order_id = intval($order_id);
 if ($order_id <= 0) {
-    Header("Location: adminventas.php");
+    Header("Location: inicio.php");
     exit();
 }
 
@@ -27,7 +27,7 @@ $ordersService = new WooCommerceOrders();
 
 $order = $ordersService->getOrderById($order_id);
 if (!$order) {
-    Header("Location: adminventas.php");
+    Header("Location: inicio.php");
     exit();
 }
 
@@ -279,7 +279,7 @@ include('parts/header.php');
                     <div class="action-buttons mt-4">
                         <div class="row">
                             <div class="col-md-6">
-                                <button class="btn btn-danger btn-custom btn-lg w-100" onclick="window.location.href='adminventas.php'">
+                                <button class="btn btn-danger btn-custom btn-lg w-100" onclick="window.location.href='inicio.php'">
                                     <i class="fas fa-arrow-left me-2"></i>Volver a Pedidos
                                 </button>
                             </div>

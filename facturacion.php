@@ -6,14 +6,14 @@ require_once('class/autoload.php');
 require_once('parts/login_handler.php');
 
 // 3. Lógica de autenticación y procesamiento
-// Si ya está logueado, redirigir a adminventas.php
+// Si ya está logueado, redirigir a inicio.php
 if (isLoggedIn()) {
-    Header("Location: adminventas.php");
+    Header("Location: inicio.php");
     exit();
 }
 
 // Procesar login con redirección dinámica
-processLogin("adminventas.php");
+processLogin("inicio.php");
 
 // 4. DESPUÉS: Cargar presentación
 include("parts/header.php");

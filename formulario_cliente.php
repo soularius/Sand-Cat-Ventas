@@ -340,7 +340,7 @@ include('parts/step_wizard.php');
             <div class="row mt-4">
                 <div class="col-12">
                     <div class="d-flex justify-content-between">
-                        <a href="adminventas.php" class="btn btn-danger btn-custom">
+                        <a href="inicio.php" class="btn btn-danger btn-custom">
                             <i class="fas fa-times"></i> Cancelar
                         </a>
                         <button type="submit" class="btn btn-success btn-custom">

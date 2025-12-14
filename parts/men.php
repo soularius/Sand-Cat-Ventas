@@ -4,7 +4,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 // Definir las páginas y sus elementos de menú correspondientes
 $menu_items = [
-    'adminventas.php' => 'inicio',
+    'inicio.php' => 'inicio',
     'admin.php' => 'ventas',
     'productos.php' => 'productos', 
     'usuarios.php' => 'usuarios',
@@ -35,7 +35,7 @@ $active_menu = isset($menu_items[$current_page]) ? $menu_items[$current_page] : 
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
           <a class="nav-link <?php echo ($active_menu == 'inicio') ? 'active fw-bold' : ''; ?> px-3 py-2 rounded-pill mx-1" 
-             href="adminventas.php" title="Página de inicio">
+             href="inicio.php" title="Página de inicio">
             <i class="fas fa-home me-2"></i>
             <span class="d-none d-lg-inline">Inicio</span>
           </a>

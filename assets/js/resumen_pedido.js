@@ -719,7 +719,7 @@ function createFinalOrder() {
 
 // Ir a lista de pedidos
 function goToOrderList() {
-    window.location.href = 'adminventas.php';
+    window.location.href = 'inicio.php';
 }
 
 // Crear nuevo pedido
@@ -729,5 +729,5 @@ function createNewOrder() {
     localStorage.removeItem('ventas_order_summary');
     localStorage.removeItem('ventas_customer_data');
     
-    window.location.href = 'adminventas.php';
+    window.location.href = 'inicio.php';
 }

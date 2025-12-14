@@ -23,7 +23,7 @@ if (isset($_GET['logout']) && !empty($_GET['logout'])) {
  * @param string $success_redirect - URL a donde redirigir en caso de éxito
  * @param string $error_redirect - URL a donde redirigir en caso de error
  */
-function processLogin($success_redirect = "adminventas.php", $error_redirect = null)
+function processLogin($success_redirect = "inicio.php", $error_redirect = null)
 {
     global $sandycat;
 

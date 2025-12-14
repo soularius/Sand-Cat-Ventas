@@ -63,7 +63,7 @@ if (file_exists($log_file)) {
                         <button class="btn btn-primary" onclick="location.reload()">
                             <i class="fas fa-sync-alt me-1"></i>Actualizar
                         </button>
-                        <a href="adminventas.php" class="btn btn-secondary">
+                        <a href="inicio.php" class="btn btn-secondary">
                             <i class="fas fa-arrow-left me-1"></i>Volver
                         </a>
                     </div>
@@ -121,7 +121,7 @@ if (file_exists($log_file)) {
                         </div>
                         <div class="card-body">
                             <ol>
-                                <li>Ve a <a href="adminventas.php" target="_blank">Generar Pedido</a></li>
+                                <li>Ve a <a href="inicio.php" target="_blank">Generar Pedido</a></li>
                                 <li>Ingresa el DNI/Cédula del cliente que existe</li>
                                 <li>Haz clic en "Buscar"</li>
                                 <li>Regresa aquí y actualiza la página para ver los logs</li>

@@ -398,7 +398,7 @@ window.initFormPersistence = function(formId) {
 };
 
 /**
- * Limpiar datos al buscar cliente (llamar desde adminventas.php)
+ * Limpiar datos al buscar cliente (llamar desde inicio.php)
  */
 window.clearCustomerDataOnSearch = function() {
     if (window.formPersistenceInstance) {

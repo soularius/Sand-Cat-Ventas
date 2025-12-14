@@ -19,8 +19,8 @@ if (isLoggedIn()) {
 ### `processLogin($success_redirect, $error_redirect)`
 Procesa el formulario de login con redirecciones dinámicas.
 ```php
-// Redirigir a adminventas.php en éxito, error automático
-processLogin("adminventas.php");
+// Redirigir a inicio.php en éxito, error automático
+processLogin("inicio.php");
 
 // Redirecciones personalizadas
 processLogin("dashboard.php", "login.php?error=failed");
