@@ -93,12 +93,12 @@ function generarHTMLFactura($datos) {
     }
     .precio-tachado {
       text-decoration: line-through;
-      color: #666;
-      font-size: 0.9em;
+      color: #777777;
+      font-size: 1rem;
     }
     .precio-descuento {
-      color: #d9534f;
-      font-weight: bold;
+      color: #141414;
+      font-size: 1rem;
     }
     .sku-text {
       font-size: 1rem;
@@ -154,7 +154,7 @@ function generarHTMLFactura($datos) {
     if (!empty($dni)) {
         $cuerpo .= '
       <tr>
-        <td colspan="4">DNI: '.$dni.'</td>
+        <td colspan="4"><strong>DNI:</strong> '.$dni.'</td>
       </tr>';
     }
     
@@ -162,16 +162,16 @@ function generarHTMLFactura($datos) {
     if (!empty($documento)) {
         $cuerpo .= '
       <tr>
-        <td colspan="4">Documento: '.$documento.'</td>
+        <td colspan="4"><strong>Documento:</strong> '.$documento.'</td>
       </tr>';
     }
 
     $cuerpo .= '
       <tr>
-        <td colspan="4">Teléfono: '.$celular.'</td>
+        <td colspan="4"><strong>Teléfono:</strong> '.$celular.'</td>
       </tr>
       <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180">Email: '.$correo.'</td>
+        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Email:</strong> '.$correo.'</td>
       </tr>';
 
     // Agregar dirección completa del cliente
@@ -186,7 +186,7 @@ function generarHTMLFactura($datos) {
     if (!empty($direccion_completa)) {
         $cuerpo .= '
       <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180">Dirección: '.$direccion_completa.'</td>
+        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Dirección:</strong> '.$direccion_completa.'</td>
       </tr>';
     }
 
@@ -194,7 +194,7 @@ function generarHTMLFactura($datos) {
     if (!empty($barrio)) {
         $cuerpo .= '
       <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180">Barrio: '.$barrio.'</td>
+        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Barrio:</strong> '.$barrio.'</td>
       </tr>';
     }
 
@@ -219,7 +219,7 @@ function generarHTMLFactura($datos) {
     if (!empty($ubicacion)) {
         $cuerpo .= '
       <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180">Ubicación: '.$ubicacion.'</td>
+        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Ubicación:</strong> '.$ubicacion.'</td>
       </tr>';
     }
 
@@ -301,16 +301,16 @@ function generarHTMLFactura($datos) {
                     $precio_html = '<span class="precio-tachado">'.number_format($precio_original).'</span><br>';
                     $precio_html .= '<span class="precio-descuento">'.number_format($precio_con_descuento).'</span>';
                 } else {
-                    $precio_html = number_format($vunit);
+                    $precio_html = '<br>'.number_format($vunit);
                 }
                 
                 $cuerpo .= '
-      <tr>
-        <td style="text-align: center; vertical-align: top"><br>'.$cant.'</td>
-        <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$descripcion_completa.'</td>
-        <td style="text-align: right; vertical-align: top"><br>'.$precio_html.'</td>
-        <td style="text-align: right; vertical-align: top"><br>'.number_format($line_total).'</td>
-      </tr>';
+                  <tr>
+                    <td style="text-align: center; vertical-align: top"><br>'.$cant.'</td>
+                    <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$descripcion_completa.'</td>
+                    <td style="text-align: right; vertical-align: top">'.$precio_html.'</td>
+                    <td style="text-align: right; vertical-align: top"><br>'.number_format($line_total).'</td>
+                  </tr>';
             }
         }
         // Si es un array (para enviar_factura_email.php)

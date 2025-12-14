@@ -63,7 +63,7 @@ $query_orden = "
     LEFT JOIN miau_postmeta pm_city ON p.ID = pm_city.post_id AND pm_city.meta_key = '_billing_city'
     LEFT JOIN miau_postmeta pm_state ON p.ID = pm_state.post_id AND pm_state.meta_key = '_billing_state'
     LEFT JOIN miau_postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
-    LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_barrio'
+    LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_neighborhood'
     LEFT JOIN miau_postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_dni'
     WHERE p.ID = '$orden_id' AND p.post_type = 'shop_order'
 ";
