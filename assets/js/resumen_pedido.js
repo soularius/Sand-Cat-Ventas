@@ -172,49 +172,54 @@ class OrderSummary {
                             ${hasDiscount ? '<div class="position-absolute top-0 end-0 m-3"><span class="badge bg-danger fs-6 px-3 py-2 rounded-pill shadow">¡Oferta!</span></div>' : ''}
                         </div>
 
-                        <div class="card-body d-flex flex-column p-3 card-body-product">
-                            <h6 class="card-title fw-bold mb-2 product-title-clickable" 
+                        <div class="card-body d-flex flex-column p-3 card-body-product justify-content-between">
+                            <h6 class="card-title fw-bold mb-1 product-title-clickable" 
                                 onclick="window.open('${safePermalink}', '_blank')"
                                 title="Click para ver detalles del producto"
-                                style="color: #2c3e50; line-height: 1.3; cursor: pointer; transition: all 0.3s ease;">${product.title}</h6>
-
+                                style="color: #2c3e50; line-height: 1.3; cursor: pointer; transition: all 0.3s ease;">
+                                ${product.parent_name || product.title}
+                            </h6>
+                            ${product.variation_label ? `<div class="text-muted small mb-2" style="font-size: 0.85em; line-height: 1.2;">${product.variation_label}</div>` : ''}
+                            
                             ${product.sku ? `
                                 <div class="mb-2">
                                     <span class="product-sku badge bg-light text-dark">SKU: ${product.sku}</span>
                                 </div>
                             ` : ''}
 
-                            ${hasDiscount ? `
-                                <div class="price mb-3">
-                                    <div class="d-flex align-items-center justify-content-between box-prices">
-                                        <div>
-                                            <span class="sale-price text-danger fw-bold fs-5">$${finalUnitPrice.toLocaleString('es-CO')}</span>
-                                            <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${regularPrice.toLocaleString('es-CO')}</span>
+                            <div class="box-product-info">
+                                ${hasDiscount ? `
+                                    <div class="price mb-3">
+                                        <div class="d-flex align-items-center justify-content-between box-prices">
+                                            <div>
+                                                <span class="sale-price text-danger fw-bold fs-5">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                                <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${regularPrice.toLocaleString('es-CO')}</span>
+                                            </div>
+                                            <span class="badge bg-danger rounded-pill">Oferta</span>
                                         </div>
-                                        <span class="badge bg-danger rounded-pill">Oferta</span>
                                     </div>
-                                </div>
-                            ` : `
-                                <div class="price mb-3">
-                                    <div class="d-flex align-items-center justify-content-between box-prices">
-                                        <span class="text-primary fw-normal fs-6">P/U</span>
-                                        <span class="current-price text-primary fw-bold fs-6">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                ` : `
+                                    <div class="price mb-3">
+                                        <div class="d-flex align-items-center justify-content-between box-prices">
+                                            <span class="text-primary fw-normal fs-6">P/U</span>
+                                            <span class="current-price text-primary fw-bold fs-6">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                        </div>
                                     </div>
+                                `}
+
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="current-price text-error fw-bold fs-5">Total: </span>
+                                    <span class="current-price text-error fw-bold fs-5">$${subtotal.toLocaleString('es-CO')}</span>
                                 </div>
-                            `}
 
-                            <div class="d-flex align-items-center justify-content-between">
-                                <span class="current-price text-error fw-bold fs-5">Total: </span>
-                                <span class="current-price text-error fw-bold fs-5">$${subtotal.toLocaleString('es-CO')}</span>
-                            </div>
-
-                            <div class="product-actions d-flex justify-content-between align-items-center mt-auto">
-                                <button class="btn btn-secondary btn-custom btn-circular btn-sm position-absolute text-white" 
-                                        onclick="shareProductLink('${safePermalink}', '${safeTitle}')" 
-                                        title="Compartir enlace">
-                                    <i class="fas fa-share-alt"></i>
-                                </button>
-                                <span class="badge badge-qty bg-cuertar bg-custom rounded-pill position-absolute" title="Cantidad">×${qty}</span>
+                                <div class="product-actions d-flex justify-content-between align-items-center">
+                                    <button class="btn btn-secondary btn-custom btn-circular btn-sm position-absolute text-white" 
+                                            onclick="shareProductLink('${safePermalink}', '${safeTitle}')" 
+                                            title="Compartir enlace">
+                                        <i class="fas fa-share-alt"></i>
+                                    </button>
+                                    <span class="badge badge-qty bg-cuertar bg-custom rounded-pill position-absolute" title="Cantidad">×${qty}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
