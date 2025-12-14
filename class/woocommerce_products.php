@@ -401,169 +401,158 @@ class WooCommerceProducts {
     /**
      * Obtener un producto específico por ID
      */
-    public function getProductsByIds(array $product_ids, array $variation_ids = []): array {
-        if (empty($product_ids) && empty($variation_ids)) {
-            return [];
-        }
-
-        // Limpiar y preparar IDs
-        $product_ids = array_values(array_unique(array_map('intval', array_filter($product_ids))));
-        $variation_ids = array_values(array_unique(array_map('intval', array_filter($variation_ids))));
-        
-        // Combinar todos los IDs para la consulta
+    /**
+     * ✅ Obtiene productos/variaciones por sus IDs con fallback de imágenes y sin duplicados
+     * 
+     * @param array $product_ids Array de IDs de productos
+     * @param array $variation_ids Array de IDs de variaciones (opcional)
+     * @return array Array de productos con todos los datos necesarios
+     */
+    public function getProductsByIds(array $product_ids, array $variation_ids = []): array
+    {
+        // Sanitizar y combinar todos los IDs
         $all_ids = array_merge($product_ids, $variation_ids);
+        $all_ids = array_map('intval', $all_ids);
+        $all_ids = array_filter($all_ids, function($id) { return $id > 0; });
+        $all_ids = array_unique($all_ids);
+        
         if (empty($all_ids)) {
             return [];
         }
         
+        // Crear string seguro de IDs (solo números, separados por coma)
         $ids_str = implode(',', $all_ids);
-
+        
         $query = "
-        SELECT 
-            p.ID as id_producto,
-            p.post_parent as producto_padre_id,
-            p.post_type,
-            CASE 
-                WHEN p.post_type = 'product_variation' THEN 
-                    (SELECT post_title FROM miau_posts WHERE ID = p.post_parent)
-                ELSE p.post_title 
-            END as nombre,
-            p.post_content as descripcion,
-            p.post_excerpt as descripcion_corta,
-            
-            -- IDs para lógica
-            CASE 
-                WHEN p.post_type = 'product_variation' THEN p.post_parent
-                ELSE p.ID
-            END as product_id,
-            
-            CASE 
-                WHEN p.post_type = 'product_variation' THEN p.ID
-                ELSE NULL
-            END as variation_id,
-            
-            -- Precios con subconsultas para evitar duplicados
-            COALESCE(PM_price_var.price, PM_price_prod.price, '0') as precio,
-            COALESCE(PM_regular_var.regular_price, PM_regular_prod.regular_price, PM_price_var.price, PM_price_prod.price, '0') as precio_regular,
-            COALESCE(PM_sale_var.sale_price, PM_sale_prod.sale_price, '') as precio_oferta,
-            
-            -- Stock y SKU
-            COALESCE(PM_stock_var.stock, PM_stock_prod.stock, '0') as stock,
-            COALESCE(PM_stock_status_var.stock_status, PM_stock_status_prod.stock_status, 'outofstock') as estado_stock,
-            COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') as sku,
-            
-            -- Imagen y permalink
-            COALESCE(PM_image_var.image_id, PM_image_prod.image_id, '') as image_id,
-            COALESCE(PM_permalink_var.permalink, PM_permalink_prod.permalink, '') as permalink
-            
-        FROM miau_posts p
-        
-        -- Subconsultas para precios de variaciones
-        LEFT JOIN (
-            SELECT post_id, meta_value as price
-            FROM miau_postmeta 
-            WHERE meta_key = '_price'
-        ) PM_price_var ON PM_price_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as regular_price
-            FROM miau_postmeta 
-            WHERE meta_key = '_regular_price'
-        ) PM_regular_var ON PM_regular_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as sale_price
-            FROM miau_postmeta 
-            WHERE meta_key = '_sale_price'
-        ) PM_sale_var ON PM_sale_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        -- Subconsultas para precios de productos padre
-        LEFT JOIN (
-            SELECT post_id, meta_value as price
-            FROM miau_postmeta 
-            WHERE meta_key = '_price'
-        ) PM_price_prod ON PM_price_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as regular_price
-            FROM miau_postmeta 
-            WHERE meta_key = '_regular_price'
-        ) PM_regular_prod ON PM_regular_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as sale_price
-            FROM miau_postmeta 
-            WHERE meta_key = '_sale_price'
-        ) PM_sale_prod ON PM_sale_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        -- Subconsultas para stock
-        LEFT JOIN (
-            SELECT post_id, meta_value as stock
-            FROM miau_postmeta 
-            WHERE meta_key = '_stock'
-        ) PM_stock_var ON PM_stock_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as stock
-            FROM miau_postmeta 
-            WHERE meta_key = '_stock'
-        ) PM_stock_prod ON PM_stock_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as stock_status
-            FROM miau_postmeta 
-            WHERE meta_key = '_stock_status'
-        ) PM_stock_status_var ON PM_stock_status_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as stock_status
-            FROM miau_postmeta 
-            WHERE meta_key = '_stock_status'
-        ) PM_stock_status_prod ON PM_stock_status_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        -- Subconsultas para SKU
-        LEFT JOIN (
-            SELECT post_id, meta_value as sku_var
-            FROM miau_postmeta 
-            WHERE meta_key = '_sku'
-        ) PM_sku_var ON PM_sku_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as sku_prod
-            FROM miau_postmeta 
-            WHERE meta_key = '_sku'
-        ) PM_sku_prod ON PM_sku_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        -- Subconsultas para imagen
-        LEFT JOIN (
-            SELECT post_id, meta_value as image_id
-            FROM miau_postmeta 
-            WHERE meta_key = '_thumbnail_id'
-        ) PM_image_var ON PM_image_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as image_id
-            FROM miau_postmeta 
-            WHERE meta_key = '_thumbnail_id'
-        ) PM_image_prod ON PM_image_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        -- Subconsultas para permalink
-        LEFT JOIN (
-            SELECT post_id, meta_value as permalink
-            FROM miau_postmeta 
-            WHERE meta_key = '_product_url'
-        ) PM_permalink_var ON PM_permalink_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as permalink
-            FROM miau_postmeta 
-            WHERE meta_key = '_product_url'
-        ) PM_permalink_prod ON PM_permalink_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        WHERE p.ID IN ($ids_str)
-        AND p.post_status = 'publish'
-        AND (p.post_type = 'product' OR p.post_type = 'product_variation')
-        ORDER BY p.post_title ASC";
+            SELECT 
+                p.ID AS id,
+
+                /* product_id = padre si es variación */
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.post_parent 
+                    ELSE p.ID 
+                END AS product_id,
+
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.ID 
+                    ELSE NULL 
+                END AS variation_id,
+
+                p.post_title AS nombre,
+
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN parent.post_title 
+                    ELSE p.post_title 
+                END AS parent_name,
+
+                p.post_type,
+
+                /* Precios (si existen en la variación, salen; si no, quedan null y luego lo ajustamos a fallback al padre) */
+                MAX(pm_price.meta_value)   AS precio,
+                MAX(pm_regular.meta_value) AS precio_regular,
+                MAX(pm_sale.meta_value)    AS precio_oferta,
+
+                /* Stock */
+                MAX(pm_stock.meta_value)        AS stock,
+                MAX(pm_stock_status.meta_value) AS estado_stock,
+
+                /* SKU */
+                MAX(pm_sku.meta_value) AS sku,
+
+                /* ✅ image_id con fallback: variación -> padre */
+                COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id, 0) AS image_id,
+
+                /* URL base del sitio */
+                opt.base_url AS siteurl,
+
+                /* ✅ image_url: si hay _wp_attached_file armamos URL; si no, fallback guid */
+                CASE
+                    WHEN COALESCE(att_file.file_path, '') <> '' THEN
+                        CONCAT(opt.base_url, '/wp-content/uploads/', att_file.file_path)
+                    ELSE
+                        COALESCE(att.guid, '')
+                END AS image_url
+
+            FROM miau_posts p
+
+            /* Padre (solo para variación) */
+            LEFT JOIN miau_posts parent
+                ON parent.ID = p.post_parent
+               AND p.post_type = 'product_variation'
+
+            /* Metas del post actual */
+            LEFT JOIN miau_postmeta pm_price
+                ON pm_price.post_id = p.ID AND pm_price.meta_key = '_price'
+            LEFT JOIN miau_postmeta pm_regular
+                ON pm_regular.post_id = p.ID AND pm_regular.meta_key = '_regular_price'
+            LEFT JOIN miau_postmeta pm_sale
+                ON pm_sale.post_id = p.ID AND pm_sale.meta_key = '_sale_price'
+
+            LEFT JOIN miau_postmeta pm_stock
+                ON pm_stock.post_id = p.ID AND pm_stock.meta_key = '_stock'
+            LEFT JOIN miau_postmeta pm_stock_status
+                ON pm_stock_status.post_id = p.ID AND pm_stock_status.meta_key = '_stock_status'
+
+            LEFT JOIN miau_postmeta pm_sku
+                ON pm_sku.post_id = p.ID AND pm_sku.meta_key = '_sku'
+
+            /* ✅ base_url desde options (siteurl/home) */
+            CROSS JOIN (
+                SELECT TRIM(TRAILING '/' FROM COALESCE(
+                    MAX(CASE WHEN option_name = 'siteurl' THEN option_value END),
+                    MAX(CASE WHEN option_name = 'home'    THEN option_value END),
+                    ''
+                )) AS base_url
+                FROM miau_options
+                WHERE option_name IN ('siteurl', 'home')
+            ) opt
+
+            /* ✅ thumb_id de la variación (agrupado para evitar duplicados) */
+            LEFT JOIN (
+                SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
+                FROM miau_postmeta
+                WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
+                GROUP BY post_id
+            ) thumb_var
+                ON thumb_var.post_id = p.ID
+               AND p.post_type = 'product_variation'
+
+            /* ✅ thumb_id del padre (o del mismo post si no es variación) */
+            LEFT JOIN (
+                SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
+                FROM miau_postmeta
+                WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
+                GROUP BY post_id
+            ) thumb_prod
+                ON thumb_prod.post_id = CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.post_parent
+                    ELSE p.ID
+                END
+
+            /* ✅ _wp_attached_file del attachment final */
+            LEFT JOIN (
+                SELECT post_id, MAX(meta_value) AS file_path
+                FROM miau_postmeta
+                WHERE meta_key = '_wp_attached_file' AND meta_value <> ''
+                GROUP BY post_id
+            ) att_file
+                ON att_file.post_id = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
+
+            /* ✅ guid del attachment (fallback) */
+            LEFT JOIN miau_posts att
+                ON att.ID = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
+               AND att.post_type = 'attachment'
+
+            WHERE p.ID IN ($ids_str)
+              AND p.post_status = 'publish'
+              AND p.post_type IN ('product', 'product_variation')
+
+            GROUP BY
+                p.ID, p.post_title, p.post_type, parent.post_title,
+                opt.base_url, thumb_var.thumb_id, thumb_prod.thumb_id, att_file.file_path, att.guid
+
+            ORDER BY p.post_title ASC
+        ";
 
         $result = mysqli_query($this->wp_connection, $query);
         
@@ -572,59 +561,57 @@ class WooCommerceProducts {
         }
 
         $products = [];
+        $processed_ids = []; // Para evitar duplicados en el array final
+        
         while ($row = mysqli_fetch_assoc($result)) {
+            $id = (int)$row['id'];
+            
+            // Evitar duplicados en el array final
+            if (in_array($id, $processed_ids)) {
+                continue;
+            }
+            $processed_ids[] = $id;
+            
             // Obtener atributos de variación si es una variación
             $variation_attributes = null;
             $variation_label = '';
             
-            if ($row['variation_id']) {
-                $variation_attributes = $this->getVariationAttributes($row['variation_id']);
+            if ($row['post_type'] === 'product_variation') {
+                $variation_attributes = $this->getVariationAttributes($id);
                 $variation_label = $this->buildVariationLabel($variation_attributes);
             }
             
-            // Construir título separando nombre padre y variación
-            $parent_name = $row['nombre'];
-            $display_title = $parent_name; // Solo nombre del padre
+            // ✅ Usar directamente image_url de la DB (ya viene construida)
+            $image_url = $row['image_url'] ?? '';
             
-            $products[] = [
-                // IDs principales
-                'id' => (int)$row['id_producto'],                    // ID único (variación o producto)
-                'id_producto' => (int)$row['id_producto'],           // Compatibilidad
-                'product_id' => (int)$row['product_id'],             // ID del producto padre
-                'variation_id' => $row['variation_id'],              // ID de variación (null si es producto)
-                
-                // Información básica
-                'nombre' => $display_title,
-                'title' => $display_title,
-                'parent_name' => $parent_name,                       // Nombre del producto padre
-                'variation_label' => $variation_label,               // Label formateado de variación
-                'variation_attributes' => $variation_attributes,     // Atributos raw de variación
-                
-                // Descripción
-                'descripcion' => $row['descripcion'] ?? '',
-                'descripcion_corta' => $row['descripcion_corta'] ?? '',
-                
-                // Precios
+            // Construir array del producto con todos los campos necesarios
+            $product = [
+                'id' => $id,
+                'id_producto' => $id, // Compatibilidad
+                'product_id' => (int)$row['product_id'], // Ya viene correcto del SQL
+                'variation_id' => ($row['post_type'] === 'product_variation') ? $id : null,
+                'nombre' => $row['nombre'] ?? '',
+                'title' => $row['nombre'] ?? '', // Compatibilidad
+                'parent_name' => $row['parent_name'] ?? $row['nombre'] ?? '',
+                'variation_label' => $variation_label,
+                'variation_attributes' => $variation_attributes,
                 'precio' => (float)($row['precio'] ?? 0),
                 'precio_regular' => (float)($row['precio_regular'] ?? 0),
-                'precio_oferta' => !empty($row['precio_oferta']) ? (float)$row['precio_oferta'] : null,
-                
-                // Stock
+                'precio_oferta' => (float)($row['precio_oferta'] ?? 0),
                 'stock' => (int)($row['stock'] ?? 0),
                 'estado_stock' => $row['estado_stock'] ?? 'outofstock',
-                'en_stock' => ($row['estado_stock'] === 'instock'),
-                'is_available' => ($row['estado_stock'] === 'instock'),
-                
-                // Otros
                 'sku' => $row['sku'] ?? '',
-                'image_id' => $row['image_id'] ?? '',
-                'image_url' => '', // Se puede construir desde image_id si es necesario
-                'permalink' => $row['permalink'] ?? '',
-                'post_type' => $row['post_type']
+                'image_id' => (int)($row['image_id'] ?? 0),
+                'image_url' => $image_url,
+                'permalink' => '', // Se puede agregar lógica específica si se necesita
+                'post_type' => $row['post_type'] ?? 'product'
             ];
+            
+            $products[] = $product;
         }
         
         mysqli_free_result($result);
+        
         return $products;
     }
     

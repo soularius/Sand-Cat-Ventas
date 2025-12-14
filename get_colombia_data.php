@@ -12,12 +12,12 @@ $action = $_GET['action'] ?? '';
 
 try {
     // Log para debugging
-    error_log("get_colombia_data.php - Action: $action");
+    Utils::logError("get_colombia_data.php - Action: $action");
     
     if ($action === 'departamentos') {
         // Obtener departamentos desde archivo de datos del plugin
         $states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
-        error_log("Cargando departamentos desde: $states_file");
+        Utils::logError("Cargando departamentos desde: $states_file");
         
         if (file_exists($states_file)) {
             $colombia_states = include($states_file);
@@ -31,14 +31,14 @@ try {
                     ];
                 }
                 
-                error_log("Departamentos cargados: " . count($departamentos));
+                Utils::logError("Departamentos cargados: " . count($departamentos));
                 echo json_encode(['success' => true, 'data' => $departamentos]);
             } else {
-                error_log("Error: El archivo no retorna un array válido");
+                Utils::logError("Error: El archivo no retorna un array válido");
                 echo json_encode(['success' => false, 'error' => 'Error en formato de datos de departamentos']);
             }
         } else {
-            error_log("Error: No se encontró el archivo de departamentos");
+            Utils::logError("Error: No se encontró el archivo de departamentos");
             echo json_encode(['success' => false, 'error' => 'No se encontró el archivo de departamentos']);
         }
         
@@ -52,7 +52,7 @@ try {
         
         // Obtener ciudades desde archivo de datos del plugin
         $places_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/places/CO.php';
-        error_log("Cargando ciudades desde: $places_file para departamento: $departamento");
+        Utils::logError("Cargando ciudades desde: $places_file para departamento: $departamento");
         
         if (file_exists($places_file)) {
             // Cargar el archivo que define $places['CO']
@@ -69,14 +69,14 @@ try {
                     ];
                 }
                 
-                error_log("Ciudades encontradas para $departamento: " . count($ciudades));
+                Utils::logError("Ciudades encontradas para $departamento: " . count($ciudades));
                 echo json_encode(['success' => true, 'data' => $ciudades]);
             } else {
-                error_log("No se encontraron ciudades para el departamento: $departamento");
+                Utils::logError("No se encontraron ciudades para el departamento: $departamento");
                 echo json_encode(['success' => false, 'error' => "No se encontraron ciudades para el departamento: $departamento"]);
             }
         } else {
-            error_log("Error: No se encontró el archivo de ciudades");
+            Utils::logError("Error: No se encontró el archivo de ciudades");
             echo json_encode(['success' => false, 'error' => 'No se encontró el archivo de ciudades']);
         }
         

@@ -490,7 +490,9 @@ class WooCommerceOrders
             $createdLineItemIds = [];
 
             foreach ($orderData['products'] as $p) {
-                $productId = (int)($p['id'] ?? 0);
+                // ✅ Usar el resolver robusto para obtener IDs correctos
+                [$parentProductId, $variationId] = $this->resolveWooProductIds($p);
+
                 $title = (string)($p['title'] ?? 'Producto');
                 $qty = (int)($p['quantity'] ?? 0);
                 if ($qty < 1) continue;
@@ -509,10 +511,10 @@ class WooCommerceOrders
 
                 $createdLineItemIds[] = $itemId;
 
-                // Meta del item
                 $itemMeta = [
-                    '_product_id' => (string)$productId,
-                    '_variation_id' => '0',
+                    '_product_id' => (string)$parentProductId,
+                    '_variation_id' => (string)$variationId,
+
                     '_qty' => (string)$qty,
                     '_tax_class' => '',
                     '_line_subtotal' => (string)$lineSubtotal,
@@ -528,6 +530,41 @@ class WooCommerceOrders
                         'meta_key' => $mk,
                         'meta_value' => $mv,
                     ]);
+                }
+
+                // ✅ Insertar correctamente miau_wc_order_product_lookup (con order_item_id y variaciones)
+                if ($this->tableExists('miau_wc_order_product_lookup')) {
+                    try {
+                        // Calcular descuentos a nivel de producto
+                        $productDiscount = ($lineSubtotal - $lineTotal); // Diferencia entre precio regular y precio final
+                        $gross = $lineTotal; // revenue por item después de descuentos
+                        
+                        // Obtener tax rate desde .env (porcentaje)
+                        $taxRate = (float)($_ENV['TAX_RATE'] ?? 0); // Ejemplo: 19 para 19%
+                        $taxAmount = ($gross * $taxRate) / 100;
+                        
+                        // Calcular shipping amount proporcional por producto
+                        $totalItemsValue = $itemsTotal; // Total de todos los productos
+                        $productShippingAmount = $totalItemsValue > 0 ? ($shippingCost * $gross) / $totalItemsValue : 0;
+                        
+                        $this->insertRow('miau_wc_order_product_lookup', [
+                            'order_item_id' => $itemId,            // ✅ CRÍTICO
+                            'order_id'      => $postId,
+                            'product_id'    => $parentProductId,   // ✅ padre
+                            'variation_id'  => (int)$variationId,  // ✅ variación o 0
+                            'customer_id'   => $customerId,
+                            'date_created'  => $nowLocal,
+                            'product_qty'   => $qty,
+                            'product_net_revenue'   => (float)$gross,
+                            'product_gross_revenue' => (float)$lineSubtotal, // Precio antes de descuentos
+                            'coupon_amount' => (float)$productDiscount, // ✅ Descuentos reales del producto
+                            'tax_amount'    => 0, // ✅ Tax desde .env
+                            'shipping_amount' => (float)$productShippingAmount, // ✅ Shipping proporcional del form
+                            'shipping_tax_amount' => 0,
+                        ]);
+                    } catch (Exception $e) {
+                        $debug['warnings'][] = 'No se pudo insertar wc_order_product_lookup: ' . $e->getMessage();
+                    }
                 }
             }
 
@@ -719,6 +756,47 @@ class WooCommerceOrders
     }
 
     /**
+     * Resuelve IDs WooCommerce para line_item:
+     * - product_id = ID del producto PADRE
+     * - variation_id = ID de la variación (0 si no aplica)
+     */
+    private function resolveWooProductIds(array $p): array
+    {
+        // Soportar múltiples nombres de keys (porque el frontend suele variar)
+        $variationId = (int)($p['variation_id'] ?? $p['variationId'] ?? $p['id_variation'] ?? 0);
+        $productId   = (int)($p['product_id'] ?? $p['productId'] ?? $p['producto_padre_id'] ?? $p['parent_id'] ?? $p['id_producto'] ?? 0);
+
+        $id = (int)($p['id'] ?? 0);
+        $postType = (string)($p['post_type'] ?? '');
+
+        // Si el payload dice que es variación y no trajo variation_id, asumimos que "id" es la variación
+        if ($variationId <= 0 && $postType === 'product_variation' && $id > 0) {
+            $variationId = $id;
+        }
+
+        // Si tenemos variationId pero no productId, buscamos el padre en WP
+        if ($variationId > 0 && $productId <= 0) {
+            $q = "SELECT post_parent FROM miau_posts WHERE ID = {$variationId} AND post_type = 'product_variation' LIMIT 1";
+            $r = mysqli_query($this->wp_connection, $q);
+            if ($r && ($row = mysqli_fetch_assoc($r))) {
+                $productId = (int)($row['post_parent'] ?? 0);
+            }
+        }
+
+        // Si no es variación y no trajo productId, usamos id como producto
+        if ($variationId <= 0 && $productId <= 0 && $id > 0) {
+            $productId = $id;
+        }
+
+        // Validación dura: si productId queda en 0, algo está mal en el payload/mapeo
+        if ($productId <= 0) {
+            throw new Exception("Producto inválido: no se pudo resolver product_id. Payload keys=" . implode(',', array_keys($p)));
+        }
+
+        return [$productId, $variationId]; // variationId puede ser 0
+    }
+
+    /**
      * Inserta tablas de analytics / lookups si existen.
      * OJO: no rompe creación si fallan.
      */
@@ -757,38 +835,7 @@ class WooCommerceOrders
             }
         }
 
-        // 2) wc_order_product_lookup
-        if ($this->tableExists('miau_wc_order_product_lookup')) {
-            foreach ($products as $p) {
-                try {
-                    $qty = (int)($p['quantity'] ?? 0);
-                    if ($qty < 1) continue;
-                    $pid = (int)($p['id'] ?? 0);
-
-                    $regular = (int)($p['regular_price'] ?? $p['price'] ?? 0);
-                    $price   = (int)(($p['sale_price'] !== null && $p['sale_price'] !== '') ? $p['sale_price'] : ($p['price'] ?? $regular));
-
-                    $gross = $price * $qty;
-
-                    $this->insertRow('miau_wc_order_product_lookup', [
-                        'order_id' => $orderId,
-                        'product_id' => $pid,
-                        'variation_id' => 0,
-                        'customer_id' => $customerId, // 🔥 VINCULACIÓN CRÍTICA
-                        'date_created' => $nowLocal,
-                        'product_qty' => $qty,
-                        'product_net_revenue' => (float)$gross,
-                        'product_gross_revenue' => (float)$gross,
-                        'coupon_amount' => 0,
-                        'tax_amount' => 0,
-                        'shipping_amount' => 0,
-                        'shipping_tax_amount' => 0,
-                    ]);
-                } catch (Exception $e) {
-                    // no-op
-                }
-            }
-        }
+        // 2) wc_order_product_lookup - ELIMINADO porque ahora se inserta correctamente en el foreach de productos
     }
 
     /* ==============================================================
@@ -1001,25 +1048,50 @@ class WooCommerceOrders
     }
 
     /**
-     * Obtener productos de una orden
+     * Obtener productos de una orden (incluye variation_id)
      */
     public function getOrderItems($order_id)
     {
         $order_id = (int)$order_id;
 
+        // DEBUG: Verificar si existen items para este pedido
+        $debug_query = "SELECT COUNT(*) as count FROM miau_woocommerce_order_items WHERE order_id = {$order_id}";
+        $debug_result = mysqli_query($this->wp_connection, $debug_query);
+        if ($debug_result) {
+            $debug_row = mysqli_fetch_assoc($debug_result);
+            error_log("DEBUG getOrderItems: Pedido {$order_id} tiene {$debug_row['count']} items en miau_woocommerce_order_items");
+        }
+
         $query = "
             SELECT 
                 oi.order_item_id,
                 oi.order_item_name as nombre_producto,
+
                 oim_qty.meta_value as cantidad,
                 oim_total.meta_value as total_linea,
-                oim_product_id.meta_value as product_id
+
+                -- ✅ Producto padre
+                oim_product_id.meta_value as product_id,
+
+                -- ✅ Variación (si aplica)
+                oim_variation_id.meta_value as variation_id
+
             FROM miau_woocommerce_order_items oi
-            LEFT JOIN miau_woocommerce_order_itemmeta oim_qty ON oi.order_item_id = oim_qty.order_item_id AND oim_qty.meta_key = '_qty'
-            LEFT JOIN miau_woocommerce_order_itemmeta oim_total ON oi.order_item_id = oim_total.order_item_id AND oim_total.meta_key = '_line_total'
-            LEFT JOIN miau_woocommerce_order_itemmeta oim_product_id ON oi.order_item_id = oim_product_id.order_item_id AND oim_product_id.meta_key = '_product_id'
+
+            LEFT JOIN miau_woocommerce_order_itemmeta oim_qty
+                ON oi.order_item_id = oim_qty.order_item_id AND oim_qty.meta_key = '_qty'
+
+            LEFT JOIN miau_woocommerce_order_itemmeta oim_total
+                ON oi.order_item_id = oim_total.order_item_id AND oim_total.meta_key = '_line_total'
+
+            LEFT JOIN miau_woocommerce_order_itemmeta oim_product_id
+                ON oi.order_item_id = oim_product_id.order_item_id AND oim_product_id.meta_key = '_product_id'
+
+            LEFT JOIN miau_woocommerce_order_itemmeta oim_variation_id
+                ON oi.order_item_id = oim_variation_id.order_item_id AND oim_variation_id.meta_key = '_variation_id'
+
             WHERE oi.order_id = {$order_id} 
-            AND oi.order_item_type = 'line_item'
+              AND oi.order_item_type = 'line_item'
             ORDER BY oi.order_item_id
         ";
 
@@ -1033,8 +1105,12 @@ class WooCommerceOrders
             $row['cantidad'] = (int)($row['cantidad'] ?? 0);
             $row['total_linea'] = (float)($row['total_linea'] ?? 0);
             $row['product_id'] = (int)($row['product_id'] ?? 0);
+            $row['variation_id'] = (int)($row['variation_id'] ?? 0);
+
             $items[] = $row;
         }
+
+        mysqli_free_result($result);
         return $items;
     }
 
@@ -1432,9 +1508,6 @@ class WooCommerceOrders
         while ($row = mysqli_fetch_assoc($result)) {
             // DEBUG: Mostrar datos crudos de la primera fila
             if (isset($_GET['debug_sql']) && count($orders) == 0) {
-                echo "<pre>PRIMERA FILA CRUDA:\n";
-                var_dump($row);
-                echo "</pre>";
             }
             
             // Formatear datos para compatibilidad
@@ -1450,17 +1523,7 @@ class WooCommerceOrders
             $row['ciudad_cliente'] = '';
             
             $orders[] = $row;
-        }
-        
-        // DEBUG: Mostrar el array final
-        if (isset($_GET['debug_sql'])) {
-            echo "<pre>TOTAL DE ÓRDENES PROCESADAS: " . count($orders) . "\n";
-            if (count($orders) > 0) {
-                echo "PRIMERA ORDEN PROCESADA:\n";
-                var_dump($orders[0]);
-            }
-            echo "</pre>";
-        }
+        }       
         
         return $orders;
     }
@@ -1499,6 +1562,89 @@ class WooCommerceOrders
         }
         
         return $stats;
+    }
+
+    /**
+     * ✅ Obtiene descuentos totales de un pedido desde múltiples fuentes
+     * 
+     * @param int $order_id ID del pedido
+     * @return array Array con descuentos detallados
+     */
+    public function getOrderDiscounts(int $order_id): array
+    {
+        $discounts = [
+            'cart_discount' => 0,
+            'coupons' => [],
+            'fees' => [],
+            'total_discount' => 0
+        ];
+        
+        // 1) Descuento desde _cart_discount en postmeta
+        $query_cart = "
+            SELECT meta_value as cart_discount
+            FROM miau_postmeta 
+            WHERE post_id = $order_id 
+            AND meta_key = '_cart_discount' 
+            AND meta_value != '0' 
+            AND meta_value != ''
+            LIMIT 1
+        ";
+        
+        $result = mysqli_query($this->wp_connection, $query_cart);
+        if ($result && ($row = mysqli_fetch_assoc($result))) {
+            $discounts['cart_discount'] = abs((float)$row['cart_discount']);
+        }
+        
+        // 2) Descuentos desde ítems (cupones y fees negativos)
+        if ($this->tableExists('miau_woocommerce_order_items')) {
+            $query_items = "
+                SELECT 
+                    oi.order_item_name,
+                    oi.order_item_type,
+                    COALESCE(SUM(CAST(oim.meta_value AS DECIMAL(10,2))), 0) as item_total
+                FROM miau_woocommerce_order_items oi
+                LEFT JOIN miau_woocommerce_order_itemmeta oim 
+                    ON oi.order_item_id = oim.order_item_id 
+                    AND oim.meta_key IN ('_line_total', '_fee_amount')
+                WHERE oi.order_id = $order_id
+                AND oi.order_item_type IN ('coupon', 'fee')
+                GROUP BY oi.order_item_id, oi.order_item_name, oi.order_item_type
+            ";
+            
+            $result = mysqli_query($this->wp_connection, $query_items);
+            if ($result) {
+                while ($row = mysqli_fetch_assoc($result)) {
+                    $amount = abs((float)$row['item_total']);
+                    
+                    if ($row['order_item_type'] === 'coupon') {
+                        $discounts['coupons'][] = [
+                            'name' => $row['order_item_name'],
+                            'amount' => $amount
+                        ];
+                    } elseif ($row['order_item_type'] === 'fee' && $amount > 0) {
+                        $discounts['fees'][] = [
+                            'name' => $row['order_item_name'],
+                            'amount' => $amount
+                        ];
+                    }
+                }
+            }
+        }
+        
+        // 3) Calcular descuento total
+        $total = $discounts['cart_discount'];
+        
+        foreach ($discounts['coupons'] as $coupon) {
+            $total += $coupon['amount'];
+        }
+        
+        foreach ($discounts['fees'] as $fee) {
+            $total += $fee['amount'];
+        }
+        
+        $discounts['total_discount'] = $total;
+        
+        return $discounts;
     }
 
     public function __destruct()

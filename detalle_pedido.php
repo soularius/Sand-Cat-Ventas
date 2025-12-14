@@ -33,6 +33,9 @@ if (!$order) {
 
 $items = $ordersService->getOrderItems($order_id);
 
+// DEBUG: Ver qué items se obtuvieron del pedido
+Utils::logError("ORDER ITEMS DEBUG: " . json_encode($items), 'DEBUG', 'detalle_pedido.php');
+
 require_once('class/woocommerce_products.php');
 $productsService = new WooCommerceProducts();
 
@@ -48,16 +51,27 @@ foreach ($items as $it) {
     if ($vid > 0) $variation_ids[] = $vid;
 }
 
-// Obtener productos con variaciones usando consulta directa por IDs específicos
+// ✅ Obtener productos usando método optimizado sin duplicados
 $products_map = [];
 if (!empty($product_ids) || !empty($variation_ids)) {
     $products_with_variations = $productsService->getProductsByIds($product_ids, $variation_ids);
     
-    // Crear mapa indexado por ID único
+    // DEBUG: Ver qué productos se obtuvieron
+    Utils::logError("PRODUCTS DEBUG: Productos obtenidos: " . json_encode(array_map(function($p) { 
+        return ['id' => $p['id'], 'nombre' => $p['nombre'], 'image_url' => $p['image_url']]; 
+    }, $products_with_variations)), 'DEBUG', 'detalle_pedido.php');
+    
+    // Crear mapa indexado por ID único (el método ya evita duplicados)
     foreach ($products_with_variations as $prod) {
         $products_map[$prod['id']] = $prod;
     }
+    
+    // DEBUG: Ver qué claves tiene el mapa
+    Utils::logError("PRODUCTS DEBUG: Claves del products_map: " . json_encode(array_keys($products_map)), 'DEBUG', 'detalle_pedido.php');
 }
+
+// ✅ Obtener descuentos completos del pedido
+$order_discounts = $ordersService->getOrderDiscounts($order_id);
 
 $products_payload = [];
 $total_items = 0;
@@ -82,13 +96,16 @@ foreach ($items as $it) {
     $sale = $p ? (float)($p['precio_oferta'] ?? 0) : 0;
     $price = $unit_price; // Precio real del pedido
 
-    // Construir imagen URL correctamente - usar getProductImage siempre para productos válidos
-    $image_url = '';
-    if ($p) {
-        $image_url = $productsService->getProductImage($lookup_id);
-    } else {
+    // ✅ Imagen ya viene optimizada del método getProductsByIds
+    $image_url = $p ? ($p['image_url'] ?? '') : '';
+    
+    // Si no hay imagen del producto, usar placeholder directo
+    if (empty($image_url)) {
         $image_url = 'http://localhost/MIAU/wp-content/uploads/woocommerce-placeholder.webp';
     }
+    
+    // Log mejorado para debugging
+    Utils::logError("ORDER {$order_id} ITEM pid={$pid} vid={$vid} lookup_id={$lookup_id} image={$image_url}", 'DEBUG', 'detalle_pedido.php');
 
     $products_payload[] = [
         'id' => $lookup_id,               // ID único (variación o producto)
@@ -106,7 +123,7 @@ foreach ($items as $it) {
         'sale_price' => ($sale > 0 && $sale < $regular) ? $sale : null,
         'sku' => $p ? ($p['sku'] ?? '') : '',
         'image_url' => $image_url,        // URL de imagen construida correctamente
-        'permalink' => $p ? ($p['permalink'] ?? '') : ''
+        'line_total' => $line_total
     ];
 }
 
@@ -118,7 +135,14 @@ $serverOrderData = [
     '_order_shipping' => (string)($order['envio'] ?? ''),
     '_cart_discount' => (string)($order['descuento'] ?? ''),
     '_payment_method_title' => (string)($order['titulo_metodo_pago'] ?? ''),
-    'post_expcerpt' => ''
+    'post_expcerpt' => '',
+    
+    // ✅ Descuentos detallados desde múltiples fuentes
+    'discounts_detail' => $order_discounts,
+    'total_discount' => (float)$order_discounts['total_discount'],
+    'cart_discount_amount' => (float)$order_discounts['cart_discount'],
+    'coupons_used' => $order_discounts['coupons'],
+    'fees_applied' => $order_discounts['fees']
 ];
 
 $serverCustomerData = [
