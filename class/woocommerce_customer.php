@@ -1011,5 +1011,203 @@ class WooCommerceCustomer
             ];
         }
     }
+
+    /**
+     * FUNCIÓN PRINCIPAL PARA PROS_VENTA.PHP
+     * Procesa formulario completo de pros_venta.php SOLO para clientes
+     * Maneja todos los campos requeridos: DNI, barrio, ciudad, departamento, país
+     */
+    public function processCustomerFromProsVenta(): array
+    {
+        try {
+            // 1. Campos específicos de pros_venta.php
+            $formFields = [
+                'nombre1', 'nombre2', 'billing_id', '_billing_email', '_billing_phone',
+                '_shipping_address_1', '_shipping_address_2', '_billing_neighborhood',
+                '_shipping_city', '_shipping_state', 'post_expcerpt', '_order_shipping',
+                '_cart_discount', '_payment_method_title', '_order_id'
+            ];
+
+            // 2. Capturar datos del formulario
+            $formData = Utils::capturePostData($formFields);
+            
+            // 3. Procesar pedido existente si viene del step wizard
+            $existingOrderId = (int)($formData['_order_id'] ?? 0);
+            if ($existingOrderId > 0 && !$formData['nombre1']) {
+                $formData = $this->processExistingOrder($existingOrderId, $formData);
+            }
+
+            // 4. Procesar códigos de ubicación para diferentes tablas
+            $locationData = $this->processLocationCodes(
+                $formData['_shipping_state'] ?? '', 
+                $formData['_shipping_city'] ?? ''
+            );
+
+            // 5. Asignar variables de compatibilidad
+            $compatibilityVars = $this->assignCompatibilityVariables($formData);
+
+            // 6. Solo procesar cliente si hay datos del formulario
+            $customerResult = null;
+            if (!empty($formData['nombre1'])) {
+                $customerResult = $this->processCustomer($formData);
+                
+                // 7. Insertar en todas las tablas de cliente con formatos específicos
+                $this->insertAllCustomerTables($customerResult['user_id'], $formData, $locationData);
+            }
+
+            return [
+                'success' => true,
+                'customer_processed' => $customerResult !== null,
+                'customer_id' => $customerResult['user_id'] ?? 0,
+                'customer_created' => $customerResult['created'] ?? false,
+                'form_data' => $formData,
+                'compatibility_vars' => $compatibilityVars,
+                'location_data' => $locationData,
+                'existing_order_id' => $existingOrderId
+            ];
+
+        } catch (Exception $e) {
+            Utils::logError("Error en processCustomerFromProsVenta: " . $e->getMessage(), 'ERROR', 'WooCommerceCustomer');
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'customer_processed' => false
+            ];
+        }
+    }
+
+    /**
+     * Inserta/actualiza cliente en TODAS las tablas requeridas con formatos específicos
+     * Maneja: miau_usermeta, miau_wc_customer_lookup, miau_wc_order_addresses (si aplica)
+     */
+    private function insertAllCustomerTables(int $userId, array $formData, array $locationData): void
+    {
+        // 1. Actualizar miau_usermeta con formato específico
+        $this->updateUserMetaWithLocation($userId, $formData, $locationData);
+        
+        // 2. Actualizar miau_wc_customer_lookup con formato específico
+        $this->updateCustomerLookupWithLocation($userId, $formData, $locationData);
+        
+        Utils::logError("Cliente actualizado en todas las tablas - User ID: $userId", 'INFO', 'WooCommerceCustomer');
+    }
+
+    /**
+     * Actualiza miau_usermeta con campos específicos y formatos correctos
+     * Formato: state = solo clave (SAN), city = valor completo
+     */
+    private function updateUserMetaWithLocation(int $userId, array $formData, array $locationData): void
+    {
+        $firstName = trim((string)($formData['nombre1'] ?? $formData['_shipping_first_name'] ?? ''));
+        $lastName = trim((string)($formData['nombre2'] ?? $formData['_shipping_last_name'] ?? ''));
+        $email = trim((string)($formData['_billing_email'] ?? ''));
+        $phone = trim((string)($formData['_billing_phone'] ?? ''));
+        $address1 = trim((string)($formData['_shipping_address_1'] ?? ''));
+        $address2 = trim((string)($formData['_shipping_address_2'] ?? ''));
+        $billingId = trim((string)($formData['billing_id'] ?? ''));
+        $neighborhood = trim((string)($formData['_billing_neighborhood'] ?? ''));
+
+        // Metadatos actualizados con formatos específicos
+        $userMeta = [
+            // Datos básicos
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            
+            // Billing data con formato específico para usermeta
+            'billing_first_name' => $firstName,
+            'billing_last_name' => $lastName,
+            'billing_email' => $email,
+            'billing_phone' => $phone,
+            'billing_address_1' => $address1,
+            'billing_address_2' => $address2,
+            'billing_city' => $locationData['city_for_usermeta'], // Valor completo
+            'billing_state' => $locationData['state_for_usermeta'], // Solo clave (SAN)
+            'billing_country' => 'CO',
+            'billing_dni' => $billingId,
+            'billing_barrio' => $neighborhood,
+            
+            // Shipping data con formato específico para usermeta
+            'shipping_first_name' => $firstName,
+            'shipping_last_name' => $lastName,
+            'shipping_address_1' => $address1,
+            'shipping_address_2' => $address2,
+            'shipping_city' => $locationData['city_for_usermeta'], // Valor completo
+            'shipping_state' => $locationData['state_for_usermeta'], // Solo clave (SAN)
+            'shipping_country' => 'CO',
+        ];
+
+        foreach ($userMeta as $metaKey => $metaValue) {
+            if (!empty($metaValue)) {
+                // Verificar si el metadato ya existe
+                $checkQuery = "SELECT umeta_id FROM miau_usermeta WHERE user_id = ? AND meta_key = ? LIMIT 1";
+                $stmt = mysqli_prepare($this->wp_connection, $checkQuery);
+                mysqli_stmt_bind_param($stmt, 'is', $userId, $metaKey);
+                mysqli_stmt_execute($stmt);
+                $result = mysqli_stmt_get_result($stmt);
+                
+                if ($result && mysqli_num_rows($result) > 0) {
+                    // Actualizar metadato existente
+                    $this->updateRowByWhere('miau_usermeta', 
+                        ['meta_value' => $metaValue], 
+                        "user_id = $userId AND meta_key = '$metaKey'"
+                    );
+                } else {
+                    // Insertar nuevo metadato
+                    $this->insertRow('miau_usermeta', [
+                        'user_id' => $userId,
+                        'meta_key' => $metaKey,
+                        'meta_value' => $metaValue,
+                    ]);
+                }
+                mysqli_stmt_close($stmt);
+            }
+        }
+    }
+
+    /**
+     * Actualiza miau_wc_customer_lookup con formato específico
+     * Formato: state = solo clave (SAN), city = valor completo
+     */
+    private function updateCustomerLookupWithLocation(int $userId, array $formData, array $locationData): void
+    {
+        if (!$this->tableExists('miau_wc_customer_lookup')) {
+            return;
+        }
+
+        $email = trim((string)($formData['_billing_email'] ?? ''));
+        $firstName = trim((string)($formData['nombre1'] ?? $formData['_shipping_first_name'] ?? ''));
+        $lastName = trim((string)($formData['nombre2'] ?? $formData['_shipping_last_name'] ?? ''));
+
+        date_default_timezone_set('America/Bogota');
+        $now = date('Y-m-d H:i:s');
+
+        $customerData = [
+            'user_id' => $userId,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => $email,
+            'date_last_active' => $now,
+            'country' => 'CO',
+            'city' => $locationData['city_for_usermeta'], // Valor completo
+            'state' => $locationData['state_for_usermeta'], // Solo clave (SAN)
+        ];
+
+        // Verificar si el cliente ya existe
+        $emailEscaped = mysqli_real_escape_string($this->wp_connection, $email);
+        $checkQuery = "SELECT customer_id FROM miau_wc_customer_lookup WHERE email = '$emailEscaped' LIMIT 1";
+        $checkResult = mysqli_query($this->wp_connection, $checkQuery);
+
+        if ($checkResult && mysqli_num_rows($checkResult) > 0) {
+            // Cliente existe, actualizar
+            $row = mysqli_fetch_assoc($checkResult);
+            $existingCustomerId = (int)$row['customer_id'];
+            
+            $this->updateRowByWhere('miau_wc_customer_lookup', $customerData, "customer_id = $existingCustomerId");
+            Utils::logError("Cliente actualizado en customer_lookup - Customer ID: $existingCustomerId", 'INFO', 'WooCommerceCustomer');
+        } else {
+            // Cliente no existe, crear nuevo
+            $newCustomerId = $this->insertRow('miau_wc_customer_lookup', $customerData);
+            Utils::logError("Cliente creado en customer_lookup - Customer ID: $newCustomerId", 'INFO', 'WooCommerceCustomer');
+        }
+    }
 }
 ?>
