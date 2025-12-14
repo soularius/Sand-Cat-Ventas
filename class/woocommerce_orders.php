@@ -327,8 +327,8 @@ class WooCommerceOrders
 
         // Si HPOS existe, usaremos su formato de status
         $hposStatusReference = $this->detectHPOSStatusFormat();
-        $statusPosts = 'wc-processing';
-        $statusHPOS  = $this->normalizeStatus('processing', $hposStatusReference);
+        $statusPosts = 'wc-completed';
+        $statusHPOS  = $this->normalizeStatus('completed', $hposStatusReference);
 
         if ($mode === 'debug') {
             $debug['steps'][] = [
@@ -539,9 +539,20 @@ class WooCommerceOrders
                         $productDiscount = ($lineSubtotal - $lineTotal); // Diferencia entre precio regular y precio final
                         $gross = $lineTotal; // revenue por item después de descuentos
                         
-                        // Obtener tax rate desde .env (porcentaje)
-                        $taxRate = (float)($_ENV['TAX_RATE'] ?? 0); // Ejemplo: 19 para 19%
-                        $taxAmount = ($gross * $taxRate) / 100;
+                        // Consultar si el producto tiene IVA configurado
+                        $taxAmount = 0;
+                        $taxStatusQuery = "SELECT meta_value FROM miau_postmeta WHERE post_id = {$parentProductId} AND meta_key = '_tax_status' LIMIT 1";
+                        $taxStatusResult = mysqli_query($this->wp_connection, $taxStatusQuery);
+                        
+                        if ($taxStatusResult && ($taxRow = mysqli_fetch_assoc($taxStatusResult))) {
+                            $taxStatus = $taxRow['meta_value'] ?? 'none';
+                            
+                            // Si el producto es taxable, calcular IVA
+                            if ($taxStatus === 'taxable') {
+                                $taxRate = (float)($_ENV['TAX_RATE'] ?? 19); // Default 19% si no está en .env
+                                $taxAmount = ($gross * $taxRate) / 100;
+                            }
+                        }
                         
                         // Calcular shipping amount proporcional por producto
                         $totalItemsValue = $itemsTotal; // Total de todos los productos
@@ -558,7 +569,7 @@ class WooCommerceOrders
                             'product_net_revenue'   => (float)$gross,
                             'product_gross_revenue' => (float)$lineSubtotal, // Precio antes de descuentos
                             'coupon_amount' => (float)$productDiscount, // ✅ Descuentos reales del producto
-                            'tax_amount'    => 0, // ✅ Tax desde .env
+                            'tax_amount'    => (float)$taxAmount, // ✅ Tax basado en configuración del producto
                             'shipping_amount' => (float)$productShippingAmount, // ✅ Shipping proporcional del form
                             'shipping_tax_amount' => 0,
                         ]);
