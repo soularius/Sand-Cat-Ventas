@@ -87,7 +87,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                             </div>
 
                             <!-- Search Stats -->
-                            <div class="search-stats" id="searchStats" style="display: none;">
+                            <div class="search-stats alert alert-success" id="searchStats" style="display: none;">
                                 <small class="text-muted">
                                     <i class="fas fa-info-circle me-1"></i>
                                     <span id="resultsCount">0</span> productos encontrados
@@ -850,7 +850,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
         }
 
         // Función para mostrar notificaciones
-        function showNotification(message, type = 'info') {
+        function showNotification(message, type = 'success') {
             const toast = document.createElement('div');
             toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
             toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';

@@ -253,7 +253,7 @@ class ProductCart {
     clearCart() {
         this.cart = {};
         this.saveCart();
-        this.showNotification('Carrito limpiado', 'info');
+        this.showNotification('Carrito limpiado', 'success');
     }
     
     // Actualizar display del carrito
@@ -430,7 +430,7 @@ class ProductCart {
     }
     
     // Mostrar notificación
-    showNotification(message, type = 'info') {
+    showNotification(message, type = 'success') {
         // Crear notificación toast
         const toast = document.createElement('div');
         toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;

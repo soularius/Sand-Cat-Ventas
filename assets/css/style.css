@@ -492,13 +492,6 @@
   margin-top: 1.5rem;
 }
 
-/* Search Stats */
-.search-stats {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #e9ecef;
-  margin-bottom: 1rem;
-}
-
 /* ===== ORDER SUMMARY STYLES ===== */
 .order-summary-container {
   background-color: #f8f9fa;
@@ -1650,13 +1643,6 @@ a.a-custom:hover {
   border-radius: 10px 0 0 10px;
 }
 
-.search-stats {
-  margin-top: 10px;
-  padding: 8px 12px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
 .quick-filters {
   margin: 25px 0;
   padding: 20px 0;
@@ -2076,11 +2062,9 @@ a.a-custom:hover {
 }
 
 .search-stats {
-    background: #e3f2fd;
-    border: 1px solid #bbdefb;
     border-radius: 6px;
-    padding: 0.5rem 0.75rem;
-    margin-top: 0.5rem;
+    margin-top: 10px;
+    padding: 8px 12px;
 }
 
 .search-input-modern {

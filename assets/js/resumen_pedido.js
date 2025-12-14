@@ -582,7 +582,7 @@ class OrderSummary {
     }
     
     // Mostrar notificación
-    showNotification(message, type = 'info') {
+    showNotification(message, type = 'success') {
         const toast = document.createElement('div');
         toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
         toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
