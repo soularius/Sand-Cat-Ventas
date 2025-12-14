@@ -79,8 +79,13 @@ class OrderSummary {
     // Cargar datos del cliente desde localStorage
     loadCustomerData() {
         try {
+            console.log('[DEBUG] loadCustomerData() iniciado');
+            console.log('[DEBUG] window.serverCustomerData:', window.serverCustomerData);
+            console.log('[DEBUG] window.VentasUtils:', window.VentasUtils);
+            
             // Soporte para datos inyectados por el servidor
             if (window.serverCustomerData) {
+                console.log('[DEBUG] Usando serverCustomerData:', window.serverCustomerData);
                 this.customerData = window.serverCustomerData;
                 this.renderCustomerInfo();
                 return;
@@ -89,10 +94,15 @@ class OrderSummary {
             const storedData = (window.VentasUtils && window.VentasUtils.getCustomerData)
                 ? window.VentasUtils.getCustomerData()
                 : null;
+            
+            console.log('[DEBUG] storedData from VentasUtils:', storedData);
+            
             if (storedData) {
+                console.log('[DEBUG] Usando storedData:', storedData);
                 this.customerData = storedData;
                 this.renderCustomerInfo();
             } else {
+                console.log('[DEBUG] No hay datos del cliente, renderizando información básica');
                 // Si no hay datos del cliente, mostrar información básica
                 this.renderBasicCustomerInfo();
             }

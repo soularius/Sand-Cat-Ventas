@@ -731,25 +731,32 @@ function proceedToSummary() {
             }
         })();
     
-    // Obtener datos del cliente desde la sesión/formulario si están disponibles
-    const customerData = {
-        order_id: $('#_order_id').val(),
-        nombre1: window.customerInfo?.nombre1 || '',
-        nombre2: window.customerInfo?.nombre2 || '',
-        dni: window.customerInfo?.dni || window.customerInfo?.billing_id || '',
-        _billing_email: window.customerInfo?._billing_email || '',
-        _billing_phone: window.customerInfo?._billing_phone || '',
-        _shipping_address_1: window.customerInfo?._shipping_address_1 || '',
-        _shipping_address_2: window.customerInfo?._shipping_address_2 || '',
-        _shipping_city: window.customerInfo?._shipping_city || '',
-        _shipping_state: window.customerInfo?._shipping_state || '',
-        _billing_neighborhood: window.customerInfo?._billing_neighborhood || '',
-        timestamp: new Date().toISOString()
+    // Función para obtener datos del cliente con fallback a persistedFormData
+    const getCustomerDataSafe = () => {
+        console.log('[DEBUG] getCustomerDataSafe - window.customerInfo:', window.customerInfo);
+        console.log('[DEBUG] getCustomerDataSafe - persistedFormData:', persistedFormData);
+        
+        return {
+            // Usar nombres exactos según estructura real de localStorage
+            nombre1: window.customerInfo?.nombre1 || persistedFormData?.nombre1 || '',
+            nombre2: window.customerInfo?.nombre2 || persistedFormData?.nombre2 || '',
+            dni: window.customerInfo?.billing_id || persistedFormData?.billing_id || '',
+            _billing_email: window.customerInfo?._billing_email || persistedFormData?._billing_email || '',
+            _billing_phone: window.customerInfo?._billing_phone || persistedFormData?._billing_phone || '',
+            _shipping_address_1: window.customerInfo?._shipping_address_1 || persistedFormData?._shipping_address_1 || '',
+            _shipping_address_2: window.customerInfo?._shipping_address_2 || persistedFormData?._shipping_address_2 || '',
+            _shipping_city: window.customerInfo?._shipping_city || persistedFormData?._shipping_city || '',
+            _shipping_state: window.customerInfo?._shipping_state || persistedFormData?._shipping_state || '',
+            _billing_neighborhood: window.customerInfo?._billing_neighborhood || persistedFormData?._billing_neighborhood || '',
+            timestamp: new Date().toISOString()
+        };
     };
+    
+    // Obtener datos del cliente con fallback
+    const customerData = getCustomerDataSafe();
     
     // Guardar datos del carrito para el paso 4
     const orderData = {
-        order_id: $('#_order_id').val(),
         products: items,
         total_items: cart.getTotalItems(),
         total_price: cart.getTotalPrice(),
