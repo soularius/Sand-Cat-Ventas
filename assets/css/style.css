@@ -1135,6 +1135,42 @@ a.a-custom:hover {
   background: linear-gradient(45deg, var(--accent-color), var(--primary-color));
 }
 
+.border-primary.border-custom {
+  border-color: var(--primary-color) !important;
+}
+
+.border-secondary.border-custom {
+  border-color: var(--secondary-color) !important;
+}
+
+.border-success.border-custom {
+  border-color: var(--success-color) !important;
+}
+
+.border-danger.border-custom {
+  border-color: var(--danger-color) !important;
+}
+
+.border-warning.border-custom {
+  border-color: var(--warning-color) !important;
+}
+
+.border-info.border-custom {
+  border-color: var(--info-color) !important;
+}
+
+.border-light.border-custom {
+  border-color: var(--light-color) !important;
+}
+
+.border-dark.border-custom {
+  border-color: var(--dark-color) !important;
+}
+
+.border-white.border-custom {
+  border-color: var(--white-color) !important;
+}
+
 .navbar-nav .nav-link {
   transition: all 0.3s ease;
   position: relative;

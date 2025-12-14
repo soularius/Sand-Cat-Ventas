@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Obtener parámetros
 $orden_id = $_POST['orden_id'] ?? null;
 $factura_id = $_POST['factura_id'] ?? null;
+$email_destino = $_POST['email_destino'] ?? null;
 
 if (!$orden_id || !$factura_id) {
     http_response_code(400);
@@ -116,12 +117,19 @@ try {
         }
     }
 
-    // Verificar que el cliente tenga email
-    if (empty($orden['email_cliente'])) {
-        throw new Exception("El cliente no tiene email registrado");
+    // Determinar email de destino: personalizado o del cliente
+    if (!empty($email_destino)) {
+        // Validar formato del email personalizado
+        if (!filter_var($email_destino, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception("El email personalizado no tiene un formato válido: " . $email_destino);
+        }
+    } else {
+        // Usar email del cliente si no se especifica uno personalizado
+        if (empty($orden['email_cliente'])) {
+            throw new Exception("El cliente no tiene email registrado y no se proporcionó email personalizado");
+        }
+        $email_destino = $orden['email_cliente'];
     }
-
-    $email_destino = $orden['email_cliente'];
 
     // Generar PDF usando la función centralizada
     $factura_num = $factura_id;

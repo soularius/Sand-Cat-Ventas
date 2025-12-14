@@ -302,7 +302,7 @@ include('parts/header.php');
                                 </button>
                             </div>
                             <div class="col-md-4">
-                                <button class="btn btn-primary btn-custom btn-lg w-100 text-white" id="btnEnviarEmail" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                <button class="btn btn-primary btn-custom btn-lg w-100 text-white" id="btnEnviarEmail" <?php echo empty($factura_num) ? 'disabled' : ''; ?> data-bs-toggle="modal" data-bs-target="#emailModal">
                                     <i class="fas fa-envelope me-2"></i>Enviar Email
                                 </button>
                             </div>
@@ -319,6 +319,82 @@ include('parts/header.php');
                             </div>
                         <?php endif; ?>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Envío de Email -->
+    <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary bg-custom text-white">
+                    <h5 class="modal-title" id="emailModalLabel">
+                        <i class="fas fa-envelope me-2"></i>Enviar Factura por Email
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="mb-4">
+                        <i class="fas fa-paper-plane text-primary" style="font-size: 3rem;"></i>
+                    </div>
+                    <h6 class="mb-4">¿A dónde desea enviar la factura?</h6>
+                    
+                    <!-- Opción 1: Enviar al cliente -->
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <button type="button" class="btn btn-success btn-custom w-100 py-3" id="btnEnviarCliente">
+                                <i class="fas fa-user me-2"></i>
+                                <div>
+                                    <strong>Enviar al Cliente</strong>
+                                    <br>
+                                    <small class="text-white-50" id="clienteEmail"><?php echo htmlspecialchars($order['email_cliente'] ?? 'No disponible'); ?></small>
+                                </div>
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <div class="text-muted my-2">
+                                <i class="fas fa-minus me-2"></i> O <i class="fas fa-minus ms-2"></i>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="button" class="btn btn-warning btn-custom w-100 py-3" id="btnEnviarCustom">
+                                <i class="fas fa-at me-2"></i>
+                                <div>
+                                    <strong>Enviar a Correo Personalizado</strong>
+                                    <br>
+                                    <small class="text-white-50">Especificar dirección de email</small>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Campo de email personalizado (oculto inicialmente) -->
+                    <div class="mt-4" id="customEmailSection" style="display: none;">
+                        <div class="input-group">
+                            <span class="input-group-text bg-primary bg-custom">
+                                <i class="fas fa-envelope"></i>
+                            </span>
+                            <input type="email" class="form-control border-primary border-custom" id="customEmail" placeholder="ejemplo@correo.com" required>
+                        </div>
+                        <small class="text-muted mt-2 d-block">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Ingrese una dirección de email válida
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center" id="modalFooterDefault">
+                    <button type="button" class="btn btn-secondary btn-custom" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                </div>
+                <div class="modal-footer justify-content-center" id="modalFooterCustom" style="display: none;">
+                    <button type="button" class="btn btn-secondary btn-custom" id="btnCancelarCustom">
+                        <i class="fas fa-arrow-left me-2"></i>Volver
+                    </button>
+                    <button type="button" class="btn btn-warning btn-custom" id="btnConfirmarCustom">
+                        <i class="fas fa-paper-plane me-2"></i>Enviar
+                    </button>
                 </div>
             </div>
         </div>
@@ -363,38 +439,207 @@ include('parts/header.php');
                 };
             }
 
-            if (btnEnviar) {
-                btnEnviar.onclick = function() {
+            // Manejar modal de envío de email
+            const btnEnviarCliente = document.getElementById('btnEnviarCliente');
+            const btnEnviarCustom = document.getElementById('btnEnviarCustom');
+            const btnCancelarCustom = document.getElementById('btnCancelarCustom');
+            const btnConfirmarCustom = document.getElementById('btnConfirmarCustom');
+            const customEmailSection = document.getElementById('customEmailSection');
+            const customEmailInput = document.getElementById('customEmail');
+            const modalFooterDefault = document.getElementById('modalFooterDefault');
+            const modalFooterCustom = document.getElementById('modalFooterCustom');
+
+            // Función para enviar email
+            function enviarEmail(emailDestino) {
+                const formData = new FormData();
+                formData.append('orden_id', orderId);
+                formData.append('factura_id', factura);
+                formData.append('email_destino', emailDestino);
+
+                return fetch('enviar_factura_email.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json());
+            }
+
+            // Función para mostrar resultado
+            function mostrarResultado(data, emailDestino) {
+                const emailModal = bootstrap.Modal.getInstance(document.getElementById('emailModal'));
+                emailModal.hide();
+
+                if (data.success) {
+                    // Crear modal de éxito
+                    const successModal = document.createElement('div');
+                    successModal.innerHTML = `
+                        <div class="modal fade" id="successModal" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-success bg-custom text-white">
+                                        <h5 class="modal-title">
+                                            <i class="fas fa-check-circle me-2"></i>Email Enviado
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-center py-4">
+                                        <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                                        <h6 class="mt-3 mb-2">¡Factura enviada exitosamente!</h6>
+                                        <p class="text-muted mb-0">
+                                            <i class="fas fa-envelope me-1"></i>
+                                            Enviado a: <strong>${emailDestino}</strong>
+                                        </p>
+                                    </div>
+                                    <div class="modal-footer justify-content-center">
+                                        <button type="button" class="btn btn-success btn-custom" data-bs-dismiss="modal">
+                                            <i class="fas fa-check me-2"></i>Entendido
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(successModal);
+                    new bootstrap.Modal(document.getElementById('successModal')).show();
+                    
+                    // Limpiar modal después de cerrarlo
+                    document.getElementById('successModal').addEventListener('hidden.bs.modal', function() {
+                        document.body.removeChild(successModal);
+                    });
+                } else {
+                    // Crear modal de error
+                    const errorModal = document.createElement('div');
+                    errorModal.innerHTML = `
+                        <div class="modal fade" id="errorModal" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-danger bg-custom text-white">
+                                        <h5 class="modal-title">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>Error al Enviar
+                                        </h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-center py-4">
+                                        <i class="fas fa-times-circle text-danger" style="font-size: 3rem;"></i>
+                                        <h6 class="mt-3 mb-2">Error al enviar la factura</h6>
+                                        <p class="text-muted mb-0">${data.error || 'Error desconocido'}</p>
+                                    </div>
+                                    <div class="modal-footer justify-content-center">
+                                        <button type="button" class="btn btn-danger btn-custom" data-bs-dismiss="modal">
+                                            <i class="fas fa-times me-2"></i>Cerrar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(errorModal);
+                    new bootstrap.Modal(document.getElementById('errorModal')).show();
+                    
+                    // Limpiar modal después de cerrarlo
+                    document.getElementById('errorModal').addEventListener('hidden.bs.modal', function() {
+                        document.body.removeChild(errorModal);
+                    });
+                }
+            }
+
+            // Enviar al cliente
+            if (btnEnviarCliente) {
+                btnEnviarCliente.onclick = function() {
+                    const btn = this;
+                    const originalText = btn.innerHTML;
+                    const clienteEmail = window.serverCustomerData._billing_email;
+
+                    if (!clienteEmail) {
+                        mostrarResultado({success: false, error: 'No se encontró email del cliente'}, '');
+                        return;
+                    }
+
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+                    btn.disabled = true;
+
+                    enviarEmail(clienteEmail)
+                        .then(data => {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                            mostrarResultado(data, clienteEmail);
+                        })
+                        .catch(() => {
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                            mostrarResultado({success: false, error: 'Error de conexión'}, clienteEmail);
+                        });
+                };
+            }
+
+            // Mostrar campo de email personalizado
+            if (btnEnviarCustom) {
+                btnEnviarCustom.onclick = function() {
+                    customEmailSection.style.display = 'block';
+                    modalFooterDefault.style.display = 'none';
+                    modalFooterCustom.style.display = 'block';
+                    customEmailInput.focus();
+                };
+            }
+
+            // Volver a opciones principales
+            if (btnCancelarCustom) {
+                btnCancelarCustom.onclick = function() {
+                    customEmailSection.style.display = 'none';
+                    modalFooterDefault.style.display = 'block';
+                    modalFooterCustom.style.display = 'none';
+                    customEmailInput.value = '';
+                };
+            }
+
+            // Confirmar envío a email personalizado
+            if (btnConfirmarCustom) {
+                btnConfirmarCustom.onclick = function() {
+                    const customEmail = customEmailInput.value.trim();
+                    
+                    if (!customEmail) {
+                        customEmailInput.classList.add('is-invalid');
+                        return;
+                    }
+
+                    // Validar formato de email
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(customEmail)) {
+                        customEmailInput.classList.add('is-invalid');
+                        return;
+                    }
+
+                    customEmailInput.classList.remove('is-invalid');
+
                     const btn = this;
                     const originalText = btn.innerHTML;
 
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
                     btn.disabled = true;
 
-                    const formData = new FormData();
-                    formData.append('orden_id', orderId);
-                    formData.append('factura_id', factura);
-
-                    fetch('enviar_factura_email.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                        .then(response => response.json())
+                    enviarEmail(customEmail)
                         .then(data => {
                             btn.innerHTML = originalText;
                             btn.disabled = false;
-                            if (data.success) {
-                                alert(`Factura enviada exitosamente a: ${data.email}`);
-                            } else {
-                                alert('Error al enviar factura: ' + (data.error || 'Error desconocido'));
-                            }
+                            mostrarResultado(data, customEmail);
+                            // Resetear modal
+                            customEmailSection.style.display = 'none';
+                            modalFooterDefault.style.display = 'block';
+                            modalFooterCustom.style.display = 'none';
+                            customEmailInput.value = '';
                         })
                         .catch(() => {
                             btn.innerHTML = originalText;
                             btn.disabled = false;
-                            alert('Error al enviar factura');
+                            mostrarResultado({success: false, error: 'Error de conexión'}, customEmail);
                         });
                 };
+            }
+
+            // Limpiar validación al escribir
+            if (customEmailInput) {
+                customEmailInput.addEventListener('input', function() {
+                    this.classList.remove('is-invalid');
+                });
             }
 
             if (btnImprimir) {
