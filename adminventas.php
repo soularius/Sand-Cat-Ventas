@@ -424,6 +424,11 @@ include("parts/header.php");
                 // Efecto visual al hacer clic en continuar
                 $btnContinue.on('click', function(e) {
                     if (!$(this).prop('disabled')) {
+                        // Limpiar localStorage al iniciar nuevo pedido usando función centralizada
+                        if (typeof window.cleanVentasLocalStorage === 'function') {
+                            window.cleanVentasLocalStorage('O');
+                        }
+                        
                         // Cambiar a icono de check blanco y ocultar texto
                         $(this).html('<i class="fas fa-check text-white"></i>');
                         

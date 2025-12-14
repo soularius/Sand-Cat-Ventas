@@ -694,9 +694,10 @@ function createFinalOrder() {
         loadingModal.hide();
         
         if (response.success) {
-            // Limpiar localStorage
-            localStorage.removeItem('ventas_cart_products');
-            localStorage.removeItem('ventas_order_summary');
+            // Limpiar localStorage completamente al crear pedido
+            if (typeof window.cleanVentasLocalStorage === 'function') {
+                window.cleanVentasLocalStorage('C');
+            }
 
             // Redirigir al paso 5 (Detalle del Pedido)
             if (response.order_id) {
