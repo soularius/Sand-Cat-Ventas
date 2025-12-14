@@ -747,6 +747,9 @@ class WooCommerceOrders
             $this->upsertOperationalData($postId, $nowGmt, $shippingCost, $cartDiscount, $customerId);
             $this->upsertOrderStats($postId, $nowLocal, $nowGmt, $statusHPOS, $itemsQty, $shippingCost, $finalTotal, $customerId);
 
+            // ✅ Establecer atribución del pedido para tracking en WooCommerce
+            $this->setOrderAttribution($postId, 'Sistema de Facturacion');
+
             mysqli_commit($this->wp_connection);
 
             return [
@@ -1656,6 +1659,52 @@ class WooCommerceOrders
         $discounts['total_discount'] = $total;
         
         return $discounts;
+    }
+
+    private function upsertOrderMeta(string $table, string $idColumn, int $orderId, string $metaKey, string $metaValue): void
+    {
+        if (!$this->tableExists($table)) {
+            return; // Si la tabla no existe, no rompemos la creación del pedido
+        }
+
+        // 1) Borramos posibles duplicados (postmeta y wc_orders_meta NO tienen UNIQUE por (id, meta_key))
+        $sqlDel = "DELETE FROM {$table} WHERE {$idColumn} = ? AND meta_key = ?";
+        $stmtDel = mysqli_prepare($this->wp_connection, $sqlDel);
+        if (!$stmtDel) {
+            throw new Exception("Prepare delete meta failed ({$table}): " . mysqli_error($this->wp_connection));
+        }
+        mysqli_stmt_bind_param($stmtDel, 'is', $orderId, $metaKey);
+        if (!mysqli_stmt_execute($stmtDel)) {
+            throw new Exception("Execute delete meta failed ({$table}): " . mysqli_stmt_error($stmtDel));
+        }
+        mysqli_stmt_close($stmtDel);
+
+        // 2) Insertamos el meta limpio
+        $this->insertRow($table, [
+            $idColumn   => $orderId,
+            'meta_key'  => $metaKey,
+            'meta_value'=> $metaValue,
+        ], false);
+    }
+
+    /**
+     * Setea el origen/atribución del pedido para que WP lo muestre en "Order attribution".
+     *
+     * Truco correcto:
+     * - Usamos source_type = 'utm' porque es el que permite mostrar una "fuente" (utm_source) con texto libre.
+     */
+    public function setOrderAttribution(int $orderId, string $originLabel = 'Sistema de Facturacion'): void
+    {
+        // Fuente “custom” usando el modelo UTM:
+        $sourceType = 'utm';
+
+        // HPOS meta (si existe)
+        $this->upsertOrderMeta('miau_wc_orders_meta', 'order_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
+        $this->upsertOrderMeta('miau_wc_orders_meta', 'order_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
+
+        // Legacy meta (si existe) para compatibilidad total
+        $this->upsertOrderMeta('miau_postmeta', 'post_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
+        $this->upsertOrderMeta('miau_postmeta', 'post_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
     }
 
     public function __destruct()

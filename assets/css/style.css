@@ -2954,6 +2954,41 @@ html {
   max-width: 33.33333333%;
 }
 
+/* Link: suave y clickeable */
+.wp-eye-link{
+  display: inline-flex;              /* para que el icono se alinee bonito */
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 1.2em;
+  transition: transform .2s ease, opacity .2s ease, filter .2s ease;
+}
+
+/* Icono: animación de "palpitar" */
+.wp-eye-icon{
+  transform-origin: center;
+  animation: eyeHeartbeat 1.6s ease-in-out infinite;
+}
+
+/* Al pasar el mouse, se siente "vivo" pero sin marear */
+.wp-eye-link:hover .wp-eye-icon{
+  animation-duration: .9s;           /* palpita un poquito más rápido */
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.55));
+}
+
+/* Si el usuario prefiere menos movimiento, se respeta */
+@media (prefers-reduced-motion: reduce){
+  .wp-eye-icon{ animation: none; }
+}
+
+@keyframes eyeHeartbeat{
+  0%   { transform: scale(1);    opacity: .95; }
+  20%  { transform: scale(1.18); opacity: 1; }
+  40%  { transform: scale(1); }
+  60%  { transform: scale(1.10); }
+  100% { transform: scale(1);    opacity: .95; }
+}
+
 /* Responsive Design for Order Summary */
 @media (max-width: 768px) {
   .summary-panel .panel-body {

@@ -218,10 +218,13 @@ include('parts/header.php');
                     </div>
 
                     <div class="summary-panel mt-4">
-                        <div class="panel-header bg-warning bg-custom">
+                        <div class="panel-header bg-warning bg-custom d-flex justify-content-between">
                             <h5 class="text-white">
                                 <i class="fas fa-info-circle me-2"></i>Detalles del Pedido
                             </h5>
+                            <a href="<?php echo $_ENV['WOOCOMMERCE_BASE_URL']; ?>/wp-admin/admin.php?page=wc-orders&action=edit&id=<?php echo htmlspecialchars((string)$order_id); ?>" class="text-white wp-eye-link" title="Ver en panel administrativo de WordPress" target="_blank">
+                                <i class="fas fa-eye wp-eye-icon"></i>
+                            </a>
                         </div>
 
                         <div class="panel-body">
@@ -289,7 +292,7 @@ include('parts/header.php');
 
                         <div class="row mt-3">
                             <div class="col-md-4">
-                                <button class="btn btn-secondary btn-custom btn-lg w-100" id="btnAbrirPDF" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                <button class="btn btn-danger btn-custom btn-lg w-100" id="btnAbrirPDF" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
                                     <i class="fas fa-external-link-alt me-2"></i>Abrir PDF
                                 </button>
                             </div>
@@ -299,7 +302,7 @@ include('parts/header.php');
                                 </button>
                             </div>
                             <div class="col-md-4">
-                                <button class="btn btn-warning btn-custom btn-lg w-100 text-white" id="btnEnviarEmail" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                <button class="btn btn-primary btn-custom btn-lg w-100 text-white" id="btnEnviarEmail" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
                                     <i class="fas fa-envelope me-2"></i>Enviar Email
                                 </button>
                             </div>
