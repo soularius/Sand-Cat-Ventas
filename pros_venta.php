@@ -386,11 +386,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Convertir código de departamento a nombre completo
     const stateCode = data._shipping_state || '';
-    if (stateCode && window.VentasUtils && window.VentasUtils.convertStateCodeToName) {
-        const stateName = window.VentasUtils.convertStateCodeToName(stateCode);
-        setIfEmpty('sum_state', stateName);
-    } else {
-        setIfEmpty('sum_state', stateCode);
+    if (stateCode) {
+        // Consulta AJAX para obtener el nombre del departamento desde CO.php
+        fetch(`api/get_state_name.php?code=${encodeURIComponent(stateCode)}`)
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    console.log('State converted via AJAX:', stateCode, '→', result.name);
+                    setIfEmpty('sum_state', result.name);
+                } else {
+                    console.warn('State not found via AJAX:', stateCode);
+                    setIfEmpty('sum_state', stateCode);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching state name:', error);
+                setIfEmpty('sum_state', stateCode);
+            });
     }
 
     // Información de pago
