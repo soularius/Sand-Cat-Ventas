@@ -67,6 +67,7 @@ class FormPersistence {
      * Cargar datos del formulario desde localStorage
      */
     loadFormData() {
+        console.log('Cargando datos desde localStorage para:', this.formId);
         try {
             const savedData = localStorage.getItem(this.storageKey);
             if (!savedData) return;
@@ -88,6 +89,7 @@ class FormPersistence {
                 
                 const element = this.form.elements[fieldName];
                 if (element && this.shouldSaveField(element)) {
+                    console.log('Restaurando campo:', fieldName, 'valor:', value);
                     this.setFieldValue(element, value);
                     fieldsLoaded++;
                 }
@@ -95,7 +97,9 @@ class FormPersistence {
             
             if (fieldsLoaded > 0) {
                 console.log('Datos restaurados:', fieldsLoaded, 'campos');
-                this.showRestoreNotification(fieldsLoaded);
+                // Obtener DNI para la notificación
+                const dni = formData.billing_id || '';
+                this.showRestoreNotification(dni);
             }
             
         } catch (e) {
@@ -282,25 +286,30 @@ class FormPersistence {
     /**
      * Mostrar notificación de datos restaurados
      */
-    showRestoreNotification(fieldsCount) {
-        // Crear notificación temporal
+    showRestoreNotification(dni) {
+        // Crear notificación
         const notification = document.createElement('div');
-        notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
-        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+        notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 350px;';
         notification.innerHTML = `
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>Datos restaurados:</strong> ${fieldsCount} campos recuperados automáticamente.
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <div class="d-flex align-items-center">
+                <i class="fas fa-server me-2"></i>
+                <div>
+                    <strong>Datos restaurados desde sesión</strong><br>
+                    <small>Cliente con DNI ${dni} cargado automáticamente</small>
+                </div>
+                <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
+            </div>
         `;
         
         document.body.appendChild(notification);
         
-        // Auto-remover después de 5 segundos
+        // Auto-remover después de 4 segundos
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.remove();
             }
-        }, 5000);
+        }, 4000);
     }
     
     /**

@@ -343,7 +343,7 @@ include('parts/step_wizard.php');
                         <a href="adminventas.php" class="btn btn-danger btn-custom">
                             <i class="fas fa-times"></i> Cancelar
                         </a>
-                        <button type="submit" class="btn btn-primary btn-custom">
+                        <button type="submit" class="btn btn-success btn-custom">
                             Continuar <i class="fas fa-arrow-right"></i>
                         </button>
                     </div>
@@ -577,32 +577,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * Mostrar notificación de datos cargados desde sesión PHP
+ * Función para mostrar notificación usando form-persistence.js
  */
 function showSessionDataNotification(dni) {
-    // Crear notificación
-    const notification = document.createElement('div');
-    notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
-    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 350px;';
-    notification.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="fas fa-server me-2"></i>
-            <div>
-                <strong>Datos restaurados desde sesión</strong><br>
-                <small>Cliente con DNI ${dni} cargado automáticamente</small>
-            </div>
-            <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Auto-remover después de 4 segundos
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
-    }, 4000);
+    // Usar la función de form-persistence.js si está disponible
+    if (window.formPersistenceInstance && typeof window.formPersistenceInstance.showRestoreNotification === 'function') {
+        window.formPersistenceInstance.showRestoreNotification(dni);
+    } else {
+        console.warn('FormPersistence no está disponible para mostrar notificación');
+    }
 }
 </script>
 
