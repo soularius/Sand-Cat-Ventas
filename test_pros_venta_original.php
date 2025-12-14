@@ -3,11 +3,11 @@
  * ==============================================================
  * ARCHIVO DE PRUEBA: test_pros_venta_original.php
  * ==============================================================
- * Prueba la implementación refactorizada directamente en pros_venta.php
+ * Prueba la implementación refactorizada directamente en resumen_cliente.php
  * Simula el POST del formulario para verificar que funciona
  */
 
-echo "<h1>🧪 Prueba de pros_venta.php Refactorizado</h1>";
+echo "<h1>🧪 Prueba de resumen_cliente.php Refactorizado</h1>";
 
 // Simular datos POST del formulario
 $_POST = [
@@ -21,7 +21,7 @@ $_POST = [
     '_billing_neighborhood' => 'La Candelaria',
     '_shipping_city' => 'Cartagena',
     '_shipping_state' => 'BOL',
-    'post_expcerpt' => 'Pedido de prueba desde pros_venta.php refactorizado',
+    'post_expcerpt' => 'Pedido de prueba desde resumen_cliente.php refactorizado',
     '_order_shipping' => '15000',
     '_cart_discount' => '1500',
     '_payment_method_title' => 'Efectivo'
@@ -30,19 +30,19 @@ $_POST = [
 echo "<h2>📋 Datos POST Simulados:</h2>";
 echo "<pre>" . print_r($_POST, true) . "</pre>";
 
-echo "<h2>🚀 Ejecutando pros_venta.php...</h2>";
+echo "<h2>🚀 Ejecutando resumen_cliente.php...</h2>";
 
 // Capturar output
 ob_start();
 
 try {
     // Incluir el archivo original que ahora tiene la lógica refactorizada
-    include('pros_venta.php');
+    include('resumen_cliente.php');
     
     $output = ob_get_contents();
     
     echo "<div style='background: #d4edda; color: #155724; padding: 15px; border: 1px solid #c3e6cb; border-radius: 5px; margin: 10px 0;'>";
-    echo "<h4>✅ pros_venta.php Ejecutado Exitosamente</h4>";
+    echo "<h4>✅ resumen_cliente.php Ejecutado Exitosamente</h4>";
     echo "<p>El archivo se ejecutó sin errores fatales.</p>";
     echo "</div>";
     
@@ -56,14 +56,14 @@ try {
     
 } catch (Exception $e) {
     echo "<div style='background: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px;'>";
-    echo "<h4>💥 Error en pros_venta.php</h4>";
+    echo "<h4>💥 Error en resumen_cliente.php</h4>";
     echo "<strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage()) . "<br>";
     echo "<strong>Archivo:</strong> " . $e->getFile() . "<br>";
     echo "<strong>Línea:</strong> " . $e->getLine() . "<br>";
     echo "</div>";
 } catch (Error $e) {
     echo "<div style='background: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px;'>";
-    echo "<h4>💥 Error Fatal en pros_venta.php</h4>";
+    echo "<h4>💥 Error Fatal en resumen_cliente.php</h4>";
     echo "<strong>Mensaje:</strong> " . htmlspecialchars($e->getMessage()) . "<br>";
     echo "<strong>Archivo:</strong> " . $e->getFile() . "<br>";
     echo "<strong>Línea:</strong> " . $e->getLine() . "<br>";
@@ -106,7 +106,7 @@ echo "</ul>";
 echo "</div>";
 
 echo "<div style='background: #d1ecf1; color: #0c5460; padding: 15px; border: 1px solid #bee5eb; border-radius: 5px; margin-top: 10px;'>";
-echo "<h4>✅ Cambios Implementados en pros_venta.php:</h4>";
+echo "<h4>✅ Cambios Implementados en resumen_cliente.php:</h4>";
 echo "<ul>";
 echo "<li>🔧 <strong>Require agregado:</strong> <code>require_once('class/woocommerce_customer.php');</code></li>";
 echo "<li>🚀 <strong>Lógica reemplazada:</strong> ~200 líneas de SQL → 1 llamada a clase</li>";

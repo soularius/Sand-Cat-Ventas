@@ -172,7 +172,7 @@ if (Utils::captureValue('nombre1', 'POST')) {
 // RESTO DEL CÓDIGO ORIGINAL (formularios, listados, etc.)
 // ============================================================================
 
-// Aquí continuaría el resto del código original de pros_venta.php
+// Aquí continuaría el resto del código original de resumen_cliente.php
 // como formularios, listados de productos, etc.
 // Por brevedad, solo incluyo la parte crítica de creación de pedidos
 
@@ -213,7 +213,7 @@ if (Utils::captureValue('nombre1', 'POST')) {
 <body>
 
 <div class="refactor-info">
-    <h2>🔧 Versión Refactorizada de pros_venta.php</h2>
+    <h2>🔧 Versión Refactorizada de resumen_cliente.php</h2>
     <p><strong>Archivo:</strong> pros_venta_refactored.php</p>
     <p><strong>Mejoras implementadas:</strong></p>
     <ul>
@@ -293,7 +293,7 @@ if (Utils::captureValue('nombre1', 'POST')) {
 <div class="refactor-info">
     <h3>🧪 Para Probar la Refactorización:</h3>
     <ol>
-        <li>Usar este archivo en lugar de <code>pros_venta.php</code></li>
+        <li>Usar este archivo en lugar de <code>resumen_cliente.php</code></li>
         <li>Crear un pedido con datos de cliente</li>
         <li>Verificar en WordPress que:
             <ul>

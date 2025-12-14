@@ -13,7 +13,7 @@ $menu_items = [
     'v_producto.php' => 'ventas',
     'v_producto_f.php' => 'ventas',
     'detventa.php' => 'ventas',
-    'bproducto.php' => 'productos'
+    'carrito_compras.php' => 'productos'
 ];
 
 $active_menu = isset($menu_items[$current_page]) ? $menu_items[$current_page] : '';

@@ -67,7 +67,7 @@ class OrderSummary {
             } else {
                 this.showError('No se encontraron datos del pedido. Redirigiendo...');
                 setTimeout(() => {
-                    window.location.href = 'bproducto.php';
+                    window.location.href = 'carrito_compras.php';
                 }, 2000);
             }
         } catch (e) {
@@ -616,7 +616,7 @@ $(document).ready(function() {
 // Volver a productos
 function goBackToProducts() {
     if (typeof window.showStepNavigationModal === 'function') {
-        window.showStepNavigationModal('Productos', 'bproducto.php', 3);
+        window.showStepNavigationModal('Productos', 'carrito_compras.php', 3);
         return;
     }
 
@@ -625,7 +625,7 @@ function goBackToProducts() {
         if (orderId) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = 'bproducto.php';
+            form.action = 'carrito_compras.php';
             form.style.display = 'none';
 
             const orderIdInput = document.createElement('input');
@@ -639,7 +639,7 @@ function goBackToProducts() {
             return;
         }
 
-        window.location.href = 'bproducto.php';
+        window.location.href = 'carrito_compras.php';
     }
 }
 

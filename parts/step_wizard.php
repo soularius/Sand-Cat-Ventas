@@ -16,17 +16,17 @@ $default_steps = [
     1 => [
         'label' => 'Datos del Cliente',
         'icon' => 'fas fa-user',
-        'page' => 'datos_venta.php'
+        'page' => 'formulario_cliente.php'
     ],
     2 => [
         'label' => 'Resumen Cliente',
         'icon' => 'fas fa-user-check',
-        'page' => 'pros_venta.php'
+        'page' => 'resumen_cliente.php'
     ],
     3 => [
         'label' => 'Productos',
         'icon' => 'fas fa-shopping-cart',
-        'page' => 'bproducto.php'
+        'page' => 'carrito_compras.php'
     ],
     4 => [
         'label' => 'Resumen del Pedido',
@@ -263,8 +263,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Si estamos en bproducto.php (paso 3) y vamos a pros_venta.php (paso 2)
-        if (currentPage === 'bproducto.php' && targetPage === 'pros_venta.php') {
+        // Si estamos en carrito_compras.php (paso 3) y vamos a resumen_cliente.php (paso 2)
+        if (currentPage === 'carrito_compras.php' && targetPage === 'resumen_cliente.php') {
             // Obtener el order_id del campo hidden
             
             

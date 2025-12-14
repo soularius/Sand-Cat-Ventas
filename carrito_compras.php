@@ -210,7 +210,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
 
                 <!-- Modal Body -->
                 <div class="modal-body">
-                    <form action="pros_venta.php" method="post" id="newproduct" class="product-form">
+                    <form action="resumen_cliente.php" method="post" id="newproduct" class="product-form">
                         <!-- Hidden Fields -->
                         <input id="proceso" type="hidden" name="proceso" value="s">
                         <input id="order_id" type="hidden" name="order_id" value="">
@@ -270,7 +270,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
         </div>
     </div>
 
-    <script src="assets/js/bproducto.js"></script>
+    <script src="assets/js/carrito_compras.js"></script>
 
     <script>
         // Quantity control functions

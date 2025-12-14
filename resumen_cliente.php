@@ -73,12 +73,12 @@ foreach ($compatibilityVars as $varName => $varValue) {
 
 // 9. Logging para debugging
 if ($customerProcessed) {
-    Utils::logError("Cliente procesado exitosamente - Customer ID: $customerId, Creado: " . ($customerCreated ? 'Sí' : 'No'), 'INFO', 'pros_venta.php');
+    Utils::logError("Cliente procesado exitosamente - Customer ID: $customerId, Creado: " . ($customerCreated ? 'Sí' : 'No'), 'INFO', 'resumen_cliente.php');
     if (!empty($locationData)) {
-        Utils::logError("Procesamiento de ubicación - Estado original: {$locationData['original_state']}, Para usermeta: {$locationData['state_for_usermeta']}, Para addresses: {$locationData['state_for_addresses']}, Ciudad: {$locationData['original_city']}", 'INFO', 'pros_venta.php');
+        Utils::logError("Procesamiento de ubicación - Estado original: {$locationData['original_state']}, Para usermeta: {$locationData['state_for_usermeta']}, Para addresses: {$locationData['state_for_addresses']}, Ciudad: {$locationData['original_city']}", 'INFO', 'resumen_cliente.php');
     }
 } elseif (!$success && !empty($errorMessage)) {
-    Utils::logError("Error procesando cliente: $errorMessage", 'ERROR', 'pros_venta.php');
+    Utils::logError("Error procesando cliente: $errorMessage", 'ERROR', 'resumen_cliente.php');
 }
 
 // 10. Establecer variables para el formulario (compatibilidad con la vista)
@@ -86,24 +86,24 @@ date_default_timezone_set('America/Bogota');
 $hoy = date('Y-m-d H:i:s');
 
 // NOTA: Esta sección anteriormente creaba órdenes, pero ahora solo maneja clientes
-// La lógica de creación de órdenes se ha movido a bproducto.php o donde corresponda
+// La lógica de creación de órdenes se ha movido a carrito_compras.php o donde corresponda
 
 if (Utils::captureValue('nombre1', 'POST')) {
     // El cliente ya fue procesado por WooCommerceCustomer en la sección superior
     // Ya no necesitamos lógica SQL aquí - todo se maneja en la clase
     if ($customerProcessed) {
-        Utils::logError("Cliente procesado exitosamente - redirigiendo a resumen", 'INFO', 'pros_venta.php');
+        Utils::logError("Cliente procesado exitosamente - redirigiendo a resumen", 'INFO', 'resumen_cliente.php');
     }
 }
 
 // NOTA: Esta sección manejaba productos y órdenes, pero se ha removido
-// porque pros_venta.php ahora solo maneja clientes.
-// La lógica de productos se maneja en bproducto.php o donde corresponda.
+// porque resumen_cliente.php ahora solo maneja clientes.
+// La lógica de productos se maneja en carrito_compras.php o donde corresponda.
 
 if (Utils::captureValue('proceso', 'POST')) {
     // Redirigir a donde se debe manejar la lógica de productos
-    Utils::logError("Intento de procesar productos en pros_venta.php - redirigiendo a bproducto.php", 'INFO', 'pros_venta.php');
-    header("Location: bproducto.php");
+    Utils::logError("Intento de procesar productos en resumen_cliente.php - redirigiendo a carrito_compras.php", 'INFO', 'resumen_cliente.php');
+    header("Location: carrito_compras.php");
     exit();
 }
 
@@ -301,14 +301,16 @@ include('parts/step_wizard.php');
             </div>
             <!-- Observaciones -->
             <?php if (!empty($post_excerpt)): ?>
+            <div class="order-card">
                 <div class="customer-info">
                     <div class="info-section">
                         <h5><i class="fas fa-sticky-note"></i>Observaciones</h5>
-                        <div class="alert alert-info mb-0">
+                        <div class="alert alert-success mb-0">
                             <?php echo nl2br(htmlspecialchars($post_excerpt)); ?>
                         </div>
                     </div>
                 </div>
+            </div>
             <?php endif; ?>
 
         <!-- Botones de navegación -->
@@ -316,14 +318,14 @@ include('parts/step_wizard.php');
             <div class="col-12">
                 <div class="d-flex justify-content-between">
                     <!-- Botón Volver -->
-                        <a href="datos_venta.php" class="btn btn-danger btn-custom">
+                        <a href="formulario_cliente.php" class="btn btn-danger btn-custom">
                             <i class="fas fa-arrow-left me-2"></i>
                             Volver - Editar Datos
                         </a>
                     
                     <!-- Botón Continuar -->
                     <?php if ($customerProcessed): ?>
-                        <form action="bproducto.php" method="post">
+                        <form action="carrito_compras.php" method="post">
                             <!-- Pasar el ID del cliente para crear un nuevo pedido -->
                             <input type="hidden" name="customer_id" value="<?php echo $customerId; ?>">
                             <button type="submit" class="btn btn-success btn-custom">
@@ -332,7 +334,7 @@ include('parts/step_wizard.php');
                             </button>
                         </form>
                     <?php else: ?>
-                        <a href="bproducto.php" class="btn btn-success btn-custom">
+                        <a href="carrito_compras.php" class="btn btn-success btn-custom">
                             <i class="fas fa-plus-circle me-2"></i>
                             Continuar - Agregar Productos
                         </a>

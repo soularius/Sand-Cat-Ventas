@@ -381,7 +381,7 @@ $(document).ready(function(){
     window.proceedToSummary = proceedToSummary;
     console.log('Global functions and cart assigned');
     
-    // Event listener para botones con data-attributes se maneja en bproducto.php
+    // Event listener para botones con data-attributes se maneja en carrito_compras.php
     // para evitar conflictos y permitir la funcionalidad de eliminar
     
     // Focus on search input when page loads
@@ -419,7 +419,7 @@ $(document).ready(function(){
             })
             .done(function(response){
                 if (response.success && response.products) {
-                    // renderProducts(response.products); // COMENTADO: Conflicto con displayProducts en bproducto.php
+                    // renderProducts(response.products); // COMENTADO: Conflicto con displayProducts en carrito_compras.php
                     updateSearchStats(response.count, search);
                 } else {
                     $('#result').html(`

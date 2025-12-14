@@ -175,7 +175,7 @@ include('parts/step_wizard.php');
             }
         ?>
 
-        <form action="pros_venta.php" method="post" id="d_usuario">
+        <form action="resumen_cliente.php" method="post" id="d_usuario">
             <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars($post_id); ?>">
             <div class="row">
                 <!-- Columna Izquierda -->
@@ -540,40 +540,30 @@ $(document).ready(function() {
 <script src="assets/js/form-persistence.js"></script>
 
 <script>
-// Inicializar persistencia para el formulario de datos de venta
 document.addEventListener('DOMContentLoaded', function() {
-    // Buscar el formulario principal
-    const form = document.querySelector('form');
-    if (form) {
-        // Asignar ID si no lo tiene
-        if (!form.id) {
-            form.id = 'datos_cliente_form';
-        }
-        
-        // Inicializar persistencia
-        initFormPersistence(form.id, 'ventas_wizard_form_data');
+    // ✅ Tomar el formulario correcto del paso 1
+    const form = document.getElementById('d_usuario');
+    if (!form) return;
 
-        // Guardar explícitamente al enviar para evitar perder datos por navegación rápida
-        form.addEventListener('submit', function() {
-            try {
-                if (window.formPersistenceInstance && typeof window.formPersistenceInstance.saveFormData === 'function') {
-                    window.formPersistenceInstance.saveFormData();
-                }
-            } catch (e) {
-                // no-op
-            }
-        });
-        
-        console.log('Persistencia inicializada para datos del cliente');
-        
-        // Verificar si hay datos cargados desde sesión PHP
-        <?php if (!empty($session_billing_id)): ?>
-        // Mostrar notificación de datos cargados desde sesión
-        setTimeout(function() {
-            showSessionDataNotification('<?php echo addslashes($session_billing_id); ?>');
-        }, 1000);
-        <?php endif; ?>
-    }
+    // ✅ Inicializar persistencia en la misma key del wizard
+    initFormPersistence(form.id, 'ventas_wizard_form_data');
+
+    // ✅ Guardar al enviar por si navegan rápido
+    form.addEventListener('submit', function() {
+        try {
+            window.formPersistenceInstance?.saveFormData?.();
+        } catch (e) {}
+    });
+
+    console.log('Persistencia inicializada para:', form.id);
+    
+    // Verificar si hay datos cargados desde sesión PHP
+    <?php if (!empty($session_billing_id)): ?>
+    // Mostrar notificación de datos cargados desde sesión
+    setTimeout(function() {
+        showSessionDataNotification('<?php echo addslashes($session_billing_id); ?>');
+    }, 1000);
+    <?php endif; ?>
 });
 
 /**

@@ -3,15 +3,15 @@
  * ==============================================================
  * ARCHIVO DE PRUEBA: test_pros_venta_integration.php
  * ==============================================================
- * Prueba la integración de pros_venta.php con WooCommerceCustomer
+ * Prueba la integración de resumen_cliente.php con WooCommerceCustomer
  * Simula el flujo completo de creación de pedidos
  */
 
 require_once('class/woocommerce_customer.php');
 
-echo "<h1>🧪 Prueba de Integración - pros_venta.php Refactorizado</h1>";
+echo "<h1>🧪 Prueba de Integración - resumen_cliente.php Refactorizado</h1>";
 
-// Simular datos del formulario de pros_venta.php
+// Simular datos del formulario de resumen_cliente.php
 $formData = [
     'nombre1' => 'Carlos',
     'nombre2' => 'Rodríguez',
@@ -160,9 +160,9 @@ echo "<hr>";
 echo "<h2>📝 Instrucciones para Implementar en Producción:</h2>";
 
 echo "<div style='background: #fff3cd; color: #856404; padding: 15px; border: 1px solid #ffeaa7; border-radius: 5px;'>";
-echo "<h4>🔄 Para Migrar pros_venta.php:</h4>";
+echo "<h4>🔄 Para Migrar resumen_cliente.php:</h4>";
 echo "<ol>";
-echo "<li><strong>Backup:</strong> Hacer copia de seguridad de <code>pros_venta.php</code></li>";
+echo "<li><strong>Backup:</strong> Hacer copia de seguridad de <code>resumen_cliente.php</code></li>";
 echo "<li><strong>Reemplazar:</strong> La sección de creación de pedidos (líneas ~132-348) con:</li>";
 echo "<pre style='background: #f8f9fa; padding: 10px; border-radius: 3px;'>";
 echo "if (Utils::captureValue('nombre1', 'POST')) {\n";

@@ -498,7 +498,7 @@ class WooCommerceCustomer
      * ============================================================ */
 
     /**
-     * Captura y valida datos del formulario de pros_venta.php
+     * Captura y valida datos del formulario de resumen_cliente.php
      * Centraliza la lógica de captura de datos POST
      */
     public function captureFormData(array $formFields): array
@@ -619,7 +619,7 @@ class WooCommerceCustomer
     }
 
     /**
-     * Procesa completamente un formulario de pros_venta.php
+     * Procesa completamente un formulario de resumen_cliente.php
      * Función principal que combina toda la lógica de procesamiento
      */
     public function processCompleteForm(array $formFields, int $existingOrderId = 0): array
@@ -648,7 +648,7 @@ class WooCommerceCustomer
     }
 
     /**
-     * Función optimizada para pros_venta.php - Solo gestiona clientes
+     * Función optimizada para resumen_cliente.php - Solo gestiona clientes
      * No crea pedidos, solo procesa y crea/actualiza clientes
      */
     public function processCustomerOnly(array $formFields, int $existingOrderId = 0): array
@@ -695,16 +695,16 @@ class WooCommerceCustomer
     }
 
     /* ==============================================================
-     *  FUNCIONES ESPECÍFICAS PARA PROS_VENTA.PHP
+     *  FUNCIONES ESPECÍFICAS PARA resumen_cliente.php
      * ============================================================ */
 
     /**
-     * Función ultra-optimizada para pros_venta.php
+     * Función ultra-optimizada para resumen_cliente.php
      * Solo procesa formulario y gestiona cliente - NO crea pedidos
      */
     public function handleProsVentaForm(): array
     {
-        // Campos específicos de pros_venta.php
+        // Campos específicos de resumen_cliente.php
         $formFields = [
             'nombre1', 'nombre2', 'billing_id', '_billing_email', '_billing_phone',
             '_shipping_address_1', '_shipping_address_2', '_billing_neighborhood',
@@ -741,7 +741,7 @@ class WooCommerceCustomer
     }
 
     /**
-     * Crea un pedido básico en miau_posts (compatible con pros_venta.php)
+     * Crea un pedido básico en miau_posts (compatible con resumen_cliente.php)
      * Retorna el ID del pedido creado
      */
     public function createBasicOrder(array $orderData): int
@@ -769,7 +769,7 @@ class WooCommerceCustomer
     }
 
     /**
-     * Inserta metadatos del pedido en miau_postmeta (compatible con pros_venta.php)
+     * Inserta metadatos del pedido en miau_postmeta (compatible con resumen_cliente.php)
      */
     public function insertOrderMetadata(int $orderId, array $customerData, array $locationData): void
     {
@@ -889,7 +889,7 @@ class WooCommerceCustomer
     }
 
     /**
-     * Proceso completo para crear pedido desde pros_venta.php
+     * Proceso completo para crear pedido desde resumen_cliente.php
      * Combina creación de usuario, pedido y metadatos
      */
     public function createOrderFromProsVenta(array $formData): array
@@ -941,7 +941,7 @@ class WooCommerceCustomer
     }
 
     /**
-     * Función específica para pros_venta.php cuando solo necesita crear pedidos
+     * Función específica para resumen_cliente.php cuando solo necesita crear pedidos
      * Separada de la gestión de clientes para mayor claridad
      */
     public function createOrderOnly(array $formData, int $customerId): array
@@ -983,7 +983,7 @@ class WooCommerceCustomer
 
     /**
      * Función específica para solo gestionar clientes sin crear pedidos
-     * Optimizada para el flujo de pros_venta.php
+     * Optimizada para el flujo de resumen_cliente.php
      */
     public function manageCustomerOnly(array $formData): array
     {
@@ -1013,14 +1013,14 @@ class WooCommerceCustomer
     }
 
     /**
-     * FUNCIÓN PRINCIPAL PARA PROS_VENTA.PHP
-     * Procesa formulario completo de pros_venta.php SOLO para clientes
+     * FUNCIÓN PRINCIPAL PARA resumen_cliente.php
+     * Procesa formulario completo de resumen_cliente.php SOLO para clientes
      * Maneja todos los campos requeridos: DNI, barrio, ciudad, departamento, país
      */
     public function processCustomerFromProsVenta(): array
     {
         try {
-            // 1. Campos específicos de pros_venta.php
+            // 1. Campos específicos de resumen_cliente.php
             $formFields = [
                 'nombre1', 'nombre2', 'billing_id', '_billing_email', '_billing_phone',
                 '_shipping_address_1', '_shipping_address_2', '_billing_neighborhood',

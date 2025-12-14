@@ -123,7 +123,7 @@ include("parts/header.php");
 
                     <!-- Modal Body -->
                     <div class="modal-body">
-                        <form action="datos_venta.php" class="needs-validation" method="post" target="_self" id="adminventas" novalidate>
+                        <form action="formulario_cliente.php" class="needs-validation" method="post" target="_self" id="adminventas" novalidate>
                             <div class="mb-3">
                                 <label for="billing_id" class="form-label">
                                     <i class="fas fa-id-card me-2"></i>DNI/Cédula del Cliente

@@ -85,7 +85,9 @@ class FormPersistence {
             
             // Restaurar valores en los campos
             for (const [fieldName, value] of Object.entries(formData)) {
-                if (fieldName.startsWith('_')) continue; // Skip metadata
+                // ✅ Solo ignorar metadata real (NO ignorar _billing_email etc.)
+                const metaKeys = ['_timestamp', '_step', '_sourceForm'];
+                if (metaKeys.includes(fieldName)) continue;
                 
                 const element = this.form.elements[fieldName];
                 if (element && this.shouldSaveField(element)) {
@@ -181,10 +183,18 @@ class FormPersistence {
                         // para permitir que se carguen las ciudades
                         setTimeout(() => {
                             element.dispatchEvent(new Event('change', { bubbles: true }));
+                            
+                            // ✅ DESPUÉS de cargar ciudades, restaurar la ciudad guardada
+                            setTimeout(() => {
+                                this.restoreCityFromStorage();
+                            }, 300); // Dar tiempo para que se carguen las opciones
                         }, 50);
                     } else if (element.id === '_shipping_city') {
-                        // Para la ciudad, no trigger inmediato, se manejará después de cargar opciones
-                        console.log('Ciudad restaurada desde persistencia:', value);
+                        // Para la ciudad, guardar el valor para restaurar después
+                        console.log('Ciudad guardada para restaurar después:', value);
+                        this.pendingCityValue = value;
+                        // No seleccionar ahora, esperar a que se carguen las opciones
+                        return;
                     } else {
                         // Para otros selects, trigger normal
                         element.dispatchEvent(new Event('change', { bubbles: true }));
@@ -194,6 +204,36 @@ class FormPersistence {
         }
     }
     
+    /**
+     * Restaurar ciudad después de cargar opciones del departamento
+     */
+    restoreCityFromStorage() {
+        if (!this.pendingCityValue) return;
+        
+        const cityElement = document.getElementById('_shipping_city');
+        if (!cityElement) return;
+        
+        console.log('Intentando restaurar ciudad:', this.pendingCityValue);
+        
+        // Buscar la opción en el select
+        const targetOption = Array.from(cityElement.options).find(
+            option => option.value === this.pendingCityValue
+        );
+        
+        if (targetOption) {
+            cityElement.value = this.pendingCityValue;
+            console.log('✅ Ciudad restaurada exitosamente:', this.pendingCityValue);
+        } else {
+            console.warn('❌ Ciudad no encontrada en opciones:', this.pendingCityValue);
+            // Listar opciones disponibles para debug
+            const availableOptions = Array.from(cityElement.options).map(opt => opt.value);
+            console.log('Opciones disponibles:', availableOptions);
+        }
+        
+        // Limpiar el valor pendiente
+        this.pendingCityValue = null;
+    }
+
     /**
      * Obtener paso actual desde el DOM
      */

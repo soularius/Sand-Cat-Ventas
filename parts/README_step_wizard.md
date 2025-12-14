@@ -123,7 +123,7 @@ Los estilos están definidos en `assets/css/wizard-form.css`:
 
 ## Ejemplos de Implementación
 
-### En datos_venta.php (Paso 1)
+### En formulario_cliente.php (Paso 1)
 ```php
 <?php 
 $current_step = 1;
@@ -131,7 +131,7 @@ include('parts/step_wizard.php');
 ?>
 ```
 
-### En pros_venta.php (Paso 2)
+### En resumen_cliente.php (Paso 2)
 ```php
 <?php 
 $current_step = 2;
