@@ -158,7 +158,7 @@ class OrderSummary {
             const safePermalink = (product.permalink || '#').toString().replace(/'/g, "\\'").replace(/\"/g, '\\"');
 
             html += `
-                <div class="col-md-6 col-lg-4 mb-6">
+                <div class="col-md-6 col-lg-4 mb-6 column">
                     <div class="card product-card position-relative" data-product-id="${product.id}">
                         <div class="position-relative overflow-hidden">
                             ${imageUrl ? `

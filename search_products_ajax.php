@@ -166,12 +166,15 @@ try {
             if (!empty($value)) {
                 // Limpiar nombre del atributo (quitar pa_ si existe)
                 $clean_name = str_replace('pa_', '', $name);
-                $clean_name = ucfirst(str_replace('_', ' ', $clean_name));
+                // Reemplazar guiones por espacios y underscores por espacios
+                $clean_name = str_replace(['-', '_'], ' ', $clean_name);
+                $clean_name = ucfirst($clean_name);
                 $labels[] = "$clean_name: $value";
             }
         }
         
-        return implode(', ', $labels);
+        // Separar por <br> en lugar de comas para mostrar en líneas separadas
+        return implode('<br>', $labels);
     }
     
     $products = [];
@@ -264,11 +267,9 @@ try {
         $has_sale = ($sale_price > 0 && $sale_price < $regular_price);
         $display_price = $has_sale ? $sale_price : $price;
         
-        // Construir título con variación
-        $title = $product['nombre'];
-        if ($product['es_variacion'] && !empty($product['variation_label'])) {
-            $title .= ' - ' . $product['variation_label'];
-        }
+        // Construir título separando nombre padre y variación
+        $parent_name = $product['nombre'];
+        $display_title = $parent_name; // Solo nombre del padre
         
         $processed_products[] = [
             // IDs principales
@@ -277,7 +278,8 @@ try {
             'variation_id' => $product['variation_id'],              // ID de variación (null si es producto)
             
             // Información básica
-            'title' => $title,
+            'title' => $display_title,
+            'parent_name' => $parent_name,                           // Nombre del producto padre
             'short_description' => $product['descripcion_corta'] ?? '',
             'sku' => $product['sku'] ?? '',
             'permalink' => $permalink,

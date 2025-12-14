@@ -328,7 +328,7 @@ class ProductCart {
             const escapedPermalink = (item.permalink || '#').replace(/'/g, "\\'").replace(/"/g, '\\"');
 
             const variationLine = (item.variation_label && String(item.variation_label).trim() !== '')
-                ? `<div class="text-muted small">Variación: <strong>${String(item.variation_label)}</strong></div>` 
+                ? `<div class="text-muted small"><strong>Variación: </strong><br><span>${String(item.variation_label)}</span></div>` 
                 : '';
 
             html += `

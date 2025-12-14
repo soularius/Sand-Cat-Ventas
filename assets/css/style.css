@@ -232,6 +232,7 @@
   padding: 1.25rem;
   transition: all 0.3s ease;
   position: relative;
+  height: 100%;
 }
 
 .product-card:hover {
@@ -2946,6 +2947,11 @@ html {
   font-size: 1.3rem;
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
   transition: all 0.3s ease;
+}
+
+.col-lg-4.column {
+  flex: 1 0 auto;
+  max-width: 33.33333333%;
 }
 
 /* Responsive Design for Order Summary */

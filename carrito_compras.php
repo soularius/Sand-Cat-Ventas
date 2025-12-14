@@ -430,7 +430,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                             <span class="product-sku badge bg-light text-dark">SKU: ${product.sku}</span>
                         </div>` : '';
                     html += `
-                        <div class="col-md-6 col-lg-4 mb-6">
+                        <div class="col-md-6 col-lg-4 mb-6 column">
                             <div class="card product-card ${product.card_border_class}" data-product-id="${product.id}">
                                 <div class="position-relative overflow-hidden">
                                     <img src="${product.image_url}" 
@@ -445,38 +445,43 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                         '<div class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style="background: rgba(0,0,0,0.6);"><span class="badge bg-warning text-dark fs-6 px-3 py-2">Agotado</span></div>' : 
                                         ''}
                                 </div>
-                                <div class="card-body d-flex flex-column p-3 card-body-product">
-                                    <h6 class="card-title fw-bold mb-2 product-title-clickable" 
-                                        onclick="viewProductDetails('${product.id}', '${product.title}', '${product.permalink}')"
+                                <div class="card-body d-flex flex-column p-3 card-body-product justify-content-between">
+                                    <h6 class="card-title fw-bold mb-1 product-title-clickable" 
+                                        onclick="viewProductDetails('${product.product_id || product.id}', '${product.parent_name || product.title}', '${product.permalink}')"
                                         title="Click para ver detalles del producto"
-                                        style="color: #2c3e50; line-height: 1.3; cursor: pointer; transition: all 0.3s ease;">${product.title}</h6>
+                                        style="color: #2c3e50; line-height: 1.3; cursor: pointer; transition: all 0.3s ease;">
+                                        ${product.parent_name || product.title}
+                                    </h6>
+                                    ${product.variation_label ? `<div class="text-muted small mb-2" style="font-size: 0.85em; line-height: 1.2;">${product.variation_label}</div>` : ''}
                                     ${skuBadge}
-                                    ${priceHtml}
-                                    ${stockHtml}
-                                    <!-- Product Actions -->
-                                    <div class="product-actions d-flex justify-content-between align-items-center mt-auto">
-                                        <button class="btn btn-secondary btn-custom btn-circular btn-sm position-absolute text-white" 
-                                                onclick="shareProductLink('${product.permalink}', '${product.title}')" 
-                                                title="Compartir enlace">
-                                            <i class="fas fa-share-alt"></i>
-                                        </button>
-                                        <button class="btn btn-custom btn-circular ${product.is_available ? 'btn-success' : 'btn-secondary'} add-product-btn position-absolute text-white" 
-                                                data-product-id="${product.id}" 
-                                                data-product-name="${product.title}"
-                                                data-product-price="${product.price.replace(/[.,]/g, '')}"
-                                                data-product-regular-price="${product.regular_price ? product.regular_price.replace(/[.,]/g, '') : ''}"
-                                                data-product-sale-price="${product.sale_price ? product.sale_price.replace(/[.,]/g, '') : ''}"
-                                                data-product-image-url="${product.image_url || ''}"
-                                                data-product-sku="${product.sku || ''}"
-                                                data-product-permalink="${product.permalink}"
-                                                data-variation-id="${product.variation_id || ''}"
-                                                data-variation-label="${(product.variation_label || '').replace(/"/g, '&quot;')}"
-                                                data-variation-attrs="${encodeURIComponent(JSON.stringify(product.variation_attributes || {}))}"
-                                                ${!product.is_available ? 'disabled' : ''}
-                                                title="${product.is_available ? 'Agregar al Pedido' : 'No Disponible'}">
-                                            <i class="text-white ${product.is_available ? 'fas fa-plus' : 'fas fa-xmark'}"></i>
-                                        </button>
+                                    <div class="box-product-info">
+                                        ${priceHtml}
+                                        ${stockHtml}
+                                        <div class="product-actions d-flex justify-content-between align-items-center">
+                                            <button class="btn btn-secondary btn-custom btn-circular btn-sm position-absolute text-white" 
+                                                    onclick="shareProductLink('${product.permalink}', '${product.title}')" 
+                                                    title="Compartir enlace">
+                                                <i class="fas fa-share-alt"></i>
+                                            </button>
+                                            <button class="btn btn-custom btn-circular ${product.is_available ? 'btn-success' : 'btn-secondary'} add-product-btn position-absolute text-white" 
+                                                    data-product-id="${product.id}" 
+                                                    data-product-name="${product.parent_name || product.title}"
+                                                    data-product-price="${product.price.replace(/[.,]/g, '')}"
+                                                    data-product-regular-price="${product.regular_price ? product.regular_price.replace(/[.,]/g, '') : ''}"
+                                                    data-product-sale-price="${product.sale_price ? product.sale_price.replace(/[.,]/g, '') : ''}"
+                                                    data-product-image-url="${product.image_url || ''}"
+                                                    data-product-sku="${product.sku || ''}"
+                                                    data-product-permalink="${product.permalink}"
+                                                    data-variation-id="${product.variation_id || ''}"
+                                                    data-variation-label="${(product.variation_label || '').replace(/"/g, '&quot;')}"
+                                                    data-variation-attrs="${encodeURIComponent(JSON.stringify(product.variation_attributes || {}))}"
+                                                    ${!product.is_available ? 'disabled' : ''}
+                                                    title="${product.is_available ? 'Agregar al Pedido' : 'No Disponible'}">
+                                                <i class="text-white ${product.is_available ? 'fas fa-plus' : 'fas fa-xmark'}"></i>
+                                            </button>
+                                        </div>
                                     </div>
+                                    <!-- Product Actions -->
                                 </div>
                             </div>
                         </div>
