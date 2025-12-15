@@ -188,10 +188,10 @@ include("parts/header.php");
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-box me-2"></i>Productos WooCommerce</h2>
     <div class="d-flex gap-2">
-      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filtrosModal">
+      <button class="btn btn-primary btn-custom" data-bs-toggle="modal" data-bs-target="#filtrosModal">
         <i class="fas fa-filter me-1"></i>Filtros
       </button>
-      <a href="productos.php" class="btn btn-secondary">
+      <a href="productos.php" class="btn btn-secondary btn-custom">
         <i class="fas fa-sync-alt me-1"></i>Actualizar
       </a>
     </div>
@@ -201,20 +201,22 @@ include("parts/header.php");
   <div class="row mb-4">
     <div class="col-md-6">
       <form method="GET" action="productos.php" class="d-flex">
-        <input type="text" class="form-control me-2" name="search" 
-               placeholder="Buscar por nombre, SKU o descripción..." 
-               value="<?php echo htmlspecialchars($search_term); ?>">
-        <?php if ($category_id > 0): ?>
-          <input type="hidden" name="category" value="<?php echo $category_id; ?>">
-        <?php endif; ?>
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-search"></i>
-        </button>
+        <div class="input-group">
+          <input type="text" class="form-control" name="search" 
+                placeholder="Buscar por nombre, SKU o descripción..." 
+                value="<?php echo htmlspecialchars($search_term); ?>">
+          <?php if ($category_id > 0): ?>
+            <input type="hidden" name="category" value="<?php echo $category_id; ?>">
+          <?php endif; ?>
+          <button type="submit" class="btn btn-success btn-custom">
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
       </form>
     </div>
     <div class="col-md-6">
-      <form method="GET" action="productos.php">
-        <select name="category" class="form-select" onchange="this.form.submit()">
+        <form method="GET" action="productos.php" class="form-group">
+        <select name="category" class="form-control form-select" onchange="this.form.submit()">
           <option value="0">Todas las categorías</option>
           <?php foreach ($categorias_woo as $categoria): ?>
             <option value="<?php echo $categoria['id_categoria']; ?>" 
@@ -319,7 +321,7 @@ include("parts/header.php");
         </td>
         <td class="text-center">
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-sm btn-outline-info" 
+            <button type="button" class="btn btn-sm btn-danger btn-custom px-3" 
                     data-bs-toggle="modal" data-bs-target="#verProducto"
                     data-id="<?php echo $producto['id_producto']; ?>"
                     data-nombre="<?php echo htmlspecialchars($producto['nombre']); ?>"
@@ -330,7 +332,7 @@ include("parts/header.php");
                     title="Ver detalles">
               <i class="fas fa-eye"></i>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-primary" 
+            <button type="button" class="btn btn-sm btn-success btn-custom px-3" 
                     onclick="agregarAVenta(<?php echo $producto['id_producto']; ?>)"
                     title="Agregar a venta">
               <i class="fas fa-cart-plus"></i>
