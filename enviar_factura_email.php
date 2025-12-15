@@ -370,13 +370,13 @@ try {
                 padding: 30px 20px; 
             }
             .invoice-info { 
-                background-color: #f8f9fa; 
+                background-color: #e3fdf6; 
                 padding: 20px; 
                 border-radius: 6px; 
                 margin: 20px 0; 
             }
             .customer-info { 
-                background-color: #e3f2fd; 
+                background-color: #e3fdf6; 
                 padding: 15px; 
                 border-radius: 6px; 
                 margin: 15px 0; 
@@ -411,7 +411,7 @@ try {
                 font-size: 14px; 
             }
             .highlight { 
-                color: #dc3545; 
+                color: #E85F81; 
                 font-weight: bold; 
             }
             .btn { 
@@ -452,7 +452,7 @@ try {
                     <h4>Datos del Cliente</h4>
                     <p><strong>Cliente:</strong> {$orden['nombre_cliente']} {$orden['apellido_cliente']}</p>" .
                     (!empty($orden['dni']) ? "<p><strong>DNI:</strong> {$orden['dni']}</p>" : "") . "
-                    <p><strong>Email:</strong> {$orden['email_cliente']}</p>
+                    <p><strong>Email:</strong> <a href='mailto:{$orden['email_cliente']}' target='_blank' style='color: #0fa147ff;font-weight: bold;'>{$orden['email_cliente']}</a></p>
                     <p><strong>Teléfono:</strong> {$orden['telefono_cliente']}</p>" .
                     (!empty($direccion_completa) ? "<p><strong>Dirección:</strong> $direccion_completa</p>" : "") .
                     (!empty($orden['barrio']) ? "<p><strong>Barrio:</strong> {$orden['barrio']}</p>" : "") .
@@ -489,7 +489,7 @@ try {
                 <p>Si tiene alguna pregunta sobre su pedido, no dude en contactarnos.</p>
                 
                 <p style='text-align: center;'>
-                    <a href='$woocommerce_url' class='btn'>Ver Pedido en Línea</a>
+                    <a href='$woocommerce_url' class='btn' style='color: #ffffff;font-weight: bold;'>Ver Pedido en Línea</a>
                 </p>
             </div>
             
@@ -497,7 +497,7 @@ try {
                 <p><strong>Sand Y Cat - Hugo Alejandro López</strong></p>
                 <p>NIT: 79690971 | Teléfono: 6016378243</p>
                 <p>Dirección: Cra. 61 No. 78-25</p>
-                <p>www.sandycat.com.co</p>
+                <a href='https://sandycat.com.co' style='color: #ffffff;font-weight: bold;'>www.sandycat.com.co</a>
             </div>
         </div>
     </body>
