@@ -86,7 +86,7 @@ date_default_timezone_set('America/Bogota');
 $hoy = date('Y-m-d H:i:s');
 
 // NOTA: Esta sección anteriormente creaba órdenes, pero ahora solo maneja clientes
-// La lógica de creación de órdenes se ha movido a carrito_compras.php o donde corresponda
+// La lógica de creación de órdenes se ha movido a selector_productos.php o donde corresponda
 
 if (Utils::captureValue('nombre1', 'POST')) {
     // El cliente ya fue procesado por WooCommerceCustomer en la sección superior
@@ -98,12 +98,12 @@ if (Utils::captureValue('nombre1', 'POST')) {
 
 // NOTA: Esta sección manejaba productos y órdenes, pero se ha removido
 // porque resumen_cliente.php ahora solo maneja clientes.
-// La lógica de productos se maneja en carrito_compras.php o donde corresponda.
+// La lógica de productos se maneja en selector_productos.php o donde corresponda.
 
 if (Utils::captureValue('proceso', 'POST')) {
     // Redirigir a donde se debe manejar la lógica de productos
-    Utils::logError("Intento de procesar productos en resumen_cliente.php - redirigiendo a carrito_compras.php", 'INFO', 'resumen_cliente.php');
-    header("Location: carrito_compras.php");
+    Utils::logError("Intento de procesar productos en resumen_cliente.php - redirigiendo a selector_productos.php", 'INFO', 'resumen_cliente.php');
+    header("Location: selector_productos.php");
     exit();
 }
 
@@ -325,7 +325,7 @@ include('parts/step_wizard.php');
                     
                     <!-- Botón Continuar -->
                     <?php if ($customerProcessed): ?>
-                        <form action="carrito_compras.php" method="post">
+                        <form action="selector_productos.php" method="post">
                             <!-- Pasar el ID del cliente para crear un nuevo pedido -->
                             <input type="hidden" name="customer_id" value="<?php echo $customerId; ?>">
                             <button type="submit" class="btn btn-success btn-custom">
@@ -334,7 +334,7 @@ include('parts/step_wizard.php');
                             </button>
                         </form>
                     <?php else: ?>
-                        <a href="carrito_compras.php" class="btn btn-success btn-custom">
+                        <a href="selector_productos.php" class="btn btn-success btn-custom">
                             <i class="fas fa-plus-circle me-2"></i>
                             Continuar - Agregar Productos
                         </a>

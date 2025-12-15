@@ -486,7 +486,7 @@ $(document).ready(function(){
     window.proceedToSummary = proceedToSummary;
     console.log('Global functions and cart assigned');
     
-    // Event listener para botones con data-attributes se maneja en carrito_compras.php
+    // Event listener para botones con data-attributes se maneja en selector_productos.php
     // para evitar conflictos y permitir la funcionalidad de eliminar
     
     // Focus on search input when page loads
@@ -524,7 +524,7 @@ $(document).ready(function(){
             })
             .done(function(response){
                 if (response.success && response.products) {
-                    // renderProducts(response.products); // COMENTADO: Conflicto con displayProducts en carrito_compras.php
+                    // renderProducts(response.products); // COMENTADO: Conflicto con displayProducts en selector_productos.php
                     updateSearchStats(response.count, search);
                 } else {
                     $('#result').html(`

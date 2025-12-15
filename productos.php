@@ -290,7 +290,15 @@ include("parts/header.php");
       <tr>
         <td>
           <div class="d-flex flex-column">
-            <strong><?php echo htmlspecialchars($producto['nombre']); ?></strong>
+            <strong>
+              <a href="<?php echo ($_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU') . '/?p=' . $producto['id_producto']; ?>" 
+                 target="_blank" 
+                 class="text-decoration-none text-primary"
+                 title="Ver en WooCommerce">
+                <?php echo htmlspecialchars($producto['nombre']); ?>
+                <i class="fas fa-external-link-alt ms-1 small"></i>
+              </a>
+            </strong>
             <?php if (!empty($producto['descripcion_corta'])): ?>
               <small class="text-muted"><?php echo substr(strip_tags($producto['descripcion_corta']), 0, 100); ?>...</small>
             <?php endif; ?>
@@ -321,17 +329,12 @@ include("parts/header.php");
         </td>
         <td class="text-center">
           <div class="btn-group" role="group">
-            <button type="button" class="btn btn-sm btn-danger btn-custom px-3" 
-                    data-bs-toggle="modal" data-bs-target="#verProducto"
-                    data-id="<?php echo $producto['id_producto']; ?>"
-                    data-nombre="<?php echo htmlspecialchars($producto['nombre']); ?>"
-                    data-precio="<?php echo $producto['precio']; ?>"
-                    data-stock="<?php echo $producto['stock']; ?>"
-                    data-sku="<?php echo htmlspecialchars($producto['sku']); ?>"
-                    data-descripcion="<?php echo htmlspecialchars($producto['descripcion_corta']); ?>"
-                    title="Ver detalles">
-              <i class="fas fa-eye"></i>
-            </button>
+            <a href="<?php echo ($_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU') . '/?p=' . $producto['id_producto']; ?>" 
+               target="_blank" 
+               class="btn btn-sm btn-danger btn-custom px-3"
+               title="Ver en WooCommerce">
+              <i class="fas fa-external-link-alt"></i>
+            </a>
             <button type="button" class="btn btn-sm btn-success btn-custom px-3" 
                     onclick="agregarAVenta(<?php echo $producto['id_producto']; ?>)"
                     title="Agregar a venta">
