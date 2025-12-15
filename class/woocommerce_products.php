@@ -275,155 +275,109 @@ class WooCommerceProducts {
     }
 
     /**
-     * Buscar productos con variaciones (migrado de search_products_ajax.php)
+     * Buscar productos con variaciones (optimizado usando lógica de search_products_ajax.php)
      */
-    public function searchProductsWithVariations($search_term = '', $limit = 50, $offset = 0) {
+    public function searchProductsWithVariations($search_term = '', $limit = 50, $offset = 0, $category_id = '') {
         $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
         $limit = (int)$limit;
         $offset = (int)$offset;
+        $category_id = mysqli_real_escape_string($this->wp_connection, $category_id);
         
-        $search_condition = '';
+        // Construir query base - INCLUYE PRODUCTOS Y VARIACIONES (igual que search_products_ajax.php)
+        $query = "
+            SELECT 
+                p.ID as id_producto,
+                p.post_parent as producto_padre_id,
+                p.post_type,
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN COALESCE(parent.post_title, p.post_title)
+                    ELSE p.post_title 
+                END as nombre,
+                p.post_content as descripcion,
+                p.post_excerpt as descripcion_corta,
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN parent.post_name
+                    ELSE p.post_name 
+                END as slug,
+                p.guid as guid,
+                COALESCE(pm_price.meta_value, '0') as precio,
+                COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
+                COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
+                COALESCE(pm_stock.meta_value, '0') as stock,
+                COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
+                COALESCE(pm_sku.meta_value, '') as sku,
+                
+                -- Datos específicos de variaciones
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.ID
+                    ELSE NULL 
+                END as variation_id,
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.post_parent
+                    ELSE p.ID 
+                END as product_id
+                
+            FROM miau_posts p
+            LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
+            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
+            LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
+            LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
+            LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+            LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
+            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'";
+        
+        // Agregar JOIN para categorías si es necesario
+        if (!empty($category_id)) {
+            $query .= "
+            INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
+            INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id";
+        }
+        
+        $query .= "
+            WHERE p.post_status = 'publish'
+            AND (
+                -- Productos simples (sin variaciones)
+                (p.post_type = 'product' AND p.ID NOT IN (
+                    SELECT DISTINCT post_parent 
+                    FROM miau_posts 
+                    WHERE post_type = 'product_variation' 
+                    AND post_status = 'publish'
+                    AND post_parent IS NOT NULL
+                ))
+                OR
+                -- Solo variaciones (no productos padre)
+                p.post_type = 'product_variation'
+            )";
+        
+        // Condiciones de búsqueda (igual que search_products_ajax.php)
+        $conditions = [];
+        
+        // Filtro por categoría
+        if (!empty($category_id)) {
+            $conditions[] = "tt.term_taxonomy_id = '$category_id'";
+        }
+        
+        // Filtro por término de búsqueda
         if (!empty($search_term)) {
-            $search_condition = "AND (
+            $conditions[] = "(
                 p.post_title LIKE '%$search_term%' 
-                OR PM_sku_prod.sku_prod LIKE '%$search_term%'
-                OR PM_sku_var.sku_var LIKE '%$search_term%'
+                OR pm_sku.meta_value LIKE '%$search_term%'
                 OR p.post_content LIKE '%$search_term%'
             )";
         }
         
-        $query = "
-        SELECT 
-            p.ID as id_producto,
-            p.post_parent as producto_padre_id,
-            p.post_type,
-            CASE 
-                WHEN p.post_type = 'product_variation' THEN 
-                    (SELECT post_title FROM miau_posts WHERE ID = p.post_parent)
-                ELSE p.post_title 
-            END as nombre,
-            p.post_content as descripcion,
-            p.post_excerpt as descripcion_corta,
-            
-            -- IDs para lógica
-            CASE 
-                WHEN p.post_type = 'product_variation' THEN p.post_parent
-                ELSE p.ID
-            END as product_id,
-            
-            CASE 
-                WHEN p.post_type = 'product_variation' THEN p.ID
-                ELSE NULL
-            END as variation_id,
-            
-            -- Precios con subconsultas para evitar duplicados
-            COALESCE(PM_price_var.price, PM_price_prod.price, '0') as precio,
-            COALESCE(PM_regular_var.regular_price, PM_regular_prod.regular_price, '0') as precio_regular,
-            COALESCE(PM_sale_var.sale_price, PM_sale_prod.sale_price, '') as precio_oferta,
-            
-            -- Stock y SKU
-            COALESCE(PM_stock_var.stock, PM_stock_prod.stock, '0') as stock,
-            COALESCE(PM_stock_status_var.stock_status, PM_stock_status_prod.stock_status, 'outofstock') as estado_stock,
-            COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') as sku
-            
-        FROM miau_posts p
+        // Agregar condiciones a la query
+        if (!empty($conditions)) {
+            $query .= " AND " . implode(" AND ", $conditions);
+        }
         
-        -- Subconsultas para precios de variaciones
-        LEFT JOIN (
-            SELECT post_id, meta_value as price
-            FROM miau_postmeta 
-            WHERE meta_key = '_price'
-        ) PM_price_var ON PM_price_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as regular_price
-            FROM miau_postmeta 
-            WHERE meta_key = '_regular_price'
-        ) PM_regular_var ON PM_regular_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as sale_price
-            FROM miau_postmeta 
-            WHERE meta_key = '_sale_price'
-        ) PM_sale_var ON PM_sale_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        -- Subconsultas para precios de productos padre
-        LEFT JOIN (
-            SELECT post_id, meta_value as price
-            FROM miau_postmeta 
-            WHERE meta_key = '_price'
-        ) PM_price_prod ON PM_price_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as regular_price
-            FROM miau_postmeta 
-            WHERE meta_key = '_regular_price'
-        ) PM_regular_prod ON PM_regular_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as sale_price
-            FROM miau_postmeta 
-            WHERE meta_key = '_sale_price'
-        ) PM_sale_prod ON PM_sale_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        -- Subconsultas para stock
-        LEFT JOIN (
-            SELECT post_id, meta_value as stock
-            FROM miau_postmeta 
-            WHERE meta_key = '_stock'
-        ) PM_stock_var ON PM_stock_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as stock
-            FROM miau_postmeta 
-            WHERE meta_key = '_stock'
-        ) PM_stock_prod ON PM_stock_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as stock_status
-            FROM miau_postmeta 
-            WHERE meta_key = '_stock_status'
-        ) PM_stock_status_var ON PM_stock_status_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as stock_status
-            FROM miau_postmeta 
-            WHERE meta_key = '_stock_status'
-        ) PM_stock_status_prod ON PM_stock_status_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        -- Subconsultas para SKU
-        LEFT JOIN (
-            SELECT post_id, meta_value as sku_var
-            FROM miau_postmeta 
-            WHERE meta_key = '_sku'
-        ) PM_sku_var ON PM_sku_var.post_id = p.ID AND p.post_type = 'product_variation'
-        
-        LEFT JOIN (
-            SELECT post_id, meta_value as sku_prod
-            FROM miau_postmeta 
-            WHERE meta_key = '_sku'
-        ) PM_sku_prod ON PM_sku_prod.post_id = CASE WHEN p.post_type = 'product_variation' THEN p.post_parent ELSE p.ID END
-        
-        WHERE p.post_status = 'publish'
-        AND (
-            -- Productos simples (sin variaciones)
-            (p.post_type = 'product' AND p.ID NOT IN (
-                SELECT DISTINCT post_parent 
-                FROM miau_posts 
-                WHERE post_type = 'product_variation' 
-                AND post_status = 'publish'
-                AND post_parent IS NOT NULL
-            ))
-            OR
-            -- Solo variaciones (no productos padre)
-            p.post_type = 'product_variation'
-        )
-        $search_condition
-        ORDER BY p.post_title ASC
-        LIMIT $limit OFFSET $offset";
+        $query .= "
+            ORDER BY p.post_title ASC
+            LIMIT $limit OFFSET $offset";
         
         // Debug: mostrar la query completa para búsqueda
         Utils::logError("searchProductsWithVariations SQL Query: " . $query);
+        Utils::logError("searchProductsWithVariations Parameters - Search: '$search_term', Category: '$category_id', Limit: $limit, Offset: $offset");
         
         $result = mysqli_query($this->wp_connection, $query);
         if (!$result) {

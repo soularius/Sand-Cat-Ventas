@@ -103,7 +103,7 @@ $offset = ($current_page - 1) * $products_per_page;
 
 // Obtener parámetros de búsqueda y filtros
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
-$category_id = isset($_GET['category']) ? intval($_GET['category']) : 0;
+$category_id = isset($_GET['category']) && $_GET['category'] !== '' ? intval($_GET['category']) : 0;
 
 // Debug: verificar que current_page sea correcto
 Utils::logError("Page param from GET: '$page_param', Current page after processing: $current_page");
@@ -130,15 +130,11 @@ try {
         Utils::logError("No products found - Search: '$search_term', Category: $category_id");
     }
     
-    // Obtener productos con paginación usando los métodos de la clase
-    if (!empty($search_term)) {
-        // Usar método de búsqueda con variaciones
-        Utils::logError("Using searchProductsWithVariations method");
-        $productos_woo = $wooProducts->searchProductsWithVariations($search_term, $products_per_page, $offset);
-    } elseif ($category_id > 0) {
-        // Usar método de categoría optimizado con paginación
-        Utils::logError("Using getProductsByCategory method");
-        $productos_woo = $wooProducts->getProductsByCategory($category_id, $products_per_page, $offset);
+    // Obtener productos con paginación usando método optimizado unificado
+    if (!empty($search_term) || $category_id > 0) {
+        // Usar método optimizado que maneja búsqueda Y categoría (igual que selector_productos.php)
+        Utils::logError("Using searchProductsWithVariations method - Search: '$search_term', Category: $category_id");
+        $productos_woo = $wooProducts->searchProductsWithVariations($search_term, $products_per_page, $offset, $category_id);
     } else {
         // Usar método general con paginación
         Utils::logError("Using getAllProducts method");
@@ -231,7 +227,7 @@ include("parts/header.php");
     <div class="col-md-6">
         <form method="GET" action="productos.php" class="form-group">
         <select name="category" class="form-control form-select" onchange="this.form.submit()">
-          <option value="0">Todas las categorías</option>
+          <option value="">Todas las categorías</option>
           <?php foreach ($categorias_woo as $categoria): ?>
             <option value="<?php echo $categoria['id_categoria']; ?>" 
                     <?php echo ($category_id == $categoria['id_categoria']) ? 'selected' : ''; ?>>
