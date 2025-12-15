@@ -26,7 +26,7 @@ class WooCommerceProducts {
     }
     
     /**
-     * Obtener el total de productos para paginación
+     * Obtener el total de productos para paginación (incluye variaciones)
      */
     public function getTotalProductsCount($search_term = '', $category_id = 0) {
         $search_condition = '';
@@ -56,8 +56,20 @@ class WooCommerceProducts {
             FROM miau_posts p
             LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
             $category_condition
-            WHERE p.post_type = 'product' 
-            AND p.post_status IN ('publish', 'private')
+            WHERE p.post_status IN ('publish', 'private')
+            AND (
+                -- Productos simples (sin variaciones)
+                (p.post_type = 'product' AND p.ID NOT IN (
+                    SELECT DISTINCT post_parent 
+                    FROM miau_posts 
+                    WHERE post_type = 'product_variation' 
+                    AND post_status = 'publish'
+                    AND post_parent IS NOT NULL
+                ))
+                OR
+                -- Solo variaciones (no productos padre)
+                p.post_type = 'product_variation'
+            )
             $search_condition
         ";
         
@@ -101,7 +113,12 @@ class WooCommerceProducts {
         $query = "
             SELECT 
                 p.ID as id_producto,
-                p.post_title as nombre,
+                p.post_parent as producto_padre_id,
+                p.post_type,
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN COALESCE(parent.post_title, p.post_title)
+                    ELSE p.post_title 
+                END as nombre,
                 p.post_content as descripcion,
                 p.post_excerpt as descripcion_corta,
                 p.post_status as estado,
@@ -116,8 +133,18 @@ class WooCommerceProducts {
                 COALESCE(pm_length.meta_value, '') as largo,
                 COALESCE(pm_width.meta_value, '') as ancho,
                 COALESCE(pm_height.meta_value, '') as alto,
-                COALESCE(pm_manage_stock.meta_value, 'no') as gestionar_stock
+                COALESCE(pm_manage_stock.meta_value, 'no') as gestionar_stock,
+                -- Datos específicos de variaciones
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.ID
+                    ELSE NULL 
+                END as variation_id,
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.post_parent
+                    ELSE p.ID 
+                END as product_id
             FROM miau_posts p
+            LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
             LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
             LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
             LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
@@ -130,18 +157,37 @@ class WooCommerceProducts {
             LEFT JOIN miau_postmeta pm_height ON p.ID = pm_height.post_id AND pm_height.meta_key = '_height'
             LEFT JOIN miau_postmeta pm_manage_stock ON p.ID = pm_manage_stock.post_id AND pm_manage_stock.meta_key = '_manage_stock'
             $category_condition
-            WHERE p.post_type = 'product' 
-            AND p.post_status IN ('publish', 'private')
+            WHERE p.post_status IN ('publish', 'private')
+            AND (
+                -- Productos simples (sin variaciones)
+                (p.post_type = 'product' AND p.ID NOT IN (
+                    SELECT DISTINCT post_parent 
+                    FROM miau_posts 
+                    WHERE post_type = 'product_variation' 
+                    AND post_status = 'publish'
+                    AND post_parent IS NOT NULL
+                ))
+                OR
+                -- Solo variaciones (no productos padre)
+                p.post_type = 'product_variation'
+            )
             $search_condition
             ORDER BY p.post_title ASC
             LIMIT $limit OFFSET $offset
         ";
+        
+        // Debug: mostrar la query completa
+        Utils::logError("getAllProducts SQL Query: " . $query);
         
         $result = mysqli_query($this->wp_connection, $query);
         
         if (!$result) {
             throw new Exception("Error en consulta de productos: " . mysqli_error($this->wp_connection));
         }
+        
+        // Debug: contar filas obtenidas
+        $row_count = mysqli_num_rows($result);
+        Utils::logError("getAllProducts - Rows returned from DB: " . $row_count);
         
         $products = [];
         while ($row = mysqli_fetch_assoc($result)) {
@@ -154,6 +200,24 @@ class WooCommerceProducts {
             $row['sku'] = $row['sku'] ?? '';
             $row['descripcion_corta'] = $row['descripcion_corta'] ?? '';
             $row['descripcion'] = $row['descripcion'] ?? '';
+            
+            // Datos de variación
+            $row['variation_id'] = $row['variation_id'] ? intval($row['variation_id']) : null;
+            $row['product_id'] = intval($row['product_id']);
+            $row['es_variacion'] = ($row['post_type'] === 'product_variation');
+            
+            // Debug: mostrar datos de cada producto
+            Utils::logError("Product processed - ID: " . $row['id_producto'] . ", Type: " . $row['post_type'] . ", Name: " . $row['nombre'] . ", Is_variation: " . ($row['es_variacion'] ? 'YES' : 'NO'));
+            
+            // Si es variación, obtener atributos y label
+            if ($row['es_variacion'] && $row['variation_id']) {
+                $row['variation_attributes'] = $this->getVariationAttributes($row['variation_id']);
+                $row['variation_label'] = $this->buildVariationLabel($row['variation_attributes']);
+                Utils::logError("Variation processed - Variation_ID: " . $row['variation_id'] . ", Label: " . $row['variation_label']);
+            } else {
+                $row['variation_attributes'] = null;
+                $row['variation_label'] = '';
+            }
             
             $products[] = $row;
         }
@@ -213,16 +277,17 @@ class WooCommerceProducts {
     /**
      * Buscar productos con variaciones (migrado de search_products_ajax.php)
      */
-    public function searchProductsWithVariations($search_term = '', $limit = 50) {
+    public function searchProductsWithVariations($search_term = '', $limit = 50, $offset = 0) {
         $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
         $limit = (int)$limit;
+        $offset = (int)$offset;
         
         $search_condition = '';
         if (!empty($search_term)) {
             $search_condition = "AND (
                 p.post_title LIKE '%$search_term%' 
-                OR pm_sku_prod.meta_value LIKE '%$search_term%'
-                OR pm_sku_var.meta_value LIKE '%$search_term%'
+                OR PM_sku_prod.sku_prod LIKE '%$search_term%'
+                OR PM_sku_var.sku_var LIKE '%$search_term%'
                 OR p.post_content LIKE '%$search_term%'
             )";
         }
@@ -355,12 +420,19 @@ class WooCommerceProducts {
         )
         $search_condition
         ORDER BY p.post_title ASC
-        LIMIT $limit";
+        LIMIT $limit OFFSET $offset";
+        
+        // Debug: mostrar la query completa para búsqueda
+        Utils::logError("searchProductsWithVariations SQL Query: " . $query);
         
         $result = mysqli_query($this->wp_connection, $query);
         if (!$result) {
             throw new Exception('Error en consulta de productos con variaciones: ' . mysqli_error($this->wp_connection));
         }
+        
+        // Debug: contar filas obtenidas en búsqueda
+        $row_count = mysqli_num_rows($result);
+        Utils::logError("searchProductsWithVariations - Rows returned from DB: " . $row_count);
         
         $products = [];
         while ($row = mysqli_fetch_assoc($result)) {
@@ -377,17 +449,23 @@ class WooCommerceProducts {
             $parent_name = $row['nombre'];
             $display_title = $parent_name; // Solo nombre del padre
             
+            // Debug: mostrar datos de cada producto en búsqueda
+            Utils::logError("Search Product processed - ID: " . $row['id_producto'] . ", Type: " . $row['post_type'] . ", Name: " . $row['nombre'] . ", Variation_ID: " . ($row['variation_id'] ?? 'null'));
+            
             $products[] = [
                 // IDs principales
                 'id' => (int)$row['id_producto'],                    // ID único (variación o producto)
+                'id_producto' => (int)$row['id_producto'],           // Para compatibilidad con productos.php
                 'product_id' => (int)$row['product_id'],             // ID del producto padre
                 'variation_id' => $row['variation_id'],              // ID de variación (null si es producto)
                 
                 // Información básica
                 'title' => $display_title,
+                'nombre' => $parent_name,                            // Para compatibilidad con productos.php
                 'parent_name' => $parent_name,                       // Nombre del producto padre
                 'variation_label' => $variation_label,               // Label formateado de variación
                 'variation_attributes' => $variation_attributes,     // Atributos raw de variación
+                'es_variacion' => ($row['post_type'] === 'product_variation'), // Para compatibilidad
                 
                 // Descripción
                 'descripcion' => $row['descripcion'] ?? '',
@@ -402,6 +480,7 @@ class WooCommerceProducts {
                 'stock' => (int)($row['stock'] ?? 0),
                 'estado_stock' => $row['estado_stock'] ?? 'outofstock',
                 'is_available' => ($row['estado_stock'] === 'instock'),
+                'en_stock' => ($row['estado_stock'] === 'instock'), // Para compatibilidad
                 
                 // Otros
                 'sku' => $row['sku'] ?? '',

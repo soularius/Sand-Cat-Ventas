@@ -1073,7 +1073,7 @@ class WooCommerceOrders
         $debug_result = mysqli_query($this->wp_connection, $debug_query);
         if ($debug_result) {
             $debug_row = mysqli_fetch_assoc($debug_result);
-            error_log("DEBUG getOrderItems: Pedido {$order_id} tiene {$debug_row['count']} items en miau_woocommerce_order_items");
+            Utils::logError("DEBUG getOrderItems: Pedido {$order_id} tiene {$debug_row['count']} items en miau_woocommerce_order_items");
         }
 
         $query = "

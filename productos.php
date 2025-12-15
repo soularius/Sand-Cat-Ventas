@@ -101,12 +101,15 @@ $current_page = max(1, intval($page_param));
 $current_page = (int)$current_page; // Asegurar que sea entero
 $offset = ($current_page - 1) * $products_per_page;
 
-// Debug: verificar que current_page sea correcto
-error_log("Page param from GET: '$page_param', Current page after processing: $current_page");
-
 // Obtener parámetros de búsqueda y filtros
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 $category_id = isset($_GET['category']) ? intval($_GET['category']) : 0;
+
+// Debug: verificar que current_page sea correcto
+Utils::logError("Page param from GET: '$page_param', Current page after processing: $current_page");
+
+// Debug: verificar si se están obteniendo variaciones
+Utils::logError("Debug getAllProducts - Search: '$search_term', Category: $category_id, Limit: $products_per_page, Offset: $offset");
 
 try {
     // Obtener total de productos para paginación
@@ -120,23 +123,34 @@ try {
     }
     
     // Debug info
-    error_log("Pagination Debug - Total products: $total_products, Total pages: $total_pages, Current page: $current_page");
+    Utils::logError("Pagination Debug - Total products: $total_products, Total pages: $total_pages, Current page: $current_page");
     
     // Asegurar que tenemos productos para mostrar paginación
     if ($total_products == 0) {
-        error_log("No products found - Search: '$search_term', Category: $category_id");
+        Utils::logError("No products found - Search: '$search_term', Category: $category_id");
     }
     
     // Obtener productos con paginación usando los métodos de la clase
     if (!empty($search_term)) {
-        // Usar método de búsqueda optimizado con paginación
-        $productos_woo = $wooProducts->searchProducts($search_term, $products_per_page, $offset);
+        // Usar método de búsqueda con variaciones
+        Utils::logError("Using searchProductsWithVariations method");
+        $productos_woo = $wooProducts->searchProductsWithVariations($search_term, $products_per_page, $offset);
     } elseif ($category_id > 0) {
         // Usar método de categoría optimizado con paginación
+        Utils::logError("Using getProductsByCategory method");
         $productos_woo = $wooProducts->getProductsByCategory($category_id, $products_per_page, $offset);
     } else {
         // Usar método general con paginación
+        Utils::logError("Using getAllProducts method");
         $productos_woo = $wooProducts->getAllProducts($products_per_page, $offset, $search_term, $category_id);
+    }
+    
+    // Debug: verificar cuántos productos se obtuvieron y si hay variaciones
+    Utils::logError("Products fetched: " . count($productos_woo));
+    foreach ($productos_woo as $index => $producto) {
+        if (isset($producto['es_variacion']) && $producto['es_variacion']) {
+            Utils::logError("Variation found at index $index: ID=" . $producto['id_producto'] . ", Name=" . $producto['nombre'] . ", Variation_ID=" . ($producto['variation_id'] ?? 'null'));
+        }
     }
     
     // Obtener categorías para el filtro
@@ -144,7 +158,7 @@ try {
     
 } catch (Exception $e) {
     // Manejo de errores
-    error_log("Error en productos.php: " . $e->getMessage());
+    Utils::logError("Error en productos.php: " . $e->getMessage());
     $productos_woo = [];
     $categorias_woo = [];
     $total_products = 0;
@@ -291,16 +305,16 @@ include("parts/header.php");
         <td>
           <div class="d-flex flex-column">
             <strong>
-              <a href="<?php echo ($_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU') . '/?p=' . $producto['id_producto']; ?>" 
+              <a href="<?php echo ($_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU') . '/?p=' . ($producto['product_id'] ?? $producto['id_producto']); ?>" 
                  target="_blank" 
                  class="text-decoration-none text-primary"
                  title="Ver en WooCommerce">
-                <?php echo htmlspecialchars($producto['nombre']); ?>
+                <?php echo $producto['title'] ?? $producto['nombre']; ?>
                 <i class="fas fa-external-link-alt ms-1 small"></i>
               </a>
             </strong>
-            <?php if (!empty($producto['descripcion_corta'])): ?>
-              <small class="text-muted"><?php echo substr(strip_tags($producto['descripcion_corta']), 0, 100); ?>...</small>
+            <?php if (!empty($producto['variation_label'])): ?>
+              <small class="text-primary ps-2"><?php echo $producto['variation_label']; ?></small>
             <?php endif; ?>
           </div>
         </td>
