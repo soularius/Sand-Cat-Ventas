@@ -26,9 +26,78 @@ class WooCommerceProducts {
     }
     
     /**
-     * Obtener todos los productos de WooCommerce
+     * Obtener el total de productos para paginación
      */
-    public function getAllProducts($limit = 100, $offset = 0) {
+    public function getTotalProductsCount($search_term = '', $category_id = 0) {
+        $search_condition = '';
+        $category_condition = '';
+        
+        if (!empty($search_term)) {
+            $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
+            $search_condition = "AND (
+                p.post_title LIKE '%$search_term%' 
+                OR pm_sku.meta_value LIKE '%$search_term%'
+                OR p.post_content LIKE '%$search_term%'
+            )";
+        }
+        
+        if ($category_id > 0) {
+            $category_id = intval($category_id);
+            $category_condition = "
+                INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
+                INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                AND tt.taxonomy = 'product_cat'
+                AND tt.term_id = $category_id
+            ";
+        }
+        
+        $query = "
+            SELECT COUNT(DISTINCT p.ID) as total
+            FROM miau_posts p
+            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            $category_condition
+            WHERE p.post_type = 'product' 
+            AND p.post_status IN ('publish', 'private')
+            $search_condition
+        ";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        
+        if (!$result) {
+            throw new Exception("Error en consulta de conteo de productos: " . mysqli_error($this->wp_connection));
+        }
+        
+        $row = mysqli_fetch_assoc($result);
+        return intval($row['total']);
+    }
+    
+    /**
+     * Obtener todos los productos de WooCommerce con paginación
+     */
+    public function getAllProducts($limit = 20, $offset = 0, $search_term = '', $category_id = 0) {
+        // Construir condiciones de búsqueda y categoría
+        $search_condition = '';
+        $category_condition = '';
+        
+        if (!empty($search_term)) {
+            $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
+            $search_condition = "AND (
+                p.post_title LIKE '%$search_term%' 
+                OR pm_sku.meta_value LIKE '%$search_term%'
+                OR p.post_content LIKE '%$search_term%'
+            )";
+        }
+        
+        if ($category_id > 0) {
+            $category_id = intval($category_id);
+            $category_condition = "
+                INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
+                INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                AND tt.taxonomy = 'product_cat'
+                AND tt.term_id = $category_id
+            ";
+        }
+        
         $query = "
             SELECT 
                 p.ID as id_producto,
@@ -60,8 +129,10 @@ class WooCommerceProducts {
             LEFT JOIN miau_postmeta pm_width ON p.ID = pm_width.post_id AND pm_width.meta_key = '_width'
             LEFT JOIN miau_postmeta pm_height ON p.ID = pm_height.post_id AND pm_height.meta_key = '_height'
             LEFT JOIN miau_postmeta pm_manage_stock ON p.ID = pm_manage_stock.post_id AND pm_manage_stock.meta_key = '_manage_stock'
+            $category_condition
             WHERE p.post_type = 'product' 
             AND p.post_status IN ('publish', 'private')
+            $search_condition
             ORDER BY p.post_title ASC
             LIMIT $limit OFFSET $offset
         ";
@@ -343,9 +414,9 @@ class WooCommerceProducts {
     }
 
     /**
-     * Buscar productos por nombre o SKU (versión legacy mantenida para compatibilidad)
+     * Buscar productos por nombre o SKU con paginación
      */
-    public function searchProducts($search_term, $limit = 50) {
+    public function searchProducts($search_term, $limit = 50, $offset = 0) {
         $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
         
         $query = "
@@ -371,7 +442,7 @@ class WooCommerceProducts {
                 OR p.post_content LIKE '%$search_term%'
             )
             ORDER BY p.post_title ASC
-            LIMIT $limit
+            LIMIT $limit OFFSET $offset
         ";
         
         $result = mysqli_query($this->wp_connection, $query);
@@ -764,9 +835,9 @@ class WooCommerceProducts {
     }
     
     /**
-     * Obtener productos por categoría
+     * Obtener productos por categoría con paginación
      */
-    public function getProductsByCategory($category_id, $limit = 50) {
+    public function getProductsByCategory($category_id, $limit = 50, $offset = 0) {
         $category_id = intval($category_id);
         
         $query = "
@@ -789,7 +860,7 @@ class WooCommerceProducts {
             AND tt.taxonomy = 'product_cat'
             AND tt.term_id = $category_id
             ORDER BY p.post_title ASC
-            LIMIT $limit
+            LIMIT $limit OFFSET $offset
         ";
         
         $result = mysqli_query($this->wp_connection, $query);

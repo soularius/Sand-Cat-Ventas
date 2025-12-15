@@ -93,22 +93,70 @@ if(isset($_POST['n_productos']) && isset($_POST['n_productos'])) {
 // Inicializar clase de productos WooCommerce
 $wooProducts = new WooCommerceProducts();
 
-// Obtener productos de WooCommerce
-$search_term = isset($_GET['search']) ? $_GET['search'] : '';
+// Configuración de paginación
+$products_per_page = 20;
+// Capturar page parameter de forma segura antes de cualquier modificación de $_GET
+$page_param = isset($_GET['page']) ? $_GET['page'] : '1';
+$current_page = max(1, intval($page_param));
+$current_page = (int)$current_page; // Asegurar que sea entero
+$offset = ($current_page - 1) * $products_per_page;
+
+// Debug: verificar que current_page sea correcto
+error_log("Page param from GET: '$page_param', Current page after processing: $current_page");
+
+// Obtener parámetros de búsqueda y filtros
+$search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 $category_id = isset($_GET['category']) ? intval($_GET['category']) : 0;
 
-if (!empty($search_term)) {
-    $productos_woo = $wooProducts->searchProducts($search_term);
-} elseif ($category_id > 0) {
-    $productos_woo = $wooProducts->getProductsByCategory($category_id);
-} else {
-    $productos_woo = $wooProducts->getAllProducts(100);
+try {
+    // Obtener total de productos para paginación
+    $total_products = (int)$wooProducts->getTotalProductsCount($search_term, $category_id);
+    $total_pages = max(1, (int)ceil($total_products / $products_per_page));
+    
+    // Asegurar que la página actual no exceda el total de páginas
+    if ($current_page > $total_pages) {
+        $current_page = (int)$total_pages;
+        $offset = ($current_page - 1) * $products_per_page;
+    }
+    
+    // Debug info
+    error_log("Pagination Debug - Total products: $total_products, Total pages: $total_pages, Current page: $current_page");
+    
+    // Asegurar que tenemos productos para mostrar paginación
+    if ($total_products == 0) {
+        error_log("No products found - Search: '$search_term', Category: $category_id");
+    }
+    
+    // Obtener productos con paginación usando los métodos de la clase
+    if (!empty($search_term)) {
+        // Usar método de búsqueda optimizado con paginación
+        $productos_woo = $wooProducts->searchProducts($search_term, $products_per_page, $offset);
+    } elseif ($category_id > 0) {
+        // Usar método de categoría optimizado con paginación
+        $productos_woo = $wooProducts->getProductsByCategory($category_id, $products_per_page, $offset);
+    } else {
+        // Usar método general con paginación
+        $productos_woo = $wooProducts->getAllProducts($products_per_page, $offset, $search_term, $category_id);
+    }
+    
+    // Obtener categorías para el filtro
+    $categorias_woo = $wooProducts->getProductCategories();
+    
+} catch (Exception $e) {
+    // Manejo de errores
+    error_log("Error en productos.php: " . $e->getMessage());
+    $productos_woo = [];
+    $categorias_woo = [];
+    $total_products = 0;
+    $total_pages = 1;
+    $current_page = 1;
 }
 
-// Obtener categorías para el filtro
-$categorias_woo = $wooProducts->getProductCategories();
-
 $totalRows_articulos = count($productos_woo);
+
+// Definir variables seguras de paginación para uso global
+$current_page_int = (int)$current_page;
+$total_pages_int = (int)$total_pages;
 
 $ellogin = '';
 $ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
@@ -156,6 +204,9 @@ include("parts/header.php");
         <input type="text" class="form-control me-2" name="search" 
                placeholder="Buscar por nombre, SKU o descripción..." 
                value="<?php echo htmlspecialchars($search_term); ?>">
+        <?php if ($category_id > 0): ?>
+          <input type="hidden" name="category" value="<?php echo $category_id; ?>">
+        <?php endif; ?>
         <button type="submit" class="btn btn-primary">
           <i class="fas fa-search"></i>
         </button>
@@ -173,19 +224,47 @@ include("parts/header.php");
             </option>
           <?php endforeach; ?>
         </select>
+        <?php if (!empty($search_term)): ?>
+          <input type="hidden" name="search" value="<?php echo htmlspecialchars($search_term); ?>">
+        <?php endif; ?>
       </form>
     </div>
   </div>
 
   <!-- Información de resultados -->
-  <div class="alert alert-info">
-    <i class="fas fa-info-circle me-2"></i>
-    Mostrando <?php echo $totalRows_articulos; ?> productos
-    <?php if (!empty($search_term)): ?>
-      para la búsqueda: "<strong><?php echo htmlspecialchars($search_term); ?></strong>"
-    <?php endif; ?>
-    <?php if ($category_id > 0): ?>
-      en la categoría seleccionada
+  <div class="alert alert-success d-flex justify-content-between align-items-center">
+    <div>
+      <i class="fas fa-info-circle me-2"></i>
+      <?php if ($total_products > 0): ?>
+        Mostrando <?php echo $totalRows_articulos; ?> de <?php echo $total_products; ?> productos
+        <?php if (!empty($search_term)): ?>
+          para la búsqueda: "<strong><?php echo htmlspecialchars($search_term); ?></strong>"
+        <?php endif; ?>
+        <?php if ($category_id > 0): ?>
+          <?php 
+          $categoria_nombre = '';
+          foreach ($categorias_woo as $cat) {
+              if ($cat['id_categoria'] == $category_id) {
+                  $categoria_nombre = $cat['nombre'];
+                  break;
+              }
+          }
+          ?>
+          en la categoría: <strong><?php echo htmlspecialchars($categoria_nombre); ?></strong>
+        <?php endif; ?>
+      <?php else: ?>
+        No se encontraron productos
+        <?php if (!empty($search_term) || $category_id > 0): ?>
+          con los filtros aplicados
+        <?php endif; ?>
+      <?php endif; ?>
+    </div>
+    <?php if ($total_products > 0): ?>
+    <div>
+      <small class="text-muted">
+        Página <?php echo $current_page_int; ?> de <?php echo $total_pages_int; ?>
+      </small>
+    </div>
     <?php endif; ?>
   </div>
 
@@ -263,24 +342,122 @@ include("parts/header.php");
     </tbody>
   </table>
   </div>
-    	<?php } else { ?>
-		<div class="text-center py-5">
-			<i class="fas fa-box-open fa-3x text-muted mb-3"></i>
-			<h4 class="text-muted">No se encontraron productos</h4>
-			<p class="text-muted">
-				<?php if (!empty($search_term)): ?>
-					No hay productos que coincidan con tu búsqueda.
-				<?php elseif ($category_id > 0): ?>
-					No hay productos en esta categoría.
-				<?php else: ?>
-					No hay productos disponibles en WooCommerce.
-				<?php endif; ?>
-			</p>
-			<a href="productos.php" class="btn btn-primary">
-				<i class="fas fa-sync-alt me-1"></i>Actualizar lista
-			</a>
-		</div>
-	  <?php } ?>
+  
+  <!-- Paginación -->
+  <?php if ($total_pages > 1): ?>
+  <nav aria-label="Paginación de productos" class="mt-4">
+    <ul class="pagination justify-content-center">
+      <!-- Botón Anterior -->
+      <?php if ($current_page_int > 1): ?>
+        <li class="page-item">
+          <?php 
+          $prev_params = $_GET;
+          $prev_params['page'] = $current_page_int - 1;
+          ?>
+          <a class="page-link" href="productos.php?<?php echo http_build_query($prev_params); ?>">
+            <i class="fas fa-chevron-left me-1"></i>Anterior
+          </a>
+        </li>
+      <?php else: ?>
+        <li class="page-item disabled">
+          <span class="page-link">
+            <i class="fas fa-chevron-left me-1"></i>Anterior
+          </span>
+        </li>
+      <?php endif; ?>
+      
+      <!-- Números de página -->
+      <?php
+      $start_page = max(1, $current_page_int - 2);
+      $end_page = min($total_pages_int, $current_page_int + 2);
+      
+      // Mostrar primera página si no está en el rango
+      if ($start_page > 1): ?>
+        <li class="page-item">
+          <?php 
+          $first_params = $_GET;
+          $first_params['page'] = 1;
+          ?>
+          <a class="page-link" href="productos.php?<?php echo http_build_query($first_params); ?>">1</a>
+        </li>
+        <?php if ($start_page > 2): ?>
+          <li class="page-item disabled">
+            <span class="page-link">...</span>
+          </li>
+        <?php endif; ?>
+      <?php endif; ?>
+      
+      <!-- Páginas en el rango -->
+      <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+        <li class="page-item <?php echo ($i == $current_page_int) ? 'active' : ''; ?>">
+          <?php 
+          $page_params = $_GET;
+          $page_params['page'] = (int)$i;
+          ?>
+          <a class="page-link" href="productos.php?<?php echo http_build_query($page_params); ?>"><?php echo $i; ?></a>
+        </li>
+      <?php endfor; ?>
+      
+      <!-- Mostrar última página si no está en el rango -->
+      <?php if ($end_page < $total_pages_int): ?>
+        <?php if ($end_page < $total_pages_int - 1): ?>
+          <li class="page-item disabled">
+            <span class="page-link">...</span>
+          </li>
+        <?php endif; ?>
+        <li class="page-item">
+          <?php 
+          $last_params = $_GET;
+          $last_params['page'] = $total_pages_int;
+          ?>
+          <a class="page-link" href="productos.php?<?php echo http_build_query($last_params); ?>"><?php echo $total_pages_int; ?></a>
+        </li>
+      <?php endif; ?>
+      
+      <!-- Botón Siguiente -->
+      <?php if ($current_page_int < $total_pages_int): ?>
+        <li class="page-item">
+          <?php 
+          $next_params = $_GET;
+          $next_params['page'] = $current_page_int + 1;
+          ?>
+          <a class="page-link" href="productos.php?<?php echo http_build_query($next_params); ?>">
+            Siguiente<i class="fas fa-chevron-right ms-1"></i>
+          </a>
+        </li>
+      <?php else: ?>
+        <li class="page-item disabled">
+          <span class="page-link">
+            Siguiente<i class="fas fa-chevron-right ms-1"></i>
+          </span>
+        </li>
+      <?php endif; ?>
+    </ul>
+  </nav>
+  
+  <!-- Información adicional de paginación -->
+  <?php if ($total_products > 0): ?>
+  <div class="text-center text-muted mt-2">
+    <small>
+      Mostrando <?php 
+      $start_item = ($current_page_int - 1) * $products_per_page + 1;
+      $end_item = min($current_page_int * $products_per_page, $total_products);
+      echo $start_item . '-' . $end_item; 
+      ?> de <?php echo $total_products; ?> productos
+    </small>
+  </div>
+  <?php endif; ?>
+  <?php endif; ?>
+  
+		<?php } else { ?>
+  <div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    No se encontraron productos.
+    <?php if (!empty($search_term) || $category_id > 0): ?>
+      <br><small>Intenta cambiar los filtros de búsqueda.</small>
+    <?php endif; ?>
+  </div>
+		<?php } ?>
 </div>
 </div>
 
