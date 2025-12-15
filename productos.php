@@ -369,13 +369,13 @@ include("parts/header.php");
           $prev_params = $_GET;
           $prev_params['page'] = $current_page_int - 1;
           ?>
-          <a class="page-link" href="productos.php?<?php echo http_build_query($prev_params); ?>">
+          <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="productos.php?<?php echo http_build_query($prev_params); ?>">
             <i class="fas fa-chevron-left me-1"></i>Anterior
           </a>
         </li>
       <?php else: ?>
         <li class="page-item disabled">
-          <span class="page-link">
+          <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">
             <i class="fas fa-chevron-left me-1"></i>Anterior
           </span>
         </li>
@@ -393,11 +393,11 @@ include("parts/header.php");
           $first_params = $_GET;
           $first_params['page'] = 1;
           ?>
-          <a class="page-link" href="productos.php?<?php echo http_build_query($first_params); ?>">1</a>
+          <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="productos.php?<?php echo http_build_query($first_params); ?>">1</a>
         </li>
         <?php if ($start_page > 2): ?>
           <li class="page-item disabled">
-            <span class="page-link">...</span>
+            <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
           </li>
         <?php endif; ?>
       <?php endif; ?>
@@ -409,7 +409,7 @@ include("parts/header.php");
           $page_params = $_GET;
           $page_params['page'] = (int)$i;
           ?>
-          <a class="page-link" href="productos.php?<?php echo http_build_query($page_params); ?>"><?php echo $i; ?></a>
+          <a class="page-link text-white btn btn-sm btn-custom px-3 py-2 mx-1 <?php echo ($i == $current_page_int) ? 'btn-success' : 'btn-danger'; ?>" href="productos.php?<?php echo http_build_query($page_params); ?>"><?php echo $i; ?></a>
         </li>
       <?php endfor; ?>
       
@@ -417,7 +417,7 @@ include("parts/header.php");
       <?php if ($end_page < $total_pages_int): ?>
         <?php if ($end_page < $total_pages_int - 1): ?>
           <li class="page-item disabled">
-            <span class="page-link">...</span>
+            <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
           </li>
         <?php endif; ?>
         <li class="page-item">
@@ -425,7 +425,7 @@ include("parts/header.php");
           $last_params = $_GET;
           $last_params['page'] = $total_pages_int;
           ?>
-          <a class="page-link" href="productos.php?<?php echo http_build_query($last_params); ?>"><?php echo $total_pages_int; ?></a>
+          <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="productos.php?<?php echo http_build_query($last_params); ?>"><?php echo $total_pages_int; ?></a>
         </li>
       <?php endif; ?>
       
@@ -436,13 +436,13 @@ include("parts/header.php");
           $next_params = $_GET;
           $next_params['page'] = $current_page_int + 1;
           ?>
-          <a class="page-link" href="productos.php?<?php echo http_build_query($next_params); ?>">
+          <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="productos.php?<?php echo http_build_query($next_params); ?>">
             Siguiente<i class="fas fa-chevron-right ms-1"></i>
           </a>
         </li>
       <?php else: ?>
         <li class="page-item disabled">
-          <span class="page-link">
+          <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 opacity-50 mx-1">
             Siguiente<i class="fas fa-chevron-right ms-1"></i>
           </span>
         </li>
