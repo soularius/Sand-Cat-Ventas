@@ -408,6 +408,7 @@ class ProductCart {
                     <span class="text-muted">${this.getTotalItems()} productos</span>
                     ${totalDiscount > 0 ? `<span class="text-danger font-weight-bold">Ahorras $${totalDiscount.toLocaleString('es-CO')}</span>` : ''}
                 </div>
+                ${window.location.pathname.includes('selector_productos.php') ? `
                 <div class="cart-actions mt-3">
                     <button class="btn btn-danger btn-custom btn-sm" onclick="cart.clearCart()">
                         <i class="fas fa-trash me-1"></i>Limpiar
@@ -416,6 +417,7 @@ class ProductCart {
                         <i class="fas fa-arrow-right me-1"></i> Continuar
                     </button>
                 </div>
+                ` : ''}
             </div>
         `;
         

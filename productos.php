@@ -248,8 +248,7 @@ include("parts/header.php");
           <?php foreach ($categorias_woo as $categoria): ?>
             <option value="<?php echo $categoria['id_taxonomy']; ?>" 
                     <?php echo ($category_id == $categoria['id_taxonomy']) ? 'selected' : ''; ?>>
-              <?php echo htmlspecialchars($categoria['nombre']); ?> 
-              (<?php echo $categoria['total_productos']; ?>)
+              <?php echo htmlspecialchars($categoria['nombre']); ?>
             </option>
           <?php endforeach; ?>
         </select>
@@ -314,7 +313,7 @@ include("parts/header.php");
     </thead>
     <tbody id="donde">
 		<?php foreach ($productos_woo as $producto): ?>
-      <tr>
+      <tr data-product-id="<?php echo $producto['id_producto']; ?>">
         <td>
           <div class="d-flex flex-column">
             <strong>
@@ -490,8 +489,7 @@ include("parts/header.php");
     <?php endif; ?>
   </div>
 		<?php } ?>
-</div>
-</div>
+
 
 <!-- Modal para ver detalles del producto -->
 <div class="modal fade" id="verProducto" tabindex="-1" aria-labelledby="verProductoLabel" aria-hidden="true">
@@ -540,6 +538,9 @@ include("parts/header.php");
     </div>
 </div>
 
+<!-- Carrito de Compras JavaScript -->
+<script src="assets/js/carrito_compras.js"></script>
+
 <script>
 // Manejar modal de detalles del producto
 document.addEventListener('DOMContentLoaded', function() {
@@ -571,25 +572,170 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Función para agregar producto a venta
+// Función para agregar producto a venta usando localStorage
 function agregarAVenta(productId) {
-    // Aquí puedes implementar la lógica para agregar el producto a una venta
-    alert('Funcionalidad de agregar a venta será implementada próximamente.\nProducto ID: ' + productId);
+    console.log('agregarAVenta called with productId:', productId);
+    
+    // Verificar que el carrito esté inicializado
+    if (typeof cart === 'undefined' || !cart) {
+        console.error('Cart not initialized');
+        showNotification('Error: Sistema de carrito no inicializado', 'error');
+        return;
+    }
+    
+    // Buscar el producto en la tabla actual
+    const productRow = document.querySelector(`tr[data-product-id="${productId}"]`);
+    if (!productRow) {
+        console.error('Product row not found for ID:', productId);
+        showNotification('Error: Producto no encontrado', 'error');
+        return;
+    }
+    
+    // Extraer datos del producto desde la fila de la tabla
+    const productData = extractProductDataFromRow(productRow, productId);
+    if (!productData) {
+        console.error('Could not extract product data');
+        showNotification('Error: No se pudieron obtener los datos del producto', 'error');
+        return;
+    }
+    
+    console.log('Product data extracted:', productData);
+    
+    // Agregar al carrito
+    const cartKey = cart.addProduct(productData, 1);
+    
+    if (cartKey) {
+        console.log('Product added to cart with key:', cartKey);
+        // Actualizar el botón para mostrar que fue agregado
+        const button = productRow.querySelector('.btn-success');
+        if (button) {
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i> Agregado';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-info');
+            
+            // Restaurar el botón después de 2 segundos
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+                button.classList.remove('btn-info');
+                button.classList.add('btn-success');
+            }, 2000);
+        }
+    }
 }
 
-// Búsqueda en tiempo real (opcional)
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.querySelector('input[name="search"]');
-    if (searchInput) {
-        let searchTimeout;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(function() {
-                // Implementar búsqueda AJAX si se desea
-            }, 500);
-        });
+// Función para extraer datos del producto desde la fila de la tabla
+function extractProductDataFromRow(row, productId) {
+    try {
+        // Extraer datos desde las celdas de la tabla
+        const cells = row.querySelectorAll('td');
+        
+        if (cells.length < 6) {
+            console.error('Not enough cells in product row');
+            return null;
+        }
+        
+        // Estructura real de las columnas: Producto, SKU, Precio, Stock, Estado, Acciones
+        const productoCell = cells[0]; // Contiene nombre y variación
+        const skuCell = cells[1];      // SKU
+        const precioCell = cells[2];   // Precio
+        const stockCell = cells[3];    // Stock
+        const estadoCell = cells[4];   // Estado
+        
+        // Extraer nombre del producto (primer enlace en la celda)
+        const nombreLink = productoCell.querySelector('a');
+        const nombre = nombreLink ? nombreLink.textContent.trim() : productoCell.textContent.trim();
+        
+        // Extraer variación si existe
+        const variacionElement = productoCell.querySelector('small');
+        const variacion = variacionElement ? variacionElement.textContent.trim() : '';
+        
+        // Extraer SKU (dentro de <code>)
+        const skuElement = skuCell.querySelector('code');
+        const sku = skuElement ? skuElement.textContent.trim() : skuCell.textContent.trim();
+        
+        // Extraer precio (puede tener precio regular y de oferta)
+        const precioOferta = precioCell.querySelector('.text-danger');
+        const precioRegular = precioCell.querySelector('.text-muted.text-decoration-line-through');
+        const precioNormal = precioCell.querySelector('.fw-bold:not(.text-danger)');
+        
+        let precio = 0;
+        let precioRegularValue = 0;
+        let precioOfertaValue = null;
+        
+        if (precioOferta && precioRegular) {
+            // Hay precio de oferta
+            const cleanOferta = precioOferta.textContent.replace(/[^\d]/g, '') || '0';
+            const cleanRegular = precioRegular.textContent.replace(/[^\d]/g, '') || '0';
+            precioOfertaValue = parseInt(cleanOferta, 10) || 0;
+            precioRegularValue = parseInt(cleanRegular, 10) || 0;
+            precio = precioOfertaValue;
+        } else if (precioNormal) {
+            // Precio normal sin oferta
+            const cleanPrecio = precioNormal.textContent.replace(/[^\d]/g, '') || '0';
+            precio = parseInt(cleanPrecio, 10) || 0;
+            precioRegularValue = precio;
+        }
+        
+        // Extraer stock (dentro de badge)
+        const stockBadge = stockCell.querySelector('.badge');
+        const stockText = stockBadge ? stockBadge.textContent.trim() : stockCell.textContent.trim();
+        const numericStock = parseInt(stockText.replace(/[^\d]/g, ''), 10) || 0;
+        
+        // Determinar disponibilidad desde el estado
+        const estadoBadge = estadoCell.querySelector('.badge');
+        const estadoText = estadoBadge ? estadoBadge.textContent.trim().toLowerCase() : '';
+        const available = estadoText.includes('disponible');
+        
+        return {
+            id: productId,
+            product_id: productId,
+            title: nombre || `Producto ${productId}`,
+            sku: sku === 'N/A' ? '' : sku,
+            price: precio,
+            regular_price: precioRegularValue || precio,
+            sale_price: precioOfertaValue,
+            stock: numericStock,
+            available: available,
+            variation_id: null,
+            variation_label: variacion,
+            variation_attributes: null,
+            image_url: '', // No hay imagen en esta vista
+            permalink: nombreLink ? nombreLink.href : '#'
+        };
+    } catch (error) {
+        console.error('Error extracting product data:', error);
+        return null;
     }
-});
+}
+
+// Función para mostrar notificaciones
+function showNotification(message, type = 'success') {
+    // Si el carrito tiene su propio método de notificación, usarlo
+    if (typeof cart !== 'undefined' && cart && typeof cart.showNotification === 'function') {
+        cart.showNotification(message, type);
+        return;
+    }
+    
+    // Fallback: crear notificación simple
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remover después de 3 segundos
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+
 </script>
 
 	<?php include("parts/foot.php"); ?>
