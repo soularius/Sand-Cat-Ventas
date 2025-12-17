@@ -105,11 +105,25 @@ $offset = ($current_page - 1) * $products_per_page;
 $search_term = isset($_GET['search']) ? trim($_GET['search']) : '';
 $category_id = isset($_GET['category']) && $_GET['category'] !== '' ? intval($_GET['category']) : 0;
 
-// Debug: verificar que current_page sea correcto
-Utils::logError("Page param from GET: '$page_param', Current page after processing: $current_page");
+// Debug: verificar parámetros recibidos
+Utils::logError("PRODUCTOS.PHP DEBUG - Page param: '$page_param', Current page: $current_page, Search: '$search_term', Category ID from URL: $category_id");
 
-// Debug: verificar si se están obteniendo variaciones
-Utils::logError("Debug getAllProducts - Search: '$search_term', Category: $category_id, Limit: $products_per_page, Offset: $offset");
+// Si tenemos category_id, verificar si es term_id y convertir a term_taxonomy_id
+if ($category_id > 0) {
+    // Verificar si el category_id es term_id y convertir a term_taxonomy_id
+    $query_convert = "SELECT tt.term_taxonomy_id FROM miau_terms t 
+                     INNER JOIN miau_term_taxonomy tt ON t.term_id = tt.term_id 
+                     WHERE tt.taxonomy = 'product_cat' AND (t.term_id = $category_id OR tt.term_taxonomy_id = $category_id)";
+    $result_convert = mysqli_query($miau, $query_convert);
+    if ($result_convert && mysqli_num_rows($result_convert) > 0) {
+        $row_convert = mysqli_fetch_assoc($result_convert);
+        $original_category_id = $category_id;
+        $category_id = intval($row_convert['term_taxonomy_id']);
+        Utils::logError("CATEGORY CONVERSION - Original ID: $original_category_id, Converted to term_taxonomy_id: $category_id");
+    } else {
+        Utils::logError("CATEGORY NOT FOUND - ID: $category_id not found in database");
+    }
+}
 
 try {
     // Obtener total de productos para paginación
@@ -122,12 +136,15 @@ try {
         $offset = ($current_page - 1) * $products_per_page;
     }
     
-    // Debug info
-    Utils::logError("Pagination Debug - Total products: $total_products, Total pages: $total_pages, Current page: $current_page");
+    // Debug info detallado
+    Utils::logError("PAGINATION DEBUG - Total products: $total_products, Total pages: $total_pages, Current page: $current_page, Products per page: $products_per_page");
+    Utils::logError("PAGINATION CONDITION - Will show pagination? " . ($total_pages > 1 ? 'YES' : 'NO') . " (total_pages: $total_pages)");
     
     // Asegurar que tenemos productos para mostrar paginación
     if ($total_products == 0) {
-        Utils::logError("No products found - Search: '$search_term', Category: $category_id");
+        Utils::logError("NO PRODUCTS FOUND - Search: '$search_term', Category: $category_id");
+    } else {
+        Utils::logError("PRODUCTS FOUND - Total: $total_products, Will fetch: " . min($products_per_page, $total_products - $offset));
     }
     
     // Obtener productos con paginación usando método optimizado unificado
@@ -229,8 +246,8 @@ include("parts/header.php");
         <select name="category" class="form-control form-select" onchange="this.form.submit()">
           <option value="">Todas las categorías</option>
           <?php foreach ($categorias_woo as $categoria): ?>
-            <option value="<?php echo $categoria['id_categoria']; ?>" 
-                    <?php echo ($category_id == $categoria['id_categoria']) ? 'selected' : ''; ?>>
+            <option value="<?php echo $categoria['id_taxonomy']; ?>" 
+                    <?php echo ($category_id == $categoria['id_taxonomy']) ? 'selected' : ''; ?>>
               <?php echo htmlspecialchars($categoria['nombre']); ?> 
               (<?php echo $categoria['total_productos']; ?>)
             </option>
@@ -256,7 +273,7 @@ include("parts/header.php");
           <?php 
           $categoria_nombre = '';
           foreach ($categorias_woo as $cat) {
-              if ($cat['id_categoria'] == $category_id) {
+              if ($cat['id_taxonomy'] == $category_id) {
                   $categoria_nombre = $cat['nombre'];
                   break;
               }

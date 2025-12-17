@@ -43,11 +43,15 @@ class WooCommerceProducts {
         
         if ($category_id > 0) {
             $category_id = intval($category_id);
+            // Corregido: usar LEFT JOIN con OR para incluir variaciones
             $category_condition = "
-                INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
-                INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                LEFT JOIN miau_term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
+                LEFT JOIN miau_term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
+                INNER JOIN miau_term_taxonomy tt ON (
+                    COALESCE(tr_product.term_taxonomy_id, tr_variation.term_taxonomy_id) = tt.term_taxonomy_id
+                )
                 AND tt.taxonomy = 'product_cat'
-                AND tt.term_id = $category_id
+                AND tt.term_taxonomy_id = $category_id
             ";
         }
         
@@ -73,6 +77,8 @@ class WooCommerceProducts {
             $search_condition
         ";
         
+        Utils::logError("getTotalProductsCount SQL: " . $query);
+        
         $result = mysqli_query($this->wp_connection, $query);
         
         if (!$result) {
@@ -80,7 +86,9 @@ class WooCommerceProducts {
         }
         
         $row = mysqli_fetch_assoc($result);
-        return intval($row['total']);
+        $total = intval($row['total']);
+        Utils::logError("getTotalProductsCount result: $total for category_id: $category_id, search: '$search_term'");
+        return $total;
     }
     
     /**
@@ -102,11 +110,15 @@ class WooCommerceProducts {
         
         if ($category_id > 0) {
             $category_id = intval($category_id);
+            // Corregido: usar LEFT JOIN con OR para incluir variaciones
             $category_condition = "
-                INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
-                INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                LEFT JOIN miau_term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
+                LEFT JOIN miau_term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
+                INNER JOIN miau_term_taxonomy tt ON (
+                    COALESCE(tr_product.term_taxonomy_id, tr_variation.term_taxonomy_id) = tt.term_taxonomy_id
+                )
                 AND tt.taxonomy = 'product_cat'
-                AND tt.term_id = $category_id
+                AND tt.term_taxonomy_id = $category_id
             ";
         }
         
@@ -326,11 +338,14 @@ class WooCommerceProducts {
             LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
             LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'";
         
-        // Agregar JOIN para categorías si es necesario
+        // Agregar JOIN para categorías si es necesario - CORREGIDO para incluir variaciones
         if (!empty($category_id)) {
             $query .= "
-            INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
-            INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id";
+            LEFT JOIN miau_term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
+            LEFT JOIN miau_term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
+            INNER JOIN miau_term_taxonomy tt ON (
+                COALESCE(tr_product.term_taxonomy_id, tr_variation.term_taxonomy_id) = tt.term_taxonomy_id
+            )";
         }
         
         $query .= "
@@ -352,7 +367,7 @@ class WooCommerceProducts {
         // Condiciones de búsqueda (igual que search_products_ajax.php)
         $conditions = [];
         
-        // Filtro por categoría
+        // Filtro por categoría - usar term_taxonomy_id para consistencia
         if (!empty($category_id)) {
             $conditions[] = "tt.term_taxonomy_id = '$category_id'";
         }
@@ -836,7 +851,7 @@ class WooCommerceProducts {
     }
     
     /**
-     * Obtener categorías de productos
+     * Obtener categorías de productos con conteo real (incluye variaciones)
      */
     public function getProductCategories() {
         $query = "
@@ -845,25 +860,50 @@ class WooCommerceProducts {
                 tt.term_taxonomy_id as id_taxonomy,
                 t.name as nombre,
                 t.slug as slug,
-                tt.count as total_productos
+                -- Conteo real de productos/variaciones en la categoría
+                (
+                    SELECT COUNT(DISTINCT p.ID)
+                    FROM miau_posts p
+                    INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
+                    WHERE tr.term_taxonomy_id = tt.term_taxonomy_id
+                    AND p.post_status IN ('publish', 'private')
+                    AND (
+                        -- Productos simples (sin variaciones)
+                        (p.post_type = 'product' AND p.ID NOT IN (
+                            SELECT DISTINCT post_parent 
+                            FROM miau_posts 
+                            WHERE post_type = 'product_variation' 
+                            AND post_status = 'publish'
+                            AND post_parent IS NOT NULL
+                        ))
+                        OR
+                        -- Solo variaciones (no productos padre)
+                        p.post_type = 'product_variation'
+                    )
+                ) as total_productos
             FROM miau_terms t
             INNER JOIN miau_term_taxonomy tt ON t.term_id = tt.term_id
             WHERE tt.taxonomy = 'product_cat'
-            AND tt.count > 0
+            HAVING total_productos > 0
             ORDER BY t.name ASC
         ";
+        
+        Utils::logError("getProductCategories SQL: " . $query);
         
         $result = mysqli_query($this->wp_connection, $query);
         
         if (!$result) {
-            die("Error al obtener categorías: " . mysqli_error($this->wp_connection));
+            Utils::logError("Error al obtener categorías: " . mysqli_error($this->wp_connection));
+            return [];
         }
         
         $categories = [];
         while ($row = mysqli_fetch_assoc($result)) {
+            Utils::logError("Category found: " . $row['nombre'] . " (ID: " . $row['id_taxonomy'] . ", Count: " . $row['total_productos'] . ")");
             $categories[] = $row;
         }
         
+        Utils::logError("Total categories found: " . count($categories));
         return $categories;
     }
     
