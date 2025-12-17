@@ -327,12 +327,12 @@ include("parts/header.php");
               </a>
             </strong>
             <?php if (!empty($producto['variation_label'])): ?>
-              <small class="text-primary ps-2"><?php echo $producto['variation_label']; ?></small>
+              <small class="text-primary ps-2"><?php echo str_ireplace('-', ' ', $producto['variation_label']); ?></small>
             <?php endif; ?>
           </div>
         </td>
         <td class="text-center">
-          <code><?php echo htmlspecialchars($producto['sku'] ?: 'N/A'); ?></code>
+          <code><?php echo htmlspecialchars($producto['sku'] ?: ($producto['parent_sku'] ?? 'N/A')); ?></code>
         </td>
         <td class="text-end">
           <div class="d-flex flex-column align-items-end">

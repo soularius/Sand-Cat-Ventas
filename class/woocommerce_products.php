@@ -128,7 +128,7 @@ class WooCommerceProducts {
                 p.post_parent as producto_padre_id,
                 p.post_type,
                 CASE 
-                    WHEN p.post_type = 'product_variation' THEN COALESCE(parent.post_title, p.post_title)
+                    WHEN p.post_type = 'product_variation' THEN REPLACE(COALESCE(parent.post_title, p.post_title), '-', ' ')
                     ELSE p.post_title 
                 END as nombre,
                 p.post_content as descripcion,
@@ -141,6 +141,8 @@ class WooCommerceProducts {
                 COALESCE(pm_stock.meta_value, '0') as stock,
                 COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
                 COALESCE(pm_sku.meta_value, '') as sku,
+                -- SKU del padre para variaciones sin SKU
+                COALESCE(pm_parent_sku.meta_value, '') as parent_sku,
                 COALESCE(pm_weight.meta_value, '') as peso,
                 COALESCE(pm_length.meta_value, '') as largo,
                 COALESCE(pm_width.meta_value, '') as ancho,
@@ -157,6 +159,7 @@ class WooCommerceProducts {
                 END as product_id
             FROM miau_posts p
             LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
+            LEFT JOIN miau_postmeta pm_parent_sku ON p.post_parent = pm_parent_sku.post_id AND pm_parent_sku.meta_key = '_sku' AND p.post_type = 'product_variation'
             LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
             LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
             LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
@@ -302,7 +305,7 @@ class WooCommerceProducts {
                 p.post_parent as producto_padre_id,
                 p.post_type,
                 CASE 
-                    WHEN p.post_type = 'product_variation' THEN COALESCE(parent.post_title, p.post_title)
+                    WHEN p.post_type = 'product_variation' THEN REPLACE(COALESCE(parent.post_title, p.post_title), '-', ' ')
                     ELSE p.post_title 
                 END as nombre,
                 p.post_content as descripcion,
@@ -318,6 +321,8 @@ class WooCommerceProducts {
                 COALESCE(pm_stock.meta_value, '0') as stock,
                 COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
                 COALESCE(pm_sku.meta_value, '') as sku,
+                -- SKU del padre para variaciones sin SKU
+                COALESCE(pm_parent_sku.meta_value, '') as parent_sku,
                 
                 -- Datos específicos de variaciones
                 CASE 
@@ -331,6 +336,7 @@ class WooCommerceProducts {
                 
             FROM miau_posts p
             LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
+            LEFT JOIN miau_postmeta pm_parent_sku ON p.post_parent = pm_parent_sku.post_id AND pm_parent_sku.meta_key = '_sku' AND p.post_type = 'product_variation'
             LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
             LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
             LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
