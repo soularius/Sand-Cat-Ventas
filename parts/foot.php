@@ -121,7 +121,16 @@ function proceedToSummary() {
         return;
     }
     
-    // Redirigir a selector_productos.php si no estamos ahí
+    // Si estamos en inicio.php, solo cerrar la modal
+    if (window.location.pathname.indexOf('inicio.php') !== -1) {
+        const cartModal = bootstrap.Modal.getInstance(document.getElementById('cartModal'));
+        if (cartModal) {
+            cartModal.hide();
+        }
+        return;
+    }
+    
+    // Redirigir a inicio.php si no estamos ahí
     if (window.location.pathname.indexOf('inicio.php') === -1) {
         window.location.href = 'inicio.php';
         return;
