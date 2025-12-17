@@ -2996,11 +2996,18 @@ html {
   filter: drop-shadow(0 0 6px rgba(255,255,255,.55));
 }
 
+#cartModal .badge-OFF {
+  top: -20px;
+  right: 0px;
+}
+
 #cartModal .cart-items {
-  max-height: 400px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 16px;  
+  max-height: inherit;
+  overflow-y: hidden;
+  padding-right: 20px;
 }
 
 #cartModal .cart-item {
@@ -3071,47 +3078,46 @@ html {
 /* Cart modal custom styles */
 #cartModal .modal-body {
     max-height: 60vh;
-    overflow-y: hidden;
+    overflow-y: auto;
 }
 
-.cart-item {
-    border-bottom: 1px solid #eee;
-    padding: 15px 0;
-}
-
-.cart-item:last-child {
+#cartModal .cart-item:last-child {
     border-bottom: none;
 }
 
-.item-info h6 {
+#cartModal .modal-body #cart-container {
+  overflow-y: hidden;
+}
+
+#cartModal .item-info h6 {
     margin-bottom: 5px;
     font-size: 0.95rem;
 }
 
-.item-controls {
+#cartModal .item-controls {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-.quantity-controls {
+#cartModal .quantity-controls {
     display: flex;
     align-items: center;
     gap: 5px;
 }
 
-.quantity-input {
+#cartModal .quantity-input {
     width: 60px;
     text-align: center;
 }
 
-.item-subtotal {
+#cartModal .item-subtotal {
     font-weight: bold;
     color: var(--primary-color);
 }
 
-.cart-summary {
+#cartModal .cart-summary {
     border-top: 2px solid #eee;
     padding-top: 15px;
     margin-top: 15px;

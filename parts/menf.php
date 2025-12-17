@@ -8,8 +8,8 @@ $menu_items_f = [
     'admin.php' => 'ventas',
     'productos.php' => 'productos', 
     'usuarios.php' => 'usuarios',
-    'adminf.php' => 'facturacion',
-    'selector_productos.php' => 'productos',
+    'pedidos.php' => 'facturacion',
+    'selector_productos.php' => 'facturacion',
     'formulario_cliente.php' => 'facturacion',
     'resumen_cliente.php' => 'facturacion',
     'detventaf.php' => 'facturacion',
@@ -64,7 +64,7 @@ $active_menu_f = isset($menu_items_f[$current_page]) ? $menu_items_f[$current_pa
         </li>
         <li class="nav-item">
           <a class="nav-link <?php echo ($active_menu_f == 'facturacion') ? 'active fw-bold' : ''; ?> px-3 py-2 rounded-pill mx-1" 
-             href="adminf.php" title="Sistema de facturación">
+             href="pedidos.php" title="Sistema de facturación">
             <i class="fas fa-file-invoice me-2"></i>
             <span class="d-none d-lg-inline">Facturación</span>
           </a>

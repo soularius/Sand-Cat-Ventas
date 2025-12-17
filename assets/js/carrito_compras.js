@@ -4,6 +4,9 @@
 // - Ahora es cart_key = product_id + variation_id (o hash de attrs)
 // ============================================================
 
+// Guard to prevent redeclaration if script is loaded multiple times
+if (typeof ProductCart === 'undefined') {
+
 class ProductCart {
     constructor() {
         console.log('ProductCart constructor called');
@@ -793,3 +796,5 @@ function viewProductDetails(productId, productTitle, productUrl) {
         alert(`No se puede abrir el producto "${productTitle}" porque no tiene un enlace válido.`);
     }
 }
+
+} // End of ProductCart guard

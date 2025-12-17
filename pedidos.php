@@ -212,9 +212,9 @@ include("parts/header.php");
 		
       <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Ultimos <?php echo $dias; ?> dias </a>
     <div class="dropdown-menu">
-      <a class="dropdown-item" href="adminf.php?df=30">30</a>
-      <a class="dropdown-item" href="adminf.php?df=60">60</a>
-      <a class="dropdown-item" href="adminf.php?df=90">90</a>
+      <a class="dropdown-item" href="pedidos.php?df=30">30</a>
+      <a class="dropdown-item" href="pedidos.php?df=60">60</a>
+      <a class="dropdown-item" href="pedidos.php?df=90">90</a>
     </div>
 		<?php if(!empty($row_pendientesf['ID'])) { ?>
 	  <input class="form-control" id="buscac" type="text" placeholder="Busqueda..">
