@@ -10,7 +10,7 @@ require_once('class/woocommerce_orders.php');
 // 4. Obtener datos del usuario usando función centralizada
 $row_usuario = getCurrentUserFromDB();
 if (!$row_usuario) {
-  Utils::logError("No se pudieron obtener datos del usuario en pedidos.php", 'ERROR', 'pedidos.php');
+  Utils::logError("No se pudieron obtener datos del usuario en ventas.php", 'ERROR', 'ventas.php');
   Header("Location: index.php");
   exit();
 }
@@ -55,9 +55,9 @@ if (isset($_POST['id_ventas']) && isset($_POST['imprimiendo'])) {
 
   // Usar método de la clase para completar pedido
   if ($wc_orders->completeOrder($venta, $factu)) {
-    Utils::logError("Pedido completado: ID=$venta, Factura=$factu", 'INFO', 'pedidos.php');
+    Utils::logError("Pedido completado: ID=$venta, Factura=$factu", 'INFO', 'ventas.php');
   } else {
-    Utils::logError("Error completando pedido: ID=$venta", 'ERROR', 'pedidos.php');
+    Utils::logError("Error completando pedido: ID=$venta", 'ERROR', 'ventas.php');
   }
 }
 if (isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
@@ -66,9 +66,9 @@ if (isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
 
   // Usar método de la clase para cancelar pedido
   if ($wc_orders->cancelOrder($venta)) {
-    Utils::logError("Pedido cancelado: ID=$venta", 'INFO', 'pedidos.php');
+    Utils::logError("Pedido cancelado: ID=$venta", 'INFO', 'ventas.php');
   } else {
-    Utils::logError("Error cancelando pedido: ID=$venta", 'ERROR', 'pedidos.php');
+    Utils::logError("Error cancelando pedido: ID=$venta", 'ERROR', 'ventas.php');
   }
 }
 if (isset($_POST['fin_pedido'])) {
@@ -76,9 +76,9 @@ if (isset($_POST['fin_pedido'])) {
 
   // Usar método de la clase para procesar pedido
   if ($wc_orders->processOrder($venta)) {
-    Utils::logError("Pedido procesado: ID=$venta", 'INFO', 'pedidos.php');
+    Utils::logError("Pedido procesado: ID=$venta", 'INFO', 'ventas.php');
   } else {
-    Utils::logError("Error procesando pedido: ID=$venta", 'ERROR', 'pedidos.php');
+    Utils::logError("Error procesando pedido: ID=$venta", 'ERROR', 'ventas.php');
   }
 }
 
@@ -155,9 +155,9 @@ include("parts/header.php");
         <i class="fas fa-info-circle me-2"></i>
         Total de pedidos: <strong><?php echo ($totalRows_pendientes + $totalRows_pendientesf); ?></strong>
       </div>
-      <div class="d-flex align-items-center gap-3">
-        <label for="per_page" class="form-label mb-0 text-white">Por página:</label>
-        <select id="per_page" class="form-select form-select-sm" style="width: auto;" onchange="changePerPage(this.value)">
+      <div class="d-flex align-items-center gap-3 form-group">
+        <label for="per_page" class="form-label mb-0 text-primary">Por página:</label>
+        <select id="per_page" class="form-control form-select form-select-sm pe-4" style="width: auto;" onchange="changePerPage(this.value)">
           <option value="10" <?php echo $per_page == 10 ? 'selected' : ''; ?>>10</option>
           <option value="20" <?php echo $per_page == 20 ? 'selected' : ''; ?>>20</option>
           <option value="50" <?php echo $per_page == 50 ? 'selected' : ''; ?>>50</option>
@@ -424,9 +424,9 @@ include("parts/header.php");
             <div class="dropdown">
               <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Últimos <?php echo $dias; ?> días</a>
               <div class="dropdown-menu">
-                <a class="dropdown-item" href="pedidos.php?df=30">30</a>
-                <a class="dropdown-item" href="pedidos.php?df=60">60</a>
-                <a class="dropdown-item" href="pedidos.php?df=90">90</a>
+                <a class="dropdown-item" href="ventas.php?df=30">30</a>
+                <a class="dropdown-item" href="ventas.php?df=60">60</a>
+                <a class="dropdown-item" href="ventas.php?df=90">90</a>
               </div>
             </div>
           </div>

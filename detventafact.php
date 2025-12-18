@@ -122,7 +122,7 @@ if(isset($_POST['id_ventas'])) {
 						</div>
 						  <?php } ?>
 						<div class="form-group">
-						<form action="pedidos.php" class="login-form" method="post" >
+						<form action="ventas.php" class="login-form" method="post" >
 							<input type="hidden" id="id_ventas" name="id_ventas" value="<?php echo $id_ventas; ?>" />
 							<input type="hidden" id="imprimiendo" name="imprimiendo" value="1" />
 							<input type="hidden" id="factura" name="factura" value="si" />
@@ -137,13 +137,13 @@ if(isset($_POST['id_ventas'])) {
 					 		 </form>
 							  <div class="row">
 								<div class="col text-center">
-								<form action="pedidos.php" method="post">
+								<form action="ventas.php" method="post">
 								<input type="hidden" id="id_ventas" name="id_ventas" value="<?php echo $id_ventas; ?>" />
 								<input type="hidden" id="num" name="num" value="<?php echo $numfact; ?>" />
 								<input type="hidden" id="cancela" name="cancela" value="si" /><button type="submit" class="btn btn-danger rounded submit px-3" name="cancelar" id="cancelar">Cancelar pedido</button>
 					  			</form></div>
 								<div class="col text-center">
-									<a href="pedidos.php" class="btn btn-warning rounded submit px-3" role="button">Regresar</a></div>
+									<a href="ventas.php" class="btn btn-warning rounded submit px-3" role="button">Regresar</a></div>
 							</div>
 						</div>	
 						  <?php 

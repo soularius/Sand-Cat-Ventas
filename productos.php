@@ -736,7 +736,7 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
-// Funcionalidad de carga para paginación (similar a pedidos.php)
+// Funcionalidad de carga para paginación (similar a ventas.php)
 $(document).ready(function() {
     // Mejorar la experiencia de usuario con indicadores de carga en paginación
     $(document).on('click', '.pagination .page-link', function(e) {

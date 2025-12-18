@@ -46,7 +46,7 @@ ventas/
 ├── .gitignore          # Archivos excluidos
 ├── index.php           # Login principal
 ├── admin.php           # Panel de administración
-├── pedidos.php          # Panel de facturación
+├── ventas.php          # Panel de facturación
 ├── facturacion.php     # Login de facturación
 └── ...                 # Otros archivos del sistema
 ```
@@ -70,7 +70,7 @@ ventas/
 - **Login Principal**: `index.php` - Acceso al sistema de ventas
 - **Login Facturación**: `facturacion.php` - Acceso al módulo de facturación WooCommerce
 - **Panel Admin**: `admin.php` - Gestión de ventas locales
-- **Panel Facturación**: `pedidos.php` - Integración con WooCommerce
+- **Panel Facturación**: `ventas.php` - Integración con WooCommerce
 
 ## Soporte
 

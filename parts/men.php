@@ -8,12 +8,12 @@ $menu_items = [
     'admin.php' => 'ventas',
     'productos.php' => 'productos', 
     'usuarios.php' => 'usuarios',
-    'pedidos.php' => 'facturacion',
+    'ventas.php' => 'ventas',
     'venta.php' => 'ventas',
     'v_producto.php' => 'ventas',
     'v_producto_f.php' => 'ventas',
     'detventa.php' => 'ventas',
-    'selector_productos.php' => 'facturacion'
+    'selector_productos.php' => 'ventas'
 ];
 
 $active_menu = isset($menu_items[$current_page]) ? $menu_items[$current_page] : '';
@@ -42,7 +42,7 @@ $active_menu = isset($menu_items[$current_page]) ? $menu_items[$current_page] : 
         </li>
         <li class="nav-item">
           <a class="nav-link <?php echo ($active_menu == 'ventas') ? 'active fw-bold' : ''; ?> px-3 py-2 rounded-pill mx-1" 
-             href="admin.php" title="Gestión de ventas">
+             href="ventas.php" title="Gestión de ventas">
             <i class="fas fa-shopping-cart me-2"></i>
             <span class="d-none d-lg-inline">Ventas</span>
           </a>
@@ -63,7 +63,7 @@ $active_menu = isset($menu_items[$current_page]) ? $menu_items[$current_page] : 
         </li>
         <li class="nav-item">
           <a class="nav-link <?php echo ($active_menu == 'facturacion') ? 'active fw-bold' : ''; ?> px-3 py-2 rounded-pill mx-1" 
-             href="pedidos.php" title="Sistema de facturación">
+             href="ventas.php" title="Sistema de facturación">
             <i class="fas fa-file-invoice me-2"></i>
             <span class="d-none d-lg-inline">Facturación</span>
           </a>

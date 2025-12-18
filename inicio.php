@@ -96,7 +96,7 @@ include("parts/header.php");
             <div class="row justify-content-center" style="margin-top: -30px">
                 <div class="col-md-7 col-lg-5">
                     <div class="login-wrap p-4 p-md-5 justify-content-center">
-                        <a href="pedidos.php" class="btn btn-primary btn-custom w-100 mb-3" role="button">
+                        <a href="ventas.php" class="btn btn-primary btn-custom w-100 mb-3" role="button">
                             <i class="fas fa-file-invoice me-2"></i>FACTURAR
                         </a>
                         <button type="button" class="btn btn-secondary btn-custom w-100" data-bs-toggle="modal" data-bs-target="#myModal">
