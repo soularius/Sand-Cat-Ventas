@@ -295,7 +295,7 @@ include("parts/header.php");
         <h5 class="modal-title" id="orderDetailsModalLabel">
           <i class="fas fa-eye"></i> Detalles del Pedido #<span id="modal-order-id"></span>
         </h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="closeOrderModal()">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -308,7 +308,7 @@ include("parts/header.php");
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="closeOrderModal()">
           <i class="fas fa-times"></i> Cerrar
         </button>
         <button type="button" class="btn btn-primary" id="btn-print-order" onclick="printOrderDetails()">
@@ -326,6 +326,39 @@ function editOrder(orderId) {
     // TODO: Implementar redirección a página de edición
     // window.location.href = 'edit_order.php?id=' + orderId;
 }
+
+// Función para cerrar el modal
+function closeOrderModal() {
+    $('#orderDetailsModal').modal('hide');
+}
+
+// Eventos para el modal
+$(document).ready(function() {
+    // Asegurar que el modal se cierre correctamente
+    $('#orderDetailsModal').on('hidden.bs.modal', function () {
+        // Limpiar contenido cuando se cierre
+        $('#order-details-content').html(`
+            <div class="text-center">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p class="mt-2">Cargando detalles del pedido...</p>
+            </div>
+        `);
+    });
+    
+    // Cerrar modal con tecla Escape
+    $(document).keyup(function(e) {
+        if (e.keyCode === 27) { // Escape key
+            closeOrderModal();
+        }
+    });
+    
+    // Cerrar modal al hacer clic fuera de él
+    $('#orderDetailsModal').on('click', function(e) {
+        if (e.target === this) {
+            closeOrderModal();
+        }
+    });
+});
 
 // Función para ver detalles del pedido en modal
 function viewOrderDetails(orderId) {
