@@ -42,6 +42,11 @@ if (isset($diasfin)) {
   $finfact = date("Y-m-d", strtotime('-30 day', strtotime($hoy)));
 }
 
+// 6.1. Configurar parámetros de paginación
+$page_pendientes = isset($_GET['page_pendientes']) ? max(1, (int)$_GET['page_pendientes']) : 1;
+$page_facturados = isset($_GET['page_facturados']) ? max(1, (int)$_GET['page_facturados']) : 1;
+$per_page = isset($_GET['per_page']) ? max(5, min(100, (int)$_GET['per_page'])) : 20;
+
 // 7. Procesar acciones de pedidos usando clase WooCommerce
 $carga = '';
 if (isset($_POST['id_ventas']) && isset($_POST['imprimiendo'])) {
@@ -78,15 +83,19 @@ if (isset($_POST['fin_pedido'])) {
 }
 
 
-// 8. Obtener pedidos pendientes usando clase WooCommerce
+// 8. Obtener pedidos pendientes usando clase WooCommerce con paginación
 // Incluye pedidos en processing y on-hold con método de pago cheque
-$pendientes_data = $wc_orders->getPendingOrders();
-$totalRows_pendientes = count($pendientes_data);
+$pendientes_result = $wc_orders->getPendingOrders($page_pendientes, $per_page);
+$pendientes_data = $pendientes_result['data'] ?? [];
+$pendientes_pagination = $pendientes_result['pagination'] ?? [];
+$totalRows_pendientes = $pendientes_pagination['total_records'] ?? count($pendientes_data);
 $row_pendientes = $totalRows_pendientes > 0 ? $pendientes_data[0] : null;
 
-// 9. Obtener pedidos facturados usando clase WooCommerce
-$pendientesf_data = $wc_orders->getInvoicedOrders($finfact, $inifact);
-$totalRows_pendientesf = count($pendientesf_data);
+// 9. Obtener pedidos facturados usando clase WooCommerce con paginación
+$facturados_result = $wc_orders->getInvoicedOrders($finfact, $inifact, $page_facturados, $per_page);
+$pendientesf_data = $facturados_result['data'] ?? [];
+$facturados_pagination = $facturados_result['pagination'] ?? [];
+$totalRows_pendientesf = $facturados_pagination['total_records'] ?? count($pendientesf_data);
 $row_pendientesf = $totalRows_pendientesf > 0 ? $pendientesf_data[0] : null;
 
 // 3. DESPUÉS: Cargar presentación
@@ -145,6 +154,15 @@ include("parts/header.php");
       <div>
         <i class="fas fa-info-circle me-2"></i>
         Total de pedidos: <strong><?php echo ($totalRows_pendientes + $totalRows_pendientesf); ?></strong>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <label for="per_page" class="form-label mb-0 text-white">Por página:</label>
+        <select id="per_page" class="form-select form-select-sm" style="width: auto;" onchange="changePerPage(this.value)">
+          <option value="10" <?php echo $per_page == 10 ? 'selected' : ''; ?>>10</option>
+          <option value="20" <?php echo $per_page == 20 ? 'selected' : ''; ?>>20</option>
+          <option value="50" <?php echo $per_page == 50 ? 'selected' : ''; ?>>50</option>
+          <option value="100" <?php echo $per_page == 100 ? 'selected' : ''; ?>>100</option>
+        </select>
       </div>
     </div>
 
@@ -304,6 +322,86 @@ include("parts/header.php");
                   </tbody>
                 </table>
               </div>
+              
+              <!-- Paginación Pendientes -->
+              <?php if (!empty($pendientes_pagination) && $pendientes_pagination['total_pages'] > 1): ?>
+              <nav aria-label="Paginación pedidos pendientes" class="mt-4">
+                <ul class="pagination justify-content-center">
+                  <!-- Botón Anterior -->
+                  <?php if ($pendientes_pagination['has_previous']): ?>
+                    <li class="page-item">
+                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['previous_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">
+                        <i class="fas fa-chevron-left me-1"></i>Anterior
+                      </a>
+                    </li>
+                  <?php else: ?>
+                    <li class="page-item disabled">
+                      <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">
+                        <i class="fas fa-chevron-left me-1"></i>Anterior
+                      </span>
+                    </li>
+                  <?php endif; ?>
+                  
+                  <!-- Números de página -->
+                  <?php
+                  $start_page = max(1, $pendientes_pagination['current_page'] - 2);
+                  $end_page = min($pendientes_pagination['total_pages'], $pendientes_pagination['current_page'] + 2);
+                  
+                  // Mostrar primera página si no está en el rango
+                  if ($start_page > 1): ?>
+                    <li class="page-item">
+                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=1&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">1</a>
+                    </li>
+                    <?php if ($start_page > 2): ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                      </li>
+                    <?php endif; ?>
+                  <?php endif; ?>
+                  
+                  <!-- Páginas en el rango -->
+                  <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                    <li class="page-item <?php echo ($i == $pendientes_pagination['current_page']) ? 'active' : ''; ?>">
+                      <a class="page-link text-white btn btn-sm btn-custom px-3 py-2 mx-1 <?php echo ($i == $pendientes_pagination['current_page']) ? 'btn-success' : 'btn-danger'; ?>" href="?page_pendientes=<?php echo $i; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>"><?php echo $i; ?></a>
+                    </li>
+                  <?php endfor; ?>
+                  
+                  <!-- Mostrar última página si no está en el rango -->
+                  <?php if ($end_page < $pendientes_pagination['total_pages']): ?>
+                    <?php if ($end_page < $pendientes_pagination['total_pages'] - 1): ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                      </li>
+                    <?php endif; ?>
+                    <li class="page-item">
+                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['total_pages']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>"><?php echo $pendientes_pagination['total_pages']; ?></a>
+                    </li>
+                  <?php endif; ?>
+                  
+                  <!-- Botón Siguiente -->
+                  <?php if ($pendientes_pagination['has_next']): ?>
+                    <li class="page-item">
+                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['next_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">
+                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                      </a>
+                    </li>
+                  <?php else: ?>
+                    <li class="page-item disabled">
+                      <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 opacity-50 mx-1">
+                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                      </span>
+                    </li>
+                  <?php endif; ?>
+                </ul>
+              </nav>
+              
+              <!-- Información adicional de paginación -->
+              <div class="text-center text-muted mt-2">
+                <small>
+                  Mostrando <?php echo $pendientes_pagination['start_record']; ?>-<?php echo $pendientes_pagination['end_record']; ?> de <?php echo $pendientes_pagination['total_records']; ?> pedidos
+                </small>
+              </div>
+              <?php endif; ?>
             </div>
           <?php } else { ?>
             <div class="panel-body">
@@ -352,6 +450,86 @@ include("parts/header.php");
                   </div>
                 </div>
               </div>
+              
+              <!-- Paginación Facturados -->
+              <?php if (!empty($facturados_pagination) && $facturados_pagination['total_pages'] > 1): ?>
+              <nav aria-label="Paginación pedidos facturados" class="mt-4">
+                <ul class="pagination justify-content-center">
+                  <!-- Botón Anterior -->
+                  <?php if ($facturados_pagination['has_previous']): ?>
+                    <li class="page-item">
+                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_facturados=<?php echo $facturados_pagination['previous_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">
+                        <i class="fas fa-chevron-left me-1"></i>Anterior
+                      </a>
+                    </li>
+                  <?php else: ?>
+                    <li class="page-item disabled">
+                      <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">
+                        <i class="fas fa-chevron-left me-1"></i>Anterior
+                      </span>
+                    </li>
+                  <?php endif; ?>
+                  
+                  <!-- Números de página -->
+                  <?php
+                  $start_page = max(1, $facturados_pagination['current_page'] - 2);
+                  $end_page = min($facturados_pagination['total_pages'], $facturados_pagination['current_page'] + 2);
+                  
+                  // Mostrar primera página si no está en el rango
+                  if ($start_page > 1): ?>
+                    <li class="page-item">
+                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_facturados=1&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">1</a>
+                    </li>
+                    <?php if ($start_page > 2): ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                      </li>
+                    <?php endif; ?>
+                  <?php endif; ?>
+                  
+                  <!-- Páginas en el rango -->
+                  <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                    <li class="page-item <?php echo ($i == $facturados_pagination['current_page']) ? 'active' : ''; ?>">
+                      <a class="page-link text-white btn btn-sm btn-custom px-3 py-2 mx-1 <?php echo ($i == $facturados_pagination['current_page']) ? 'btn-success' : 'btn-danger'; ?>" href="?page_facturados=<?php echo $i; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>"><?php echo $i; ?></a>
+                    </li>
+                  <?php endfor; ?>
+                  
+                  <!-- Mostrar última página si no está en el rango -->
+                  <?php if ($end_page < $facturados_pagination['total_pages']): ?>
+                    <?php if ($end_page < $facturados_pagination['total_pages'] - 1): ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                      </li>
+                    <?php endif; ?>
+                    <li class="page-item">
+                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_facturados=<?php echo $facturados_pagination['total_pages']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>"><?php echo $facturados_pagination['total_pages']; ?></a>
+                    </li>
+                  <?php endif; ?>
+                  
+                  <!-- Botón Siguiente -->
+                  <?php if ($facturados_pagination['has_next']): ?>
+                    <li class="page-item">
+                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_facturados=<?php echo $facturados_pagination['next_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">
+                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                      </a>
+                    </li>
+                  <?php else: ?>
+                    <li class="page-item disabled">
+                      <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 opacity-50 mx-1">
+                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                      </span>
+                    </li>
+                  <?php endif; ?>
+                </ul>
+              </nav>
+              
+              <!-- Información adicional de paginación -->
+              <div class="text-center text-muted mt-2">
+                <small>
+                  Mostrando <?php echo $facturados_pagination['start_record']; ?>-<?php echo $facturados_pagination['end_record']; ?> de <?php echo $facturados_pagination['total_records']; ?> pedidos
+                </small>
+              </div>
+              <?php endif; ?>
               <div class="table-responsive">
                 <table class="table table-hover table-striped">
                   <thead class="table-dark">
@@ -783,6 +961,63 @@ include("parts/header.php");
         $("#dondec tr").filter(function() {
           $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
         });
+      });
+    });
+    
+    // Función para cambiar el número de elementos por página
+    function changePerPage(perPage) {
+      const urlParams = new URLSearchParams(window.location.search);
+      urlParams.set('per_page', perPage);
+      
+      // Resetear páginas a 1 cuando se cambia el tamaño de página
+      urlParams.delete('page_pendientes');
+      urlParams.delete('page_facturados');
+      
+      window.location.search = urlParams.toString();
+    }
+    
+    // Función para ir a una página específica
+    function goToPage(page, type) {
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      if (type === 'pendientes') {
+        urlParams.set('page_pendientes', page);
+      } else if (type === 'facturados') {
+        urlParams.set('page_facturados', page);
+      }
+      
+      window.location.search = urlParams.toString();
+    }
+    
+    // Mejorar la experiencia de usuario con indicadores de carga
+    $(document).on('click', '.pagination .page-link', function(e) {
+      const $this = $(this);
+      if (!$this.parent().hasClass('active')) {
+        $this.html('<i class="fas fa-spinner fa-spin"></i>');
+      }
+    });
+    
+    // Función para actualizar la página manteniendo filtros
+    function refreshPage() {
+      window.location.reload();
+    }
+    
+    // Agregar tooltips a los controles de paginación
+    $(document).ready(function() {
+      $('[data-bs-toggle="tooltip"]').tooltip();
+      
+      // Agregar tooltips dinámicos a los enlaces de paginación
+      $('.pagination .page-link').each(function() {
+        const $link = $(this);
+        const href = $link.attr('href');
+        
+        if (href && href.includes('page_')) {
+          const pageMatch = href.match(/page_(?:pendientes|facturados)=(\d+)/);
+          if (pageMatch) {
+            $link.attr('title', 'Ir a la página ' + pageMatch[1]);
+            $link.tooltip();
+          }
+        }
       });
     });
   </script>

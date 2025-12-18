@@ -736,6 +736,54 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
+// Funcionalidad de carga para paginación (similar a pedidos.php)
+$(document).ready(function() {
+    // Mejorar la experiencia de usuario con indicadores de carga en paginación
+    $(document).on('click', '.pagination .page-link', function(e) {
+        const $this = $(this);
+        const originalText = $this.html();
+        
+        // No aplicar loading a elementos deshabilitados o activos
+        if (!$this.parent().hasClass('active') && !$this.parent().hasClass('disabled')) {
+            // Mostrar spinner de carga
+            $this.html('<i class="fas fa-spinner fa-spin"></i>');
+            
+            // Restaurar texto original si hay error (fallback)
+            setTimeout(() => {
+                if ($this.html().includes('fa-spinner')) {
+                    $this.html(originalText);
+                }
+            }, 5000);
+        }
+    });
+    
+    // Agregar tooltips a los controles de paginación
+    $('.pagination .page-link').each(function() {
+        const $link = $(this);
+        const href = $link.attr('href');
+        
+        if (href && href.includes('page=')) {
+            const pageMatch = href.match(/page=(\d+)/);
+            if (pageMatch) {
+                $link.attr('title', 'Ir a la página ' + pageMatch[1]);
+                $link.tooltip();
+            }
+        }
+    });
+    
+    // Tooltip para botones anterior/siguiente
+    $('.pagination .page-link').each(function() {
+        const $link = $(this);
+        const text = $link.text().trim();
+        
+        if (text.includes('Anterior')) {
+            $link.attr('title', 'Página anterior');
+        } else if (text.includes('Siguiente')) {
+            $link.attr('title', 'Página siguiente');
+        }
+    });
+});
+
 </script>
 
 	<?php include("parts/foot.php"); ?>

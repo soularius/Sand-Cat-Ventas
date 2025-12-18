@@ -1965,11 +1965,41 @@ class WooCommerceOrders
 
     /**
      * Obtener pedidos pendientes (processing y on-hold con cheque)
-     * @return array Array de pedidos pendientes
+     * @param int $page Página actual (empezando en 1)
+     * @param int $per_page Pedidos por página
+     * @return array Array con 'data' (pedidos) y 'pagination' (info de paginación)
      */
-    public function getPendingOrders(): array
+    public function getPendingOrders(int $page = 1, int $per_page = 20): array
     {
         try {
+            // Validar parámetros de paginación
+            $page = max(1, (int)$page);
+            $per_page = max(1, min(100, (int)$per_page)); // Máximo 100 por página
+            $offset = ($page - 1) * $per_page;
+            
+            // Consulta para contar total de registros
+            $count_query = "SELECT COUNT(*) as total
+            FROM miau_posts p
+            WHERE (
+                p.post_status = 'wc-processing' 
+                OR (
+                    p.post_status = 'wc-on-hold' 
+                    AND p.ID IN (
+                        SELECT pm_payment.post_id 
+                        FROM miau_postmeta pm_payment 
+                        WHERE pm_payment.meta_key = '_payment_method' 
+                        AND pm_payment.meta_value = 'cheque'
+                    )
+                )
+            )";
+            
+            $count_result = mysqli_query($this->wp_connection, $count_query);
+            $total_records = 0;
+            if ($count_result && $count_row = mysqli_fetch_assoc($count_result)) {
+                $total_records = (int)$count_row['total'];
+            }
+            
+            // Consulta principal con paginación
             $query = "SELECT 
                 p.ID,
                 p.post_date,
@@ -1992,13 +2022,14 @@ class WooCommerceOrders
                     )
                 )
             )
-            ORDER BY p.ID DESC";
+            ORDER BY p.ID DESC
+            LIMIT $per_page OFFSET $offset";
             
             $result = mysqli_query($this->wp_connection, $query);
             
             if (!$result) {
                 Utils::logError("Error en getPendingOrders: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
-                return [];
+                return ['data' => [], 'pagination' => []];
             }
             
             $orders = [];
@@ -2006,8 +2037,27 @@ class WooCommerceOrders
                 $orders[] = $row;
             }
             
-            Utils::logError("Pedidos pendientes obtenidos: " . count($orders), 'INFO', 'WooCommerceOrders');
-            return $orders;
+            // Calcular información de paginación
+            $total_pages = ceil($total_records / $per_page);
+            $pagination = [
+                'current_page' => $page,
+                'per_page' => $per_page,
+                'total_records' => $total_records,
+                'total_pages' => $total_pages,
+                'has_previous' => $page > 1,
+                'has_next' => $page < $total_pages,
+                'previous_page' => $page > 1 ? $page - 1 : null,
+                'next_page' => $page < $total_pages ? $page + 1 : null,
+                'start_record' => $total_records > 0 ? $offset + 1 : 0,
+                'end_record' => min($offset + $per_page, $total_records)
+            ];
+            
+            Utils::logError("Pedidos pendientes obtenidos: " . count($orders) . " de $total_records (página $page de $total_pages)", 'INFO', 'WooCommerceOrders');
+            
+            return [
+                'data' => $orders,
+                'pagination' => $pagination
+            ];
             
         } catch (Exception $e) {
             Utils::logError("Error en getPendingOrders: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
@@ -2019,9 +2069,11 @@ class WooCommerceOrders
      * Obtener pedidos facturados en un rango de fechas
      * @param string $date_from Fecha desde (Y-m-d)
      * @param string $date_to Fecha hasta (Y-m-d)
-     * @return array Array de pedidos facturados
+     * @param int $page Página actual (empezando en 1)
+     * @param int $per_page Pedidos por página
+     * @return array Array con 'data' (pedidos) y 'pagination' (info de paginación)
      */
-    public function getInvoicedOrders(string $date_from, string $date_to): array
+    public function getInvoicedOrders(string $date_from, string $date_to, int $page = 1, int $per_page = 20): array
     {
         try {
             // Primero obtener IDs de órdenes facturadas del sistema local
@@ -2041,8 +2093,13 @@ class WooCommerceOrders
             // Si no hay facturas, retornar array vacío
             if (empty($facturas_ids)) {
                 Utils::logError("No hay facturas activas", 'INFO', 'WooCommerceOrders');
-                return [];
+                return ['data' => [], 'pagination' => []];
             }
+            
+            // Validar parámetros de paginación
+            $page = max(1, (int)$page);
+            $per_page = max(1, min(100, (int)$per_page)); // Máximo 100 por página
+            $offset = ($page - 1) * $per_page;
             
             // Sanitizar fechas
             $date_from = mysqli_real_escape_string($this->wp_connection, $date_from);
@@ -2051,6 +2108,20 @@ class WooCommerceOrders
             // Crear string de IDs para la consulta
             $ids_string = implode(',', $facturas_ids);
             
+            // Consulta para contar total de registros
+            $count_query = "SELECT COUNT(*) as total
+            FROM miau_posts p
+            WHERE p.ID IN ($ids_string) 
+            AND p.post_date >= '$date_from' 
+            AND p.post_date <= '$date_to'";
+            
+            $count_result = mysqli_query($this->wp_connection, $count_query);
+            $total_records = 0;
+            if ($count_result && $count_row = mysqli_fetch_assoc($count_result)) {
+                $total_records = (int)$count_row['total'];
+            }
+            
+            // Consulta principal con paginación
             $query = "SELECT 
                 p.ID,
                 p.post_date,
@@ -2064,13 +2135,14 @@ class WooCommerceOrders
             WHERE p.ID IN ($ids_string) 
             AND p.post_date >= '$date_from' 
             AND p.post_date <= '$date_to'
-            ORDER BY p.ID DESC";
+            ORDER BY p.ID DESC
+            LIMIT $per_page OFFSET $offset";
             
             $result = mysqli_query($this->wp_connection, $query);
             
             if (!$result) {
                 Utils::logError("Error en getInvoicedOrders: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
-                return [];
+                return ['data' => [], 'pagination' => []];
             }
             
             $orders = [];
@@ -2078,12 +2150,31 @@ class WooCommerceOrders
                 $orders[] = $row;
             }
             
-            Utils::logError("Pedidos facturados obtenidos: " . count($orders) . " (desde $date_from hasta $date_to)", 'INFO', 'WooCommerceOrders');
-            return $orders;
+            // Calcular información de paginación
+            $total_pages = ceil($total_records / $per_page);
+            $pagination = [
+                'current_page' => $page,
+                'per_page' => $per_page,
+                'total_records' => $total_records,
+                'total_pages' => $total_pages,
+                'has_previous' => $page > 1,
+                'has_next' => $page < $total_pages,
+                'previous_page' => $page > 1 ? $page - 1 : null,
+                'next_page' => $page < $total_pages ? $page + 1 : null,
+                'start_record' => $total_records > 0 ? $offset + 1 : 0,
+                'end_record' => min($offset + $per_page, $total_records)
+            ];
+            
+            Utils::logError("Pedidos facturados obtenidos: " . count($orders) . " de $total_records (página $page de $total_pages, desde $date_from hasta $date_to)", 'INFO', 'WooCommerceOrders');
+            
+            return [
+                'data' => $orders,
+                'pagination' => $pagination
+            ];
             
         } catch (Exception $e) {
             Utils::logError("Error en getInvoicedOrders: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
-            return [];
+            return ['data' => [], 'pagination' => []];
         }
     }
     
