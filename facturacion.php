@@ -25,11 +25,5 @@ renderLoginForm(isset($_GET['error']), "Facturación Woocommerce", "classic");
 ?>
 <?php include("parts/foot.php"); ?>
 
-<script src="assets/js/jquery.min.js"></script>
-<script src="assets/js/popper.js"></script>
-<script src="assets/js/bootstrap.min.js"></script>
-<script src="assets/js/main.js"></script>
-<script src="assets/js/bootstrap-4.4.1.js" type="text/javascript"></script>
-
 </body>
 </html>

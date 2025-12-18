@@ -2,7 +2,17 @@
 // Obtener el nombre del archivo actual para excluir selector_productos.php
 $current_page = basename($_SERVER['PHP_SELF']);
 $exclude_cart_pages = ['selector_productos.php'];
-$show_floating_cart = !in_array($current_page, $exclude_cart_pages);
+
+// Debug: verificar estado de sesión y login
+$is_logged_in = Utils::isLoggedIn();
+$session_username = $_SESSION['MM_Username'] ?? 'NO_SET';
+$session_logueado = $_SESSION['logueado'] ?? 'NO_SET';
+
+// Solo mostrar carrito flotante si el usuario está logueado y no está en páginas excluidas
+$show_floating_cart = $is_logged_in && !in_array($current_page, $exclude_cart_pages);
+
+// Si no está logueado, limpiar cache del carrito
+$clear_cart_cache = !$is_logged_in;
 ?>
 
 <footer class="page-footer font-small blue pt-4">
@@ -66,10 +76,6 @@ $show_floating_cart = !in_array($current_page, $exclude_cart_pages);
         </div>
     </div>
 </div>
-
-<!-- Floating Cart Button Styles -->
-<style>
-</style>
 
 <!-- Carrito de Compras JavaScript -->
 <script src="assets/js/carrito_compras.js"></script>
@@ -151,7 +157,7 @@ function proceedToSummary() {
 }
 
 // Inicializar carrito flotante cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {    
     // Esperar a que el carrito se inicialice
     setTimeout(() => {
         if (typeof cart !== 'undefined' && cart) {
@@ -176,3 +182,40 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <?php endif; ?>
+
+<script>
+// Inicializar carrito flotante cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if ($clear_cart_cache): ?>    
+    // Limpiar TODA la cache - localStorage completo
+    console.log('Limpiando toda la cache del navegador - usuario no logueado');
+    
+    // Método 1: Limpiar todo localStorage
+    if (typeof(Storage) !== "undefined" && localStorage) {
+        localStorage.clear();
+        console.log('localStorage completamente limpiado');
+    }
+    
+    // Método 2: Limpiar todo sessionStorage
+    if (typeof(Storage) !== "undefined" && sessionStorage) {
+        sessionStorage.clear();
+        console.log('sessionStorage completamente limpiado');
+    }
+    
+    // Método 3: Limpiar cookies relacionadas al carrito
+    document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+    });
+    console.log('Cookies limpiadas');
+    
+    // Si el objeto cart ya existe, limpiarlo también
+    setTimeout(() => {
+        if (typeof cart !== 'undefined' && cart && typeof cart.clearCart === 'function') {
+            cart.cart = {}; // Limpiar directamente el objeto
+            cart.updateCartDisplay(); // Actualizar la visualización
+            console.log('Cache del carrito limpiado completamente');
+        }
+    }, 50);
+    <?php endif; ?>
+});
+</script>
