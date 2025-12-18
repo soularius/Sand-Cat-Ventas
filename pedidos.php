@@ -416,41 +416,20 @@ function buildLocationString(orderData) {
     return location || 'N/A';
 }
 
+// Generar mapeo de estados desde datos centralizados
+const colombiaStates = <?php 
+$states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
+if (file_exists($states_file)) {
+    $colombia_states = include($states_file);
+    echo json_encode($colombia_states);
+} else {
+    echo '{}';
+}
+?>;
+
 function convertStateCode(stateCode) {
-    // Convertir códigos de departamento a nombres completos
-    const states = {
-        'SAN': 'Santander',
-        'ANT': 'Antioquia',
-        'BOG': 'Bogotá',
-        'ATL': 'Atlántico',
-        'GUV': 'Guaviare',
-        'BOL': 'Bolívar',
-        'CAL': 'Caldas',
-        'CAQ': 'Caquetá',
-        'CAS': 'Casanare',
-        'CAU': 'Cauca',
-        'CES': 'Cesar',
-        'CHO': 'Chocó',
-        'COR': 'Córdoba',
-        'CUN': 'Cundinamarca',
-        'HUI': 'Huila',
-        'LAG': 'La Guajira',
-        'MAG': 'Magdalena',
-        'MET': 'Meta',
-        'NAR': 'Nariño',
-        'NSA': 'Norte de Santander',
-        'PUT': 'Putumayo',
-        'QUI': 'Quindío',
-        'RIS': 'Risaralda',
-        'SAP': 'San Andrés y Providencia',
-        'SUC': 'Sucre',
-        'TOL': 'Tolima',
-        'VAC': 'Valle del Cauca',
-        'VAU': 'Vaupés',
-        'VIC': 'Vichada'
-    };
-    
-    return states[stateCode] || stateCode;
+    // Usar datos centralizados del plugin de Colombia
+    return colombiaStates[stateCode] || stateCode;
 }
 
 function getStatusText(status) {
