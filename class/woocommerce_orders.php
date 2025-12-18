@@ -1080,15 +1080,23 @@ class WooCommerceOrders
             SELECT 
                 oi.order_item_id,
                 oi.order_item_name as nombre_producto,
-
                 oim_qty.meta_value as cantidad,
                 oim_total.meta_value as total_linea,
-
-                -- ✅ Producto padre
+                oim_subtotal.meta_value as subtotal_linea,
                 oim_product_id.meta_value as product_id,
-
-                -- ✅ Variación (si aplica)
-                oim_variation_id.meta_value as variation_id
+                oim_variation_id.meta_value as variation_id,
+                
+                -- SKU del producto padre
+                pm_sku_parent.meta_value as parent_sku,
+                
+                -- SKU de la variación (si existe)
+                pm_sku_variation.meta_value as variation_sku,
+                
+                -- Nombre del producto padre
+                p_parent.post_title as parent_name,
+                
+                -- Nombre de la variación (si existe)
+                p_variation.post_title as variation_name
 
             FROM miau_woocommerce_order_items oi
 
@@ -1097,12 +1105,33 @@ class WooCommerceOrders
 
             LEFT JOIN miau_woocommerce_order_itemmeta oim_total
                 ON oi.order_item_id = oim_total.order_item_id AND oim_total.meta_key = '_line_total'
+                
+            LEFT JOIN miau_woocommerce_order_itemmeta oim_subtotal
+                ON oi.order_item_id = oim_subtotal.order_item_id AND oim_subtotal.meta_key = '_line_subtotal'
 
             LEFT JOIN miau_woocommerce_order_itemmeta oim_product_id
                 ON oi.order_item_id = oim_product_id.order_item_id AND oim_product_id.meta_key = '_product_id'
 
             LEFT JOIN miau_woocommerce_order_itemmeta oim_variation_id
                 ON oi.order_item_id = oim_variation_id.order_item_id AND oim_variation_id.meta_key = '_variation_id'
+                
+            -- Datos del producto padre
+            LEFT JOIN miau_posts p_parent 
+                ON p_parent.ID = CAST(oim_product_id.meta_value AS UNSIGNED)
+                
+            LEFT JOIN miau_postmeta pm_sku_parent 
+                ON pm_sku_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
+                AND pm_sku_parent.meta_key = '_sku'
+                
+            -- Datos de la variación (si existe)
+            LEFT JOIN miau_posts p_variation 
+                ON p_variation.ID = CAST(oim_variation_id.meta_value AS UNSIGNED) 
+                AND oim_variation_id.meta_value > 0
+                
+            LEFT JOIN miau_postmeta pm_sku_variation 
+                ON pm_sku_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
+                AND pm_sku_variation.meta_key = '_sku'
+                AND oim_variation_id.meta_value > 0
 
             WHERE oi.order_id = {$order_id} 
               AND oi.order_item_type = 'line_item'
@@ -1116,10 +1145,34 @@ class WooCommerceOrders
 
         $items = [];
         while ($row = mysqli_fetch_assoc($result)) {
+            // Procesar datos básicos
             $row['cantidad'] = (int)($row['cantidad'] ?? 0);
             $row['total_linea'] = (float)($row['total_linea'] ?? 0);
+            $row['subtotal_linea'] = (float)($row['subtotal_linea'] ?? 0);
             $row['product_id'] = (int)($row['product_id'] ?? 0);
             $row['variation_id'] = (int)($row['variation_id'] ?? 0);
+            
+            // Determinar el nombre del producto a mostrar
+            if (!empty($row['variation_id']) && $row['variation_id'] > 0) {
+                // Es una variación - usar nombre de la variación o del item
+                $row['product_name'] = $row['variation_name'] ?: $row['nombre_producto'];
+                $row['sku'] = $row['variation_sku'] ?: $row['parent_sku'] ?: '';
+            } else {
+                // Es un producto simple - usar nombre del producto padre
+                $row['product_name'] = $row['parent_name'] ?: $row['nombre_producto'];
+                $row['sku'] = $row['parent_sku'] ?: '';
+            }
+            
+            // Asegurar que tenemos un nombre de producto
+            if (empty($row['product_name'])) {
+                $row['product_name'] = $row['nombre_producto'] ?: 'Producto sin nombre';
+            }
+            
+            // Mapear campos para compatibilidad con get_order_details.php
+            $row['order_item_name'] = $row['product_name'];
+            $row['product_qty'] = $row['cantidad'];
+            $row['line_total'] = $row['total_linea'];
+            $row['product_sku'] = $row['sku'];
 
             $items[] = $row;
         }
@@ -1705,6 +1758,454 @@ class WooCommerceOrders
         // Legacy meta (si existe) para compatibilidad total
         $this->upsertOrderMeta('miau_postmeta', 'post_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
         $this->upsertOrderMeta('miau_postmeta', 'post_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
+    }
+
+    /**
+     * Completar pedido y crear factura
+     * @param int $order_id ID del pedido
+     * @param string $invoice_number Número de factura
+     * @return bool True si se completó exitosamente
+     */
+    public function completeOrder(int $order_id, string $invoice_number): bool
+    {
+        try {
+            // Sanitizar datos
+            $order_id = (int)$order_id;
+            $invoice_number = mysqli_real_escape_string($this->wp_connection, $invoice_number);
+            
+            // Iniciar transacción
+            mysqli_autocommit($this->wp_connection, false);
+            
+            // 1. Insertar en tabla facturas (sistema local)
+            $query_factura = "INSERT INTO facturas (id_order, factura, estado) VALUES ('$order_id', '$invoice_number', 'a')";
+            if (!mysqli_query($this->wp_connection, $query_factura)) {
+                throw new Exception("Error insertando factura: " . mysqli_error($this->wp_connection));
+            }
+            
+            // 2. Actualizar estado del pedido a completado
+            $query_post = "UPDATE miau_posts SET post_status = 'wc-completed' WHERE ID = '$order_id'";
+            if (!mysqli_query($this->wp_connection, $query_post)) {
+                throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
+            }
+            
+            // 3. Actualizar estadísticas de WooCommerce
+            $query_stats = "UPDATE miau_wc_order_stats SET status = 'wc-completed' WHERE order_id = '$order_id'";
+            mysqli_query($this->wp_connection, $query_stats); // No crítico si falla
+            
+            // 4. Actualizar HPOS si existe
+            $query_hpos = "UPDATE miau_wc_orders SET status = 'wc-completed' WHERE id = '$order_id'";
+            mysqli_query($this->wp_connection, $query_hpos); // No crítico si falla
+            
+            // Confirmar transacción
+            mysqli_commit($this->wp_connection);
+            mysqli_autocommit($this->wp_connection, true);
+            
+            return true;
+            
+        } catch (Exception $e) {
+            // Revertir transacción
+            mysqli_rollback($this->wp_connection);
+            mysqli_autocommit($this->wp_connection, true);
+            
+            Utils::logError("Error en completeOrder: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return false;
+        }
+    }
+    
+    /**
+     * Cancelar pedido y restaurar stock
+     * @param int $order_id ID del pedido
+     * @return bool True si se canceló exitosamente
+     */
+    public function cancelOrder(int $order_id): bool
+    {
+        try {
+            $order_id = (int)$order_id;
+            
+            // Iniciar transacción
+            mysqli_autocommit($this->wp_connection, false);
+            
+            // 1. Actualizar estado del pedido a cancelado
+            $query_post = "UPDATE miau_posts SET post_status = 'wc-cancelled' WHERE ID = '$order_id'";
+            if (!mysqli_query($this->wp_connection, $query_post)) {
+                throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
+            }
+            
+            // 2. Actualizar estadísticas de WooCommerce
+            $query_stats = "UPDATE miau_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$order_id'";
+            mysqli_query($this->wp_connection, $query_stats);
+            
+            // 3. Actualizar HPOS si existe
+            $query_hpos = "UPDATE miau_wc_orders SET status = 'wc-cancelled' WHERE id = '$order_id'";
+            mysqli_query($this->wp_connection, $query_hpos);
+            
+            // 4. Marcar factura como inactiva si existe
+            $query_factura = "UPDATE facturas SET estado = 'i' WHERE id_order = '$order_id'";
+            mysqli_query($this->wp_connection, $query_factura);
+            
+            // 5. Restaurar stock de productos
+            $this->restoreOrderStock($order_id);
+            
+            // Confirmar transacción
+            mysqli_commit($this->wp_connection);
+            mysqli_autocommit($this->wp_connection, true);
+            
+            return true;
+            
+        } catch (Exception $e) {
+            // Revertir transacción
+            mysqli_rollback($this->wp_connection);
+            mysqli_autocommit($this->wp_connection, true);
+            
+            Utils::logError("Error en cancelOrder: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return false;
+        }
+    }
+    
+    /**
+     * Procesar pedido (cambiar a processing)
+     * @param int $order_id ID del pedido
+     * @return bool True si se procesó exitosamente
+     */
+    public function processOrder(int $order_id): bool
+    {
+        try {
+            $order_id = (int)$order_id;
+            
+            // Iniciar transacción
+            mysqli_autocommit($this->wp_connection, false);
+            
+            // 1. Actualizar estado del pedido a processing
+            $query_post = "UPDATE miau_posts SET post_status = 'wc-processing' WHERE ID = '$order_id'";
+            if (!mysqli_query($this->wp_connection, $query_post)) {
+                throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
+            }
+            
+            // 2. Actualizar estadísticas de WooCommerce
+            $query_stats = "UPDATE miau_wc_order_stats SET status = 'wc-processing' WHERE order_id = '$order_id'";
+            mysqli_query($this->wp_connection, $query_stats);
+            
+            // 3. Actualizar HPOS si existe
+            $query_hpos = "UPDATE miau_wc_orders SET status = 'wc-processing' WHERE id = '$order_id'";
+            mysqli_query($this->wp_connection, $query_hpos);
+            
+            // Confirmar transacción
+            mysqli_commit($this->wp_connection);
+            mysqli_autocommit($this->wp_connection, true);
+            
+            return true;
+            
+        } catch (Exception $e) {
+            // Revertir transacción
+            mysqli_rollback($this->wp_connection);
+            mysqli_autocommit($this->wp_connection, true);
+            
+            Utils::logError("Error en processOrder: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return false;
+        }
+    }
+    
+    /**
+     * Restaurar stock de productos de un pedido cancelado
+     * @param int $order_id ID del pedido
+     */
+    private function restoreOrderStock(int $order_id): void
+    {
+        try {
+            // Obtener productos del pedido
+            $query_products = "SELECT 
+                IM.product_id,
+                CAST(IM.qty AS UNSIGNED) as product_qty
+            FROM miau_woocommerce_order_items I
+            LEFT JOIN (
+                SELECT order_item_id,
+                    MAX(CASE WHEN meta_key = '_product_id' THEN meta_value END) AS product_id,
+                    MAX(CASE WHEN meta_key = '_qty' THEN meta_value END) AS qty
+                FROM miau_woocommerce_order_itemmeta
+                WHERE meta_key IN ('_product_id','_qty')
+                GROUP BY order_item_id
+            ) IM ON IM.order_item_id = I.order_item_id
+            WHERE I.order_id = '$order_id' AND I.order_item_type = 'line_item'";
+            
+            $result = mysqli_query($this->wp_connection, $query_products);
+            
+            while ($row = mysqli_fetch_assoc($result)) {
+                $product_id = (int)$row['product_id'];
+                $product_qty = (int)$row['product_qty'];
+                
+                if ($product_id > 0 && $product_qty > 0) {
+                    // Obtener stock actual
+                    $query_stock = "SELECT meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'";
+                    $stock_result = mysqli_query($this->wp_connection, $query_stock);
+                    $stock_row = mysqli_fetch_assoc($stock_result);
+                    
+                    if ($stock_row) {
+                        $current_stock = (int)$stock_row['meta_value'];
+                        $new_stock = $current_stock + $product_qty;
+                        
+                        // Actualizar stock
+                        $query_update_stock = "UPDATE miau_postmeta SET meta_value = '$new_stock' WHERE post_id = '$product_id' AND meta_key = '_stock'";
+                        mysqli_query($this->wp_connection, $query_update_stock);
+                        
+                        // Actualizar estado del stock si es mayor a 0
+                        if ($new_stock > 0) {
+                            $query_stock_status = "UPDATE miau_postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
+                            mysqli_query($this->wp_connection, $query_stock_status);
+                        }
+                        
+                        Utils::logError("Stock restaurado - Producto: $product_id, Cantidad: +$product_qty, Nuevo stock: $new_stock", 'INFO', 'WooCommerceOrders');
+                    }
+                }
+            }
+            
+        } catch (Exception $e) {
+            Utils::logError("Error restaurando stock: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+        }
+    }
+
+    /**
+     * Obtener pedidos pendientes (processing y on-hold con cheque)
+     * @return array Array de pedidos pendientes
+     */
+    public function getPendingOrders(): array
+    {
+        try {
+            $query = "SELECT 
+                p.ID,
+                p.post_date,
+                COALESCE(pm_fname.meta_value, '') as nombre1,
+                COALESCE(pm_lname.meta_value, '') as nombre2,
+                COALESCE(os.total_sales, 0) as valor
+            FROM miau_posts p
+            LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
+            LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
+            LEFT JOIN miau_wc_order_stats os ON p.ID = os.order_id
+            WHERE (
+                p.post_status = 'wc-processing' 
+                OR (
+                    p.post_status = 'wc-on-hold' 
+                    AND p.ID IN (
+                        SELECT pm_payment.post_id 
+                        FROM miau_postmeta pm_payment 
+                        WHERE pm_payment.meta_key = '_payment_method' 
+                        AND pm_payment.meta_value = 'cheque'
+                    )
+                )
+            )
+            ORDER BY p.ID DESC";
+            
+            $result = mysqli_query($this->wp_connection, $query);
+            
+            if (!$result) {
+                Utils::logError("Error en getPendingOrders: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
+                return [];
+            }
+            
+            $orders = [];
+            while ($row = mysqli_fetch_assoc($result)) {
+                $orders[] = $row;
+            }
+            
+            Utils::logError("Pedidos pendientes obtenidos: " . count($orders), 'INFO', 'WooCommerceOrders');
+            return $orders;
+            
+        } catch (Exception $e) {
+            Utils::logError("Error en getPendingOrders: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return [];
+        }
+    }
+    
+    /**
+     * Obtener pedidos facturados en un rango de fechas
+     * @param string $date_from Fecha desde (Y-m-d)
+     * @param string $date_to Fecha hasta (Y-m-d)
+     * @return array Array de pedidos facturados
+     */
+    public function getInvoicedOrders(string $date_from, string $date_to): array
+    {
+        try {
+            // Primero obtener IDs de órdenes facturadas del sistema local
+            $query_facturas = "SELECT id_order FROM facturas WHERE estado = 'a'";
+            $facturas_result = mysqli_query($this->wp_connection, $query_facturas);
+            
+            if (!$facturas_result) {
+                Utils::logError("Error obteniendo facturas: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
+                return [];
+            }
+            
+            $facturas_ids = [];
+            while ($row_fact = mysqli_fetch_assoc($facturas_result)) {
+                $facturas_ids[] = (int)$row_fact['id_order'];
+            }
+            
+            // Si no hay facturas, retornar array vacío
+            if (empty($facturas_ids)) {
+                Utils::logError("No hay facturas activas", 'INFO', 'WooCommerceOrders');
+                return [];
+            }
+            
+            // Sanitizar fechas
+            $date_from = mysqli_real_escape_string($this->wp_connection, $date_from);
+            $date_to = mysqli_real_escape_string($this->wp_connection, $date_to);
+            
+            // Crear string de IDs para la consulta
+            $ids_string = implode(',', $facturas_ids);
+            
+            $query = "SELECT 
+                p.ID,
+                p.post_date,
+                COALESCE(pm_fname.meta_value, '') as nombre1,
+                COALESCE(pm_lname.meta_value, '') as nombre2,
+                COALESCE(os.total_sales, 0) as valor
+            FROM miau_posts p
+            LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
+            LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
+            LEFT JOIN miau_wc_order_stats os ON p.ID = os.order_id
+            WHERE p.ID IN ($ids_string) 
+            AND p.post_date >= '$date_from' 
+            AND p.post_date <= '$date_to'
+            ORDER BY p.ID DESC";
+            
+            $result = mysqli_query($this->wp_connection, $query);
+            
+            if (!$result) {
+                Utils::logError("Error en getInvoicedOrders: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
+                return [];
+            }
+            
+            $orders = [];
+            while ($row = mysqli_fetch_assoc($result)) {
+                $orders[] = $row;
+            }
+            
+            Utils::logError("Pedidos facturados obtenidos: " . count($orders) . " (desde $date_from hasta $date_to)", 'INFO', 'WooCommerceOrders');
+            return $orders;
+            
+        } catch (Exception $e) {
+            Utils::logError("Error en getInvoicedOrders: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return [];
+        }
+    }
+    
+    /**
+     * Verificar si una orden tiene factura activa
+     * @param int $order_id ID del pedido
+     * @return bool True si tiene factura activa
+     */
+    public function hasInvoice(int $order_id): bool
+    {
+        try {
+            $order_id = (int)$order_id;
+            
+            // Usar conexión de ventassc para tabla facturas
+            $ventas_connection = DatabaseConfig::getVentasConnection();
+            $query = "SELECT COUNT(*) as count FROM facturas WHERE id_order = '$order_id' AND estado = 'a'";
+            $result = mysqli_query($ventas_connection, $query);
+            
+            if ($result) {
+                $row = mysqli_fetch_assoc($result);
+                $has_invoice = (int)$row['count'] > 0;
+                mysqli_close($ventas_connection);
+                return $has_invoice;
+            }
+            
+            mysqli_close($ventas_connection);
+            return false;
+            
+        } catch (Exception $e) {
+            Utils::logError("Error en hasInvoice: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return false;
+        }
+    }
+    
+    /**
+     * Obtener estado actual de una orden
+     * @param int $order_id ID del pedido
+     * @return string Estado de la orden (wc-processing, wc-completed, etc.)
+     */
+    public function getOrderStatus(int $order_id): string
+    {
+        try {
+            $order_id = (int)$order_id;
+            $query = "SELECT post_status FROM miau_posts WHERE ID = '$order_id' AND post_type = 'shop_order'";
+            $result = mysqli_query($this->wp_connection, $query);
+            
+            if ($result && $row = mysqli_fetch_assoc($result)) {
+                return $row['post_status'];
+            }
+            
+            return '';
+            
+        } catch (Exception $e) {
+            Utils::logError("Error en getOrderStatus: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return '';
+        }
+    }
+    
+    /**
+     * Obtener detalles completos de una orden para modal
+     * @param int $order_id ID del pedido
+     * @return array Detalles de la orden
+     */
+    public function getOrderDetails(int $order_id): array
+    {
+        try {
+            $order_id = (int)$order_id;
+            
+            // Obtener datos básicos de la orden
+            $query = "SELECT 
+                p.ID,
+                p.post_date,
+                p.post_status,
+                COALESCE(pm_fname.meta_value, '') as billing_first_name,
+                COALESCE(pm_lname.meta_value, '') as billing_last_name,
+                COALESCE(pm_email.meta_value, '') as billing_email,
+                COALESCE(pm_phone.meta_value, '') as billing_phone,
+                COALESCE(pm_address1.meta_value, '') as billing_address_1,
+                COALESCE(pm_address2.meta_value, '') as billing_address_2,
+                COALESCE(pm_city.meta_value, '') as billing_city,
+                COALESCE(pm_state.meta_value, '') as billing_state,
+                COALESCE(pm_country.meta_value, '') as billing_country,
+                COALESCE(pm_barrio.meta_value, '') as billing_barrio,
+                COALESCE(pm_payment.meta_value, '') as payment_method,
+                COALESCE(pm_payment_title.meta_value, '') as payment_method_title,
+                COALESCE(pm_shipping.meta_value, '0') as shipping_cost,
+                COALESCE(os.total_sales, 0) as total
+            FROM miau_posts p
+            LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
+            LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
+            LEFT JOIN miau_postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
+            LEFT JOIN miau_postmeta pm_phone ON p.ID = pm_phone.post_id AND pm_phone.meta_key = '_billing_phone'
+            LEFT JOIN miau_postmeta pm_address1 ON p.ID = pm_address1.post_id AND pm_address1.meta_key = '_billing_address_1'
+            LEFT JOIN miau_postmeta pm_address2 ON p.ID = pm_address2.post_id AND pm_address2.meta_key = '_billing_address_2'
+            LEFT JOIN miau_postmeta pm_city ON p.ID = pm_city.post_id AND pm_city.meta_key = '_billing_city'
+            LEFT JOIN miau_postmeta pm_state ON p.ID = pm_state.post_id AND pm_state.meta_key = '_billing_state'
+            LEFT JOIN miau_postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
+            LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_barrio'
+            LEFT JOIN miau_postmeta pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
+            LEFT JOIN miau_postmeta pm_payment_title ON p.ID = pm_payment_title.post_id AND pm_payment_title.meta_key = '_payment_method_title'
+            LEFT JOIN miau_postmeta pm_shipping ON p.ID = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
+            LEFT JOIN miau_wc_order_stats os ON p.ID = os.order_id
+            WHERE p.ID = '$order_id'";
+            
+            $result = mysqli_query($this->wp_connection, $query);
+            
+            if (!$result || !($order_data = mysqli_fetch_assoc($result))) {
+                return [];
+            }
+            
+            // Obtener productos de la orden
+            $order_data['items'] = $this->getOrderItems($order_id);
+            
+            // Verificar si tiene factura
+            $order_data['has_invoice'] = $this->hasInvoice($order_id);
+            
+            return $order_data;
+            
+        } catch (Exception $e) {
+            Utils::logError("Error en getOrderDetails: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return [];
+        }
     }
 
     public function __destruct()

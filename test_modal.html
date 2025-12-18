@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Modal Display</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Test Modal Display</h2>
+        <button class="btn btn-primary" onclick="testModal()">Test Modal with Sample Data</button>
+        
+        <div id="order-details-content" class="mt-4 p-3 border">
+            <p>Click the button to test modal display</p>
+        </div>
+    </div>
+
+    <script>
+    // Copiar las funciones del modal desde pedidos.php
+    function buildFullAddress(orderData) {
+        let address = orderData.billing_address_1 || '';
+        if (orderData.billing_address_2) {
+            address += (address ? ', ' : '') + orderData.billing_address_2;
+        }
+        if (orderData.billing_barrio) {
+            address += (address ? ', ' : '') + orderData.billing_barrio;
+        }
+        return address || 'N/A';
+    }
+
+    function buildLocationString(orderData) {
+        let location = '';
+        if (orderData.billing_city) {
+            location = orderData.billing_city;
+        }
+        if (orderData.billing_state) {
+            location += (location ? ', ' : '') + convertStateCode(orderData.billing_state);
+        }
+        if (orderData.billing_country) {
+            const country = orderData.billing_country === 'CO' ? 'Colombia' : orderData.billing_country;
+            location += (location ? ', ' : '') + country;
+        }
+        return location || 'N/A';
+    }
+
+    function convertStateCode(stateCode) {
+        const states = {
+            'SAN': 'Santander',
+            'ANT': 'Antioquia',
+            'BOG': 'Bogotá',
+            'ATL': 'Atlántico',
+            'GUV': 'Guaviare'
+        };
+        return states[stateCode] || stateCode;
+    }
+
+    function getStatusText(status) {
+        const statusMap = {
+            'wc-processing': 'Procesando',
+            'wc-completed': 'Completado',
+            'wc-on-hold': 'En Espera',
+            'wc-pending': 'Pendiente',
+            'wc-cancelled': 'Cancelado'
+        };
+        return statusMap[status] || status;
+    }
+
+    function getStatusBadge(status) {
+        const statusText = getStatusText(status);
+        const statusMap = {
+            'wc-processing': `<span class="badge badge-primary"><i class="fas fa-cog"></i> ${statusText}</span>`,
+            'wc-completed': `<span class="badge badge-success"><i class="fas fa-check"></i> ${statusText}</span>`,
+            'wc-on-hold': `<span class="badge badge-warning"><i class="fas fa-pause"></i> ${statusText}</span>`,
+            'wc-cancelled': `<span class="badge badge-danger"><i class="fas fa-times"></i> ${statusText}</span>`,
+            'wc-pending': `<span class="badge badge-secondary"><i class="fas fa-clock"></i> ${statusText}</span>`
+        };
+        return statusMap[status] || `<span class="badge badge-light"><i class="fas fa-question"></i> ${statusText || status}</span>`;
+    }
+
+    function displayOrderDetails(orderData) {
+        console.log('Order Data received:', orderData);
+        console.log('Post Status:', orderData.post_status);
+        console.log('Has Invoice:', orderData.has_invoice);
+        
+        // Procesar estado del pedido
+        const status = orderData.post_status || 'wc-processing';
+        const statusBadge = getStatusBadge(status);
+        
+        // Procesar estado de facturación
+        const hasInvoice = orderData.has_invoice === true || orderData.has_invoice === 1 || orderData.has_invoice === '1' || orderData.has_invoice === 'true';
+        const invoiceBadge = hasInvoice ? 
+            '<span class="badge badge-success"><i class="fas fa-check"></i> Facturado</span>' : 
+            '<span class="badge badge-warning"><i class="fas fa-clock"></i> Pendiente</span>';
+            
+        console.log('Final Status:', status);
+        console.log('Final HasInvoice:', hasInvoice);
+        console.log('Status Badge HTML:', statusBadge);
+        console.log('Invoice Badge HTML:', invoiceBadge);
+        
+        let itemsHtml = '';
+        if (orderData.items && orderData.items.length > 0) {
+            orderData.items.forEach(item => {
+                itemsHtml += `
+                    <tr>
+                        <td>${item.product_qty || 1}</td>
+                        <td>
+                            ${item.sku ? `<small class="text-muted">SKU: ${item.sku}</small><br>` : ''}
+                            ${item.order_item_name}
+                        </td>
+                        <td class="text-right">$${parseFloat(item.line_total || 0).toLocaleString('es-CO')}</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        const html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-info-circle"></i> Información del Pedido</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Estado:</strong></td><td>${statusBadge || '<span class="badge badge-primary">Procesando</span>'}</td></tr>
+                        <tr><td><strong>Fecha:</strong></td><td>${orderData.post_date || 'N/A'}</td></tr>
+                        <tr><td><strong>Método de Pago:</strong></td><td>${orderData.payment_method_title || orderData.payment_method || 'N/A'}</td></tr>
+                        <tr><td><strong>Facturación:</strong></td><td>${invoiceBadge || '<span class="badge badge-warning">Pendiente</span>'}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-user"></i> Información del Cliente</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Nombre:</strong></td><td>${orderData.billing_first_name} ${orderData.billing_last_name}</td></tr>
+                        <tr><td><strong>Email:</strong></td><td>${orderData.billing_email || 'N/A'}</td></tr>
+                        <tr><td><strong>Teléfono:</strong></td><td>${orderData.billing_phone || 'N/A'}</td></tr>
+                        <tr><td><strong>Dirección:</strong></td><td>${buildFullAddress(orderData)}</td></tr>
+                        <tr><td><strong>Ciudad:</strong></td><td>${buildLocationString(orderData)}</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <hr>
+            
+            <h6><i class="fas fa-shopping-cart"></i> Productos del Pedido</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Cant.</th>
+                            <th>Producto</th>
+                            <th class="text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-info">
+                            <td colspan="2"><strong>Total del Pedido</strong></td>
+                            <td class="text-right"><strong>$${parseFloat(orderData.total || 0).toLocaleString('es-CO')}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        `;
+        
+        $('#order-details-content').html(html);
+    }
+
+    function testModal() {
+        // Usar los datos de ejemplo del test que funcionó
+        const sampleData = {
+            "ID": "23066",
+            "post_date": "13/12/2025 02:30",
+            "post_status": "wc-processing",
+            "billing_first_name": "YINED MILANYELA",
+            "billing_last_name": "MOLINA BARRIOS",
+            "billing_email": "YINED.MOLINA@GMAIL.COM",
+            "billing_phone": "3212272989",
+            "billing_address_1": "CL28BIS #30A-30",
+            "billing_address_2": "APTO 305 T1, CONJ FIORE DE LA CAMPIñA",
+            "billing_city": "Giron",
+            "billing_state": "SAN",
+            "billing_country": "CO",
+            "billing_barrio": "",
+            "payment_method": "",
+            "payment_method_title": "Pago Contra Entrega Aplica solo para Bogotá",
+            "shipping_cost": "10000",
+            "total": "1043000",
+            "has_invoice": true,
+            "items": [
+                {
+                    "order_item_name": "Nupec Cachorro",
+                    "product_qty": 1,
+                    "line_total": 236000,
+                    "sku": "SC691"
+                },
+                {
+                    "order_item_name": "Nupec Adulto",
+                    "product_qty": 1,
+                    "line_total": 227000,
+                    "sku": "SC697"
+                }
+            ]
+        };
+
+        displayOrderDetails(sampleData);
+    }
+    </script>
+</body>
+</html>

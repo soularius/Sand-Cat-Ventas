@@ -2,41 +2,23 @@
 // 1. Cargar autoloader del sistema
 require_once('class/autoload.php');
 
-// 2. Lógica de autenticación y procesamiento
-$MM_authorizedUsers = "a,v";
-$MM_donotCheckaccess = "false";
-$MM_restrictGoTo = "http://localhost/ventas/facturacion.php";
+// 2. Cargar login handler centralizado
+require_once('parts/login_handler.php');
+// 2. Cargar clases específicas
+require_once('class/woocommerce_orders.php');
 
-// Verificar autenticación
-if (!isset($_SESSION['MM_Username'])) { 
-  $MM_qsChar = "?";
-  $MM_referrer = $_SERVER['PHP_SELF'];
-  if (strpos($MM_restrictGoTo, "?")) $MM_qsChar = "&";
-  if (isset($QUERY_STRING) && strlen($QUERY_STRING) > 0) 
-  $MM_referrer .= "?" . $QUERY_STRING;
-  $MM_restrictGoTo = $MM_restrictGoTo. $MM_qsChar . "accesscheck=" . urlencode($MM_referrer);
-  header("Location: ". $MM_restrictGoTo); 
-  exit;
+// 4. Obtener datos del usuario usando función centralizada
+$row_usuario = getCurrentUserFromDB();
+if (!$row_usuario) {
+    Utils::logError("No se pudieron obtener datos del usuario en pedidos.php", 'ERROR', 'pedidos.php');
+    Header("Location: index.php");
+    exit();
 }
 
-// Obtener datos del usuario
-$colname_usuario = '';
-if (isset($_SESSION['MM_Username'])) {
-    $colname_usuario = mysqli_real_escape_string($sandycat, $_SESSION['MM_Username']);
-}
+$ellogin = $row_usuario['elnombre'] ?? '';
 
-$query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
-$row_usuario = mysqli_fetch_assoc($usuario);
-$totalRows_usuario = mysqli_num_rows($usuario);
-
-$ellogin = '';
-$ellogin = isset($row_usuario['elnombre']) ? $row_usuario['elnombre'] : '';
-
-// Crear variable compatible para el menú
-if (!isset($row_usuario['nombre']) && isset($row_usuario['elnombre'])) {
-    $row_usuario['nombre'] = $row_usuario['elnombre'];
-}
+// 5. Inicializar clase de órdenes WooCommerce
+$wc_orders = new WooCommerceOrders();
 
 $acti1 = 'active';
 $acti2 = 'fade';
@@ -49,100 +31,63 @@ if(isset($_GET['df']) && !empty($_GET['df'])){
 	$pes1 = '';
 	$pes2 = 'active';
 }
+// 6. Configurar fechas para filtros
 $hoy = date("Y-m-d");
-$inifact = date("Y-m-d",strtotime ( '+1 day' , strtotime ( $hoy ) ) );
+$inifact = date("Y-m-d", strtotime('+1 day', strtotime($hoy)));
 if(isset($diasfin)) {
 	$dias = $diasfin;
-	$finfact = date("Y-m-d",strtotime ( '-'.$dias.' day' , strtotime ( $hoy ) ) );
+	$finfact = date("Y-m-d", strtotime('-'.$dias.' day', strtotime($hoy)));
 } else {
 	$dias = 30;	
-	$finfact = date("Y-m-d",strtotime ( '-30 day' , strtotime ( $hoy ) ) );
+	$finfact = date("Y-m-d", strtotime('-30 day', strtotime($hoy)));
 }
+
+// 7. Procesar acciones de pedidos usando clase WooCommerce
 $carga = '';
 if(isset($_POST['id_ventas']) && isset($_POST['imprimiendo'])) {
-	$_POST['id_ventas'];
-	$_POST['num'];
-	$venta = $_POST['id_ventas'];
-	$factu = $_POST['num'];
-	$query = "INSERT INTO facturas (id_order, factura, estado) VALUES ('$venta', '$factu', 'a')";
-	mysqli_query($sandycat, $query);
-	$query = "UPDATE miau_posts SET post_status = 'wc-completed' WHERE ID = '$venta'";
-	mysqli_query($miau, $query);
-	$query = "UPDATE miau_wc_order_stats SET status = 'wc-completed' WHERE id_ventas = '$venta'";
-	mysqli_query($miau, $query);
+	$venta = Utils::sanitizeInput($_POST['id_ventas']);
+	$factu = Utils::sanitizeInput($_POST['num']);
+	
+	// Usar método de la clase para completar pedido
+	if($wc_orders->completeOrder($venta, $factu)) {
+		Utils::logError("Pedido completado: ID=$venta, Factura=$factu", 'INFO', 'pedidos.php');
+	} else {
+		Utils::logError("Error completando pedido: ID=$venta", 'ERROR', 'pedidos.php');
+	}
 }
 if(isset($_POST['id_ventas']) && isset($_POST['cancela'])) {
-	$_POST['id_ventas'];
-	$_POST['num'];
-	$venta = $_POST['id_ventas'];
-	$factu = $_POST['num'];
-	$query = "UPDATE miau_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
-	mysqli_query($miau, $query);
-	$query = "UPDATE miau_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$venta'";
-	mysqli_query($miau, $query);
-	$query = "UPDATE facturas SET estado = 'i' WHERE id_order = '$venta'";
-	mysqli_query($sandycat, $query);
-
-  $query_vcancel = sprintf("SELECT order_id, product_id, product_qty FROM miau_wc_order_product_lookup WHERE order_id = '$venta'");
-	$vcancel = mysqli_query($miau, $query_vcancel) or die(mysqli_error($miau));
-	$row_vcancel = mysqli_fetch_assoc($vcancel);
-	$totalRows_vcancel = mysqli_num_rows($vcancel);
-  do { 
-        $product_id = $row_vcancel['product_id'];
-        $product_qty = $row_vcancel['product_qty'];
-
-        $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
-      	$stock = mysqli_query($miau, $query_stock) or die(mysqli_error($miau));
-      	$row_stock = mysqli_fetch_assoc($stock);
-      	$totalRows_stock = mysqli_num_rows($stock);
-        $_stock1 = $row_stock['meta_value'];
-        $_stock2 = $row_stock['meta_value'] + $product_qty;
-        $query9 = "UPDATE miau_postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
-        mysqli_query($miau, $query9);
-        if($_stock2 > 0) {       
-          $query10 = "UPDATE miau_postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
-	        mysqli_query($miau, $query10); 
-          }
-      } while ($row_vcancel = mysqli_fetch_assoc($vcancel));
+	$venta = Utils::sanitizeInput($_POST['id_ventas']);
+	$factu = Utils::sanitizeInput($_POST['num']);
+	
+	// Usar método de la clase para cancelar pedido
+	if($wc_orders->cancelOrder($venta)) {
+		Utils::logError("Pedido cancelado: ID=$venta", 'INFO', 'pedidos.php');
+	} else {
+		Utils::logError("Error cancelando pedido: ID=$venta", 'ERROR', 'pedidos.php');
+	}
 }
 if(isset($_POST['fin_pedido'])) { 
-	$_POST['fin_pedido'];
-	$venta = $_POST['fin_pedido'];
-  
-	$query = "UPDATE miau_posts SET post_status = 'wc-processing' WHERE ID = '$venta'";
-	mysqli_query($miau, $query);
-
-	$query = "UPDATE miau_wc_order_stats SET status = 'wc-processing' WHERE order_id = '$venta'";
-	mysqli_query($miau, $query);
+	$venta = Utils::sanitizeInput($_POST['fin_pedido']);
+	
+	// Usar método de la clase para procesar pedido
+	if($wc_orders->processOrder($venta)) {
+		Utils::logError("Pedido procesado: ID=$venta", 'INFO', 'pedidos.php');
+	} else {
+		Utils::logError("Error procesando pedido: ID=$venta", 'ERROR', 'pedidos.php');
+	}
 }
 
 
-/* $query_pendientes = sprintf("SELECT ID, post_date, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_first_name' AND post_id = ID ) AS nombre1, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_last_name' AND post_id = ID ) AS nombre2, (SELECT total_sales FROM miau_wc_order_stats WHERE order_id = ID ) AS valor FROM miau_posts WHERE post_status = 'wc-processing' ORDER BY ID DESC");  codigo hasta dic 23 2023*/
-    // codigo para que reconozca las compras de cheque(datafono) status wc-on-hold
-    $query_pendientes = sprintf("SELECT miau_posts.ID, post_date, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_first_name' AND post_id = miau_posts.ID ) AS nombre1, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_last_name' AND post_id = miau_posts.ID ) AS nombre2, (SELECT total_sales FROM miau_wc_order_stats WHERE order_id = miau_posts.ID ) AS valor FROM miau_posts WHERE post_status = 'wc-processing' OR miau_posts.ID IN (SELECT miau_posts.ID FROM miau_posts JOIN miau_postmeta ON miau_posts.ID = miau_postmeta.post_id WHERE miau_posts.post_status = 'wc-on-hold' AND miau_postmeta.meta_value = 'cheque') ORDER BY ID DESC;");
-$pendientes = mysqli_query($miau, $query_pendientes) or die(mysqli_error($miau));
-$row_pendientes = mysqli_fetch_assoc($pendientes);
-$totalRows_pendientes = mysqli_num_rows($pendientes);
+// 8. Obtener pedidos pendientes usando clase WooCommerce
+// Incluye pedidos en processing y on-hold con método de pago cheque
+$pendientes_data = $wc_orders->getPendingOrders();
+$totalRows_pendientes = count($pendientes_data);
+$row_pendientes = $totalRows_pendientes > 0 ? $pendientes_data[0] : null;
 
-// Primero obtenemos los IDs de órdenes facturadas del sistema local
-$query_facturas = sprintf("SELECT id_order FROM facturas WHERE estado = 'a'");
-$facturas_result = mysqli_query($sandycat, $query_facturas) or die(mysqli_error($sandycat));
-$facturas_ids = array();
-while($row_fact = mysqli_fetch_assoc($facturas_result)) {
-    $facturas_ids[] = $row_fact['id_order'];
-}
-
-// Si hay facturas, consultamos WordPress, sino creamos resultado vacío
-if(!empty($facturas_ids)) {
-    $ids_string = implode(',', $facturas_ids);
-    $query_pendientesf = sprintf("SELECT ID, post_date, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_first_name' AND post_id = ID ) AS nombre1, (SELECT meta_value FROM miau_postmeta WHERE meta_key='_billing_last_name' AND post_id = ID ) AS nombre2, (SELECT total_sales FROM miau_wc_order_stats WHERE order_id = ID ) AS valor FROM miau_posts WHERE ID IN ($ids_string) AND post_date < '$inifact' AND post_date > '$finfact' ORDER BY ID DESC");
-    $pendientesf = mysqli_query($miau, $query_pendientesf) or die(mysqli_error($miau));
-} else {
-    // Crear resultado vacío si no hay facturas
-    $pendientesf = mysqli_query($miau, "SELECT ID, post_date, '' AS nombre1, '' AS nombre2, 0 AS valor FROM miau_posts WHERE 1=0");
-}
-$row_pendientesf = mysqli_fetch_assoc($pendientesf);
-$totalRows_pendientesf = mysqli_num_rows($pendientesf);
+// 9. Obtener pedidos facturados usando clase WooCommerce
+$pendientesf_data = $wc_orders->getInvoicedOrders($finfact, $inifact);
+$totalRows_pendientesf = count($pendientesf_data);
+$row_pendientesf = $totalRows_pendientesf > 0 ? $pendientesf_data[0] : null;
 
 // 3. DESPUÉS: Cargar presentación
 include("parts/header.php");
@@ -178,7 +123,7 @@ include("parts/header.php");
 	  <?php } ?>
 <div class="tab-content">
   <div class="tab-pane container <?php echo $acti1; ?>" id="pendiente"><br />
-		<?php if(!empty($row_pendientes['ID'])) { ?>
+		<?php if($totalRows_pendientes > 0) { ?>
 	  <input class="form-control" id="busca" type="text" placeholder="Busqueda..">
   <table class="table table-hover">
     <thead>
@@ -187,20 +132,92 @@ include("parts/header.php");
         <th style="text-align: center">Fecha</th>
         <th>Cliente</th>
         <th style="text-align: center">Valor</th>
+        <th style="text-align: center">Estado</th>
+        <th style="text-align: center">Factura</th>
+        <th style="text-align: center">Acciones</th>
       </tr>
     </thead>
     <tbody id="donde">
-		<?php do { ?>		
-		<form action="detventafact.php" class="login-form" method="post">
-		<input type="hidden" id="id_ventas" name="id_ventas" value="<?php echo $row_pendientes['ID']; ?>" />
+		<?php foreach ($pendientes_data as $row_pendientes) { 
+			// Obtener estado y verificar factura para validar acciones
+			$order_status = $wc_orders->getOrderStatus($row_pendientes['ID']);
+			$has_invoice = $wc_orders->hasInvoice($row_pendientes['ID']);
+			$can_edit = !$has_invoice; // Solo editar si no tiene factura
+			$can_invoice = ($order_status === 'wc-processing' || $order_status === 'wc-on-hold') || ($order_status === 'wc-completed' && !$has_invoice);
+		?>
       <tr>
         <td style="text-align: center"><?php echo $row_pendientes['ID']; ?></td>
         <td style="text-align: center"><?php echo $row_pendientes['post_date']; ?></td>
-        <td style="text-align: left"><button type="submit" class="btn btn-link"><?php echo strtoupper($row_pendientes['nombre1']." ".$row_pendientes['nombre2']); ?></button></td>
+        <td style="text-align: left"><?php echo strtoupper($row_pendientes['nombre1']." ".$row_pendientes['nombre2']); ?></td>
         <td style="text-align: right"><?php echo number_format($row_pendientes['valor']); ?></td>
-      </tr>	
-			</form>
-    	<?php } while ($row_pendientes = mysqli_fetch_assoc($pendientes)); ?>
+        <td style="text-align: center">
+          <?php 
+          // Mostrar badge de estado
+          $status_text = '';
+          $status_class = '';
+          switch($order_status) {
+            case 'wc-processing':
+              $status_text = 'Procesando';
+              $status_class = 'badge-primary';
+              break;
+            case 'wc-completed':
+              $status_text = 'Completado';
+              $status_class = 'badge-success';
+              break;
+            case 'wc-on-hold':
+              $status_text = 'En Espera';
+              $status_class = 'badge-warning';
+              break;
+            case 'wc-pending':
+              $status_text = 'Pendiente';
+              $status_class = 'badge-secondary';
+              break;
+            case 'wc-cancelled':
+              $status_text = 'Cancelado';
+              $status_class = 'badge-danger';
+              break;
+            default:
+              $status_text = 'Desconocido';
+              $status_class = 'badge-light';
+          }
+          ?>
+          <span class="badge <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
+        </td>
+        <td style="text-align: center">
+          <?php echo $has_invoice ? '<span class="badge badge-success"><i class="fas fa-check"></i> SI</span>' : '<span class="badge badge-warning"><i class="fas fa-clock"></i> NO</span>'; ?>
+        </td>
+        <td style="text-align: center">
+          <div class="btn-group" role="group">
+            <!-- Botón Editar -->
+            <?php if ($can_edit) { ?>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="editOrder(<?php echo $row_pendientes['ID']; ?>)" title="Editar Pedido">
+                <i class="fas fa-edit"></i>
+              </button>
+            <?php } else { ?>
+              <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="No se puede editar (ya facturado)">
+                <i class="fas fa-edit"></i>
+              </button>
+            <?php } ?>
+            
+            <!-- Botón Ver Detalle -->
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="viewOrderDetails(<?php echo $row_pendientes['ID']; ?>)" title="Ver Detalle">
+              <i class="fas fa-eye"></i>
+            </button>
+            
+            <!-- Botón Facturar -->
+            <?php if ($can_invoice) { ?>
+              <button type="button" class="btn btn-sm btn-outline-success" onclick="invoiceOrder(<?php echo $row_pendientes['ID']; ?>)" title="Facturar Pedido">
+                <i class="fas fa-file-invoice"></i>
+              </button>
+            <?php } else { ?>
+              <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="<?php echo $has_invoice ? 'Ya facturado' : 'Estado no válido para facturar'; ?>">
+                <i class="fas fa-file-invoice"></i>
+              </button>
+            <?php } ?>
+          </div>
+        </td>
+      </tr>
+    	<?php } // end foreach ?>
     </tbody>
   </table>
     	<?php } else { ?>
@@ -216,7 +233,7 @@ include("parts/header.php");
       <a class="dropdown-item" href="pedidos.php?df=60">60</a>
       <a class="dropdown-item" href="pedidos.php?df=90">90</a>
     </div>
-		<?php if(!empty($row_pendientesf['ID'])) { ?>
+		<?php if ($totalRows_pendientesf > 0) { // Show the record if the recordset is not empty ?>
 	  <input class="form-control" id="buscac" type="text" placeholder="Busqueda..">
   <table class="table table-hover">
     <thead>
@@ -225,20 +242,42 @@ include("parts/header.php");
         <th style="text-align: center">Fecha</th>
         <th>Cliente</th>
         <th style="text-align: center">Valor</th>
+        <th style="text-align: center">Factura</th>
+        <th style="text-align: center">Acciones</th>
       </tr>
     </thead>
     <tbody id="dondec">
-		<?php do { ?>		
-		<form action="detventafinal.php" method="post">
-		<input type="hidden" id="id_ventas" name="id_ventas" value="<?php echo $row_pendientesf['ID']; ?>" />
+		<?php foreach ($pendientesf_data as $row_pendientesf) { 
+			// Pedidos facturados - solo permitir ver detalle
+		?>
       <tr>
         <td style="text-align: center"><?php echo $row_pendientesf['ID']; ?></td>
         <td style="text-align: center"><?php echo $row_pendientesf['post_date']; ?></td>
-        <td style="text-align: left"><button type="submit" class="btn btn-link"><?php echo strtoupper($row_pendientesf['nombre1']." ".$row_pendientesf['nombre2']); ?></button></td>
+        <td style="text-align: left"><?php echo strtoupper($row_pendientesf['nombre1']." ".$row_pendientesf['nombre2']); ?></td>
         <td style="text-align: right"><?php echo number_format($row_pendientesf['valor']); ?></td>
-      </tr>	
-			</form>
-    	<?php } while ($row_pendientesf = mysqli_fetch_assoc($pendientesf)); ?>
+        <td style="text-align: center">
+          <span class="badge badge-success"><i class="fas fa-check"></i> Facturado</span>
+        </td>
+        <td style="text-align: center">
+          <div class="btn-group" role="group">
+            <!-- Botón Editar - Deshabilitado para facturados -->
+            <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="No se puede editar (ya facturado)">
+              <i class="fas fa-edit"></i>
+            </button>
+            
+            <!-- Botón Ver Detalle -->
+            <button type="button" class="btn btn-sm btn-outline-info" onclick="viewOrderDetails(<?php echo $row_pendientesf['ID']; ?>)" title="Ver Detalle">
+              <i class="fas fa-eye"></i>
+            </button>
+            
+            <!-- Botón Facturar - Deshabilitado para facturados -->
+            <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Ya facturado">
+              <i class="fas fa-file-invoice"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    	<?php } // end foreach ?>
     </tbody>
   </table>
     	<?php } else { ?>
@@ -248,6 +287,341 @@ include("parts/header.php");
   <div class="tab-pane container fade" id="menu2">...</div>
 </div>
 </div>
+<!-- Modal para Ver Detalles del Pedido -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1" role="dialog" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="orderDetailsModalLabel">
+          <i class="fas fa-eye"></i> Detalles del Pedido #<span id="modal-order-id"></span>
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="order-details-content">
+          <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p class="mt-2">Cargando detalles del pedido...</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          <i class="fas fa-times"></i> Cerrar
+        </button>
+        <button type="button" class="btn btn-primary" id="btn-print-order" onclick="printOrderDetails()">
+          <i class="fas fa-print"></i> Imprimir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Función para editar pedido (placeholder por ahora)
+function editOrder(orderId) {
+    alert('Función de edición en desarrollo. Pedido ID: ' + orderId);
+    // TODO: Implementar redirección a página de edición
+    // window.location.href = 'edit_order.php?id=' + orderId;
+}
+
+// Función para ver detalles del pedido en modal
+function viewOrderDetails(orderId) {
+    $('#orderDetailsModal').modal('show');
+    $('#modal-order-id').text(orderId);
+    
+    // Mostrar loading
+    $('#order-details-content').html(`
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p class="mt-2">Cargando detalles del pedido...</p>
+        </div>
+    `);
+    
+    // Cargar detalles via AJAX
+    $.ajax({
+        url: 'get_order_details.php',
+        method: 'POST',
+        data: { order_id: orderId },
+        dataType: 'json',
+        timeout: 10000, // 10 segundos timeout
+        success: function(response) {
+            console.log('AJAX Success:', response);
+            if (response.success) {
+                displayOrderDetails(response.data);
+            } else {
+                $('#order-details-content').html(`
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Error: ${response.message || 'No se pudieron cargar los detalles'}
+                    </div>
+                `);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('AJAX Error:', {xhr: xhr, status: status, error: error});
+            console.log('Response Text:', xhr.responseText);
+            
+            let errorMessage = 'Error de conexión desconocido';
+            
+            if (status === 'timeout') {
+                errorMessage = 'Timeout: La petición tardó demasiado';
+            } else if (status === 'error') {
+                errorMessage = 'Error del servidor: ' + (xhr.status || 'Sin código de estado');
+            } else if (status === 'parsererror') {
+                errorMessage = 'Error parsing JSON. Respuesta del servidor: ' + xhr.responseText.substring(0, 200);
+            }
+            
+            $('#order-details-content').html(`
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Error de conexión:</strong><br>
+                    Status: ${status}<br>
+                    Error: ${error}<br>
+                    Código HTTP: ${xhr.status}<br>
+                    Mensaje: ${errorMessage}<br>
+                    <small class="text-muted">Respuesta: ${xhr.responseText.substring(0, 100)}...</small>
+                </div>
+            `);
+        }
+    });
+}
+
+// Funciones auxiliares para formatear información del cliente
+function buildFullAddress(orderData) {
+    let address = orderData.billing_address_1 || '';
+    if (orderData.billing_address_2) {
+        address += (address ? ', ' : '') + orderData.billing_address_2;
+    }
+    if (orderData.billing_barrio) {
+        address += (address ? ', ' : '') + orderData.billing_barrio;
+    }
+    return address || 'N/A';
+}
+
+function buildLocationString(orderData) {
+    let location = '';
+    if (orderData.billing_city) {
+        location = orderData.billing_city;
+    }
+    if (orderData.billing_state) {
+        location += (location ? ', ' : '') + convertStateCode(orderData.billing_state);
+    }
+    if (orderData.billing_country) {
+        const country = orderData.billing_country === 'CO' ? 'Colombia' : orderData.billing_country;
+        location += (location ? ', ' : '') + country;
+    }
+    return location || 'N/A';
+}
+
+function convertStateCode(stateCode) {
+    // Convertir códigos de departamento a nombres completos
+    const states = {
+        'SAN': 'Santander',
+        'ANT': 'Antioquia',
+        'BOG': 'Bogotá',
+        'ATL': 'Atlántico',
+        'GUV': 'Guaviare',
+        'BOL': 'Bolívar',
+        'CAL': 'Caldas',
+        'CAQ': 'Caquetá',
+        'CAS': 'Casanare',
+        'CAU': 'Cauca',
+        'CES': 'Cesar',
+        'CHO': 'Chocó',
+        'COR': 'Córdoba',
+        'CUN': 'Cundinamarca',
+        'HUI': 'Huila',
+        'LAG': 'La Guajira',
+        'MAG': 'Magdalena',
+        'MET': 'Meta',
+        'NAR': 'Nariño',
+        'NSA': 'Norte de Santander',
+        'PUT': 'Putumayo',
+        'QUI': 'Quindío',
+        'RIS': 'Risaralda',
+        'SAP': 'San Andrés y Providencia',
+        'SUC': 'Sucre',
+        'TOL': 'Tolima',
+        'VAC': 'Valle del Cauca',
+        'VAU': 'Vaupés',
+        'VIC': 'Vichada'
+    };
+    
+    return states[stateCode] || stateCode;
+}
+
+function getStatusText(status) {
+    const statusMap = {
+        'wc-processing': 'Procesando',
+        'wc-completed': 'Completado',
+        'wc-on-hold': 'En Espera',
+        'wc-pending': 'Pendiente',
+        'wc-cancelled': 'Cancelado',
+        'wc-refunded': 'Reembolsado',
+        'wc-failed': 'Fallido'
+    };
+    
+    return statusMap[status] || status;
+}
+
+// Función para mostrar detalles del pedido en el modal
+function displayOrderDetails(orderData) {
+    console.log('Order Data received:', orderData);
+    console.log('Post Status:', orderData.post_status);
+    console.log('Has Invoice:', orderData.has_invoice);
+    
+    // Procesar estado del pedido
+    const status = orderData.post_status || 'wc-processing';
+    const statusBadge = getStatusBadge(status);
+    
+    // Procesar estado de facturación
+    const hasInvoice = orderData.has_invoice === true || orderData.has_invoice === 1 || orderData.has_invoice === '1' || orderData.has_invoice === 'true';
+    const invoiceBadge = hasInvoice ? 
+        '<span class="badge badge-success"><i class="fas fa-check"></i> Facturado</span>' : 
+        '<span class="badge badge-warning"><i class="fas fa-clock"></i> Pendiente</span>';
+        
+    console.log('Final Status:', status);
+    console.log('Final HasInvoice:', hasInvoice);
+    console.log('Status Badge HTML:', statusBadge);
+    console.log('Invoice Badge HTML:', invoiceBadge);
+    
+    let itemsHtml = '';
+    if (orderData.items && orderData.items.length > 0) {
+        orderData.items.forEach(item => {
+            itemsHtml += `
+                <tr>
+                    <td>${item.product_qty || 1}</td>
+                    <td>
+                        ${item.sku ? `<small class="text-muted">SKU: ${item.sku}</small><br>` : ''}
+                        ${item.order_item_name}
+                    </td>
+                    <td class="text-right">$${parseFloat(item.line_total || 0).toLocaleString('es-CO')}</td>
+                </tr>
+            `;
+        });
+    }
+    
+    const html = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-info-circle"></i> Información del Pedido</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Estado:</strong></td><td>${statusBadge || '<span class="badge badge-primary">Procesando</span>'}</td></tr>
+                    <tr><td><strong>Fecha:</strong></td><td>${orderData.post_date || 'N/A'}</td></tr>
+                    <tr><td><strong>Método de Pago:</strong></td><td>${orderData.payment_method_title || orderData.payment_method || 'N/A'}</td></tr>
+                    <tr><td><strong>Facturación:</strong></td><td>${invoiceBadge || '<span class="badge badge-warning">Pendiente</span>'}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="fas fa-user"></i> Información del Cliente</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Nombre:</strong></td><td>${orderData.billing_first_name} ${orderData.billing_last_name}</td></tr>
+                    <tr><td><strong>Email:</strong></td><td>${orderData.billing_email || 'N/A'}</td></tr>
+                    <tr><td><strong>Teléfono:</strong></td><td>${orderData.billing_phone || 'N/A'}</td></tr>
+                    <tr><td><strong>Dirección:</strong></td><td>${buildFullAddress(orderData)}</td></tr>
+                    <tr><td><strong>Ciudad:</strong></td><td>${buildLocationString(orderData)}</td></tr>
+                </table>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <h6><i class="fas fa-shopping-cart"></i> Productos del Pedido</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Cant.</th>
+                        <th>Producto</th>
+                        <th class="text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+                <tfoot>
+                    <tr class="table-info">
+                        <th colspan="2">Total del Pedido</th>
+                        <th class="text-right">$${parseFloat(orderData.total || 0).toLocaleString('es-CO')}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+    
+    $('#order-details-content').html(html);
+}
+
+// Función para obtener badge de estado
+function getStatusBadge(status) {
+    const statusText = getStatusText(status);
+    const statusMap = {
+        'wc-processing': `<span class="badge badge-primary"><i class="fas fa-cog"></i> ${statusText}</span>`,
+        'wc-completed': `<span class="badge badge-success"><i class="fas fa-check"></i> ${statusText}</span>`,
+        'wc-on-hold': `<span class="badge badge-warning"><i class="fas fa-pause"></i> ${statusText}</span>`,
+        'wc-cancelled': `<span class="badge badge-danger"><i class="fas fa-times"></i> ${statusText}</span>`,
+        'wc-pending': `<span class="badge badge-secondary"><i class="fas fa-clock"></i> ${statusText}</span>`,
+        'wc-refunded': `<span class="badge badge-info"><i class="fas fa-undo"></i> ${statusText}</span>`,
+        'wc-failed': `<span class="badge badge-danger"><i class="fas fa-exclamation"></i> ${statusText}</span>`
+    };
+    return statusMap[status] || `<span class="badge badge-light"><i class="fas fa-question"></i> ${statusText || status}</span>`;
+}
+
+// Función para facturar pedido
+function invoiceOrder(orderId) {
+    if (confirm('¿Está seguro de que desea facturar este pedido?')) {
+        // Crear formulario dinámico para enviar a detventafact.php
+        const form = $('<form>', {
+            'method': 'POST',
+            'action': 'detventafact.php'
+        });
+        
+        form.append($('<input>', {
+            'type': 'hidden',
+            'name': 'id_ventas',
+            'value': orderId
+        }));
+        
+        $('body').append(form);
+        form.submit();
+    }
+}
+
+// Función para imprimir detalles del pedido
+function printOrderDetails() {
+    const printContent = $('#order-details-content').html();
+    const orderId = $('#modal-order-id').text();
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Detalles del Pedido #${orderId}</title>
+                <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+                <style>
+                    @media print {
+                        .no-print { display: none; }
+                        body { font-size: 12px; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container-fluid">
+                    <h3 class="text-center mb-4">Detalles del Pedido #${orderId}</h3>
+                    ${printContent}
+                </div>
+            </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.print();
+}
+</script>
+
 	<?php include("parts/foot.php"); ?>
 
 <script>
@@ -267,10 +641,6 @@ $(document).ready(function(){
     });
   });
 });
-	window.onload=function(){
-                // Una vez cargada la página, el formulario se enviara automáticamente.
-		document.forms["impr"].submit();
-    }
 </script>
 
 </body>
