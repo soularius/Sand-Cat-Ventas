@@ -1105,7 +1105,14 @@ class WooCommerceOrders
                 
                 -- Precios de la variación (si existe)
                 pm_regular_variation.meta_value as variation_regular_price,
-                pm_sale_variation.meta_value as variation_sale_price
+                pm_sale_variation.meta_value as variation_sale_price,
+                
+                -- IMÁGENES
+                -- Thumbnail del producto padre
+                pm_thumbnail_parent.meta_value as parent_thumbnail_id,
+                
+                -- Thumbnail de la variación (si existe)
+                pm_thumbnail_variation.meta_value as variation_thumbnail_id
 
             FROM miau_woocommerce_order_items oi
 
@@ -1161,6 +1168,17 @@ class WooCommerceOrders
                 ON pm_sale_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
                 AND pm_sale_variation.meta_key = '_sale_price'
                 AND oim_variation_id.meta_value > 0
+                
+            -- Thumbnail del producto padre
+            LEFT JOIN miau_postmeta pm_thumbnail_parent 
+                ON pm_thumbnail_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
+                AND pm_thumbnail_parent.meta_key = '_thumbnail_id'
+                
+            -- Thumbnail de la variación (si existe)
+            LEFT JOIN miau_postmeta pm_thumbnail_variation 
+                ON pm_thumbnail_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
+                AND pm_thumbnail_variation.meta_key = '_thumbnail_id'
+                AND oim_variation_id.meta_value > 0
 
             WHERE oi.order_id = {$order_id} 
               AND oi.order_item_type = 'line_item'
@@ -1190,6 +1208,9 @@ class WooCommerceOrders
                 // Usar precios de la variación si están disponibles
                 $row['regular_price'] = (float)($row['variation_regular_price'] ?: $row['parent_regular_price'] ?: 0);
                 $row['sale_price'] = (float)($row['variation_sale_price'] ?: $row['parent_sale_price'] ?: 0);
+                
+                // Determinar imagen: priorizar imagen de variación, fallback a producto padre
+                $thumbnail_id = $row['variation_thumbnail_id'] ?: $row['parent_thumbnail_id'] ?: 0;
             } else {
                 // Es un producto simple - usar nombre del producto padre
                 $row['product_name'] = $row['parent_name'] ?: $row['nombre_producto'];
@@ -1198,7 +1219,14 @@ class WooCommerceOrders
                 // Usar precios del producto padre
                 $row['regular_price'] = (float)($row['parent_regular_price'] ?: 0);
                 $row['sale_price'] = (float)($row['parent_sale_price'] ?: 0);
+                
+                // Usar imagen del producto padre
+                $thumbnail_id = $row['parent_thumbnail_id'] ?: 0;
             }
+            
+            // Obtener URL de la imagen
+            $row['image_id'] = (int)$thumbnail_id;
+            $row['image_url'] = $this->getImageUrl($thumbnail_id);
             
             // Calcular precio unitario actual del pedido
             $row['unit_price'] = $row['cantidad'] > 0 ? $row['total_linea'] / $row['cantidad'] : 0;
@@ -1232,6 +1260,55 @@ class WooCommerceOrders
 
         mysqli_free_result($result);
         return $items;
+    }
+
+    /**
+     * Obtener URL de imagen desde WordPress
+     * Siguiendo el patrón de woocommerce_products.php
+     */
+    private function getImageUrl($thumbnail_id) {
+        if (empty($thumbnail_id) || $thumbnail_id <= 0) {
+            return env('WOOCOMMERCE_BASE_URL') .'/wp-content/uploads/woocommerce-placeholder.webp';
+        }
+        
+        $thumbnail_id = intval($thumbnail_id);
+        
+        // Obtener la URL de la imagen desde wp_posts y wp_postmeta
+        $query = "
+            SELECT 
+                p.guid as image_url,
+                pm.meta_value as attachment_metadata
+            FROM miau_posts p
+            LEFT JOIN miau_postmeta pm ON p.ID = pm.post_id AND pm.meta_key = '_wp_attachment_metadata'
+            WHERE p.ID = $thumbnail_id 
+            AND p.post_type = 'attachment'
+        ";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        if (!$result || mysqli_num_rows($result) == 0) {
+            return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+        }
+        
+        $row = mysqli_fetch_assoc($result);
+        mysqli_free_result($result);
+        
+        // Si tenemos la URL directa, usarla
+        if (!empty($row['image_url'])) {
+            return $row['image_url'];
+        }
+        
+        // Si no, intentar construir la URL desde los metadatos
+        if (!empty($row['attachment_metadata'])) {
+            // Intentar deserializar los metadatos
+            $metadata = @unserialize($row['attachment_metadata']);
+            if (is_array($metadata) && isset($metadata['file'])) {
+                // Construir URL basada en la estructura de WordPress
+                $upload_dir = 'http://localhost/MIAU/wp-content/uploads/';
+                return $upload_dir . $metadata['file'];
+            }
+        }
+        
+        return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
     }
 
     /**

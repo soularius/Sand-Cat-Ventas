@@ -72,6 +72,7 @@ try {
         'billing_state' => $order_details['billing_state'] ?? '',
         'billing_country' => $order_details['billing_country'] ?? 'CO',
         'billing_barrio' => $order_details['billing_barrio'] ?? '',
+        'dni_cliente' => $order_details['dni_cliente'] ?? '',
         'payment_method' => $order_details['payment_method'] ?? '',
         'payment_method_title' => $order_details['payment_method_title'] ?? $order_details['payment_method'] ?? 'N/A',
         'shipping_cost' => $order_details['shipping_cost'] ?? '0',

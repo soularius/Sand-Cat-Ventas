@@ -506,5 +506,244 @@ class Utils {
         
         return self::processMetaData($rows, $keys, $keyColumn, $valueColumn, $processors);
     }
+
+    /**
+     * Convierte un código de departamento colombiano a su nombre completo
+     * @param string $codigo_departamento - Código del departamento (ej: "SAN", "CO-SAN", "ANT")
+     * @return string - Nombre completo del departamento o el código original si no se encuentra
+     */
+    public static function convertDepartmentCode($codigo_departamento) {
+        if (empty($codigo_departamento)) {
+            return '';
+        }
+        
+        // Si el departamento contiene "CO-", extraer solo la parte del código
+        if (strpos($codigo_departamento, 'CO-') === 0) {
+            $codigo_departamento = substr($codigo_departamento, 3); // Quitar "CO-"
+        }
+        
+        // Cargar datos de departamentos desde el plugin Colombia
+        $states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
+        if (file_exists($states_file)) {
+            $colombia_states = include($states_file);
+            
+            // Buscar el nombre del departamento por código
+            foreach ($colombia_states as $code => $name) {
+                if (strtoupper($code) === strtoupper($codigo_departamento)) {
+                    return $name;
+                }
+            }
+        }
+        
+        // Si no se encuentra, devolver el código original
+        return $codigo_departamento;
+    }
+
+    /**
+     * Formatea una ubicación completa con ciudad y departamento
+     * @param string $ciudad - Nombre de la ciudad
+     * @param string $departamento - Código o nombre del departamento
+     * @param string $pais - Código del país (opcional, default: 'CO')
+     * @return string - Ubicación formateada (ej: "Giron (Santander)" o "Giron, Santander, Colombia")
+     */
+    public static function formatLocation($ciudad, $departamento, $pais = null, $includeCountry = false) {
+        $ubicacion = '';
+        
+        // Agregar ciudad
+        if (!empty($ciudad)) {
+            $ubicacion = $ciudad;
+        }
+        
+        // Convertir y agregar departamento
+        if (!empty($departamento)) {
+            $departamento_nombre = self::convertDepartmentCode($departamento);
+            if (!empty($ubicacion)) {
+                $ubicacion .= $includeCountry ? ', ' : ' (';
+                $ubicacion .= $departamento_nombre;
+                $ubicacion .= $includeCountry ? '' : ')';
+            } else {
+                $ubicacion = $departamento_nombre;
+            }
+        }
+        
+        // Agregar país si se solicita
+        if ($includeCountry && !empty($pais)) {
+            $pais_nombre = ($pais === 'CO') ? 'Colombia' : $pais;
+            if (!empty($ubicacion)) {
+                $ubicacion .= ', ' . $pais_nombre;
+            } else {
+                $ubicacion = $pais_nombre;
+            }
+        }
+        
+        return $ubicacion;
+    }
+
+    /**
+     * Obtiene todas las ciudades de un departamento específico
+     * @param string $codigo_departamento - Código del departamento (ej: "SAN", "CO-SAN", "ANT")
+     * @return array - Array de ciudades del departamento o array vacío si no se encuentra
+     */
+    public static function getCitiesByDepartment($codigo_departamento) {
+        if (empty($codigo_departamento)) {
+            return [];
+        }
+        
+        // Si el departamento contiene "CO-", extraer solo la parte del código
+        if (strpos($codigo_departamento, 'CO-') === 0) {
+            $codigo_departamento = substr($codigo_departamento, 3); // Quitar "CO-"
+        }
+        
+        // Cargar datos de ciudades desde el plugin Colombia
+        $places_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/places/CO.php';
+        if (file_exists($places_file)) {
+            global $places;
+            include($places_file);
+            
+            if (isset($places['CO']) && isset($places['CO'][strtoupper($codigo_departamento)])) {
+                return $places['CO'][strtoupper($codigo_departamento)];
+            }
+        }
+        
+        return [];
+    }
+
+    /**
+     * Valida si una ciudad existe en un departamento específico
+     * @param string $ciudad - Nombre de la ciudad
+     * @param string $codigo_departamento - Código del departamento
+     * @return bool - True si la ciudad existe en el departamento
+     */
+    public static function validateCityInDepartment($ciudad, $codigo_departamento) {
+        if (empty($ciudad) || empty($codigo_departamento)) {
+            return false;
+        }
+        
+        $cities = self::getCitiesByDepartment($codigo_departamento);
+        
+        // Búsqueda insensible a mayúsculas/minúsculas
+        foreach ($cities as $city) {
+            if (strtolower(trim($city)) === strtolower(trim($ciudad))) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Obtiene todas las ciudades de Colombia organizadas por departamento
+     * @return array - Array asociativo con departamentos como keys y arrays de ciudades como values
+     */
+    public static function getAllCitiesByDepartments() {
+        $places_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/places/CO.php';
+        if (file_exists($places_file)) {
+            global $places;
+            include($places_file);
+            
+            if (isset($places['CO'])) {
+                return $places['CO'];
+            }
+        }
+        
+        return [];
+    }
+
+    /**
+     * Busca ciudades que coincidan con un término de búsqueda
+     * @param string $search_term - Término de búsqueda
+     * @param string $codigo_departamento - Código del departamento (opcional, para filtrar por departamento)
+     * @param int $limit - Límite de resultados (default: 50)
+     * @return array - Array de ciudades que coinciden con la búsqueda
+     */
+    public static function searchCities($search_term, $codigo_departamento = null, $limit = 50) {
+        if (empty($search_term)) {
+            return [];
+        }
+        
+        $results = [];
+        $search_term = strtolower(trim($search_term));
+        
+        if (!empty($codigo_departamento)) {
+            // Buscar solo en un departamento específico
+            $cities = self::getCitiesByDepartment($codigo_departamento);
+            $dept_name = self::convertDepartmentCode($codigo_departamento);
+            
+            foreach ($cities as $city) {
+                if (strpos(strtolower($city), $search_term) !== false) {
+                    $results[] = [
+                        'city' => $city,
+                        'department_code' => strtoupper($codigo_departamento),
+                        'department_name' => $dept_name
+                    ];
+                    
+                    if (count($results) >= $limit) {
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Buscar en todos los departamentos
+            $all_places = self::getAllCitiesByDepartments();
+            
+            foreach ($all_places as $dept_code => $cities) {
+                $dept_name = self::convertDepartmentCode($dept_code);
+                
+                foreach ($cities as $city) {
+                    if (strpos(strtolower($city), $search_term) !== false) {
+                        $results[] = [
+                            'city' => $city,
+                            'department_code' => $dept_code,
+                            'department_name' => $dept_name
+                        ];
+                        
+                        if (count($results) >= $limit) {
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return $results;
+    }
+
+    /**
+     * Obtiene información completa de una ciudad (nombre, departamento, etc.)
+     * @param string $ciudad - Nombre de la ciudad
+     * @param string $codigo_departamento - Código del departamento (opcional)
+     * @return array|null - Array con información de la ciudad o null si no se encuentra
+     */
+    public static function getCityInfo($ciudad, $codigo_departamento = null) {
+        if (empty($ciudad)) {
+            return null;
+        }
+        
+        if (!empty($codigo_departamento)) {
+            // Buscar en departamento específico
+            if (self::validateCityInDepartment($ciudad, $codigo_departamento)) {
+                return [
+                    'city' => $ciudad,
+                    'department_code' => strtoupper($codigo_departamento),
+                    'department_name' => self::convertDepartmentCode($codigo_departamento),
+                    'formatted_location' => self::formatLocation($ciudad, $codigo_departamento)
+                ];
+            }
+        } else {
+            // Buscar en todos los departamentos
+            $search_results = self::searchCities($ciudad, null, 1);
+            if (!empty($search_results)) {
+                $result = $search_results[0];
+                return [
+                    'city' => $result['city'],
+                    'department_code' => $result['department_code'],
+                    'department_name' => $result['department_name'],
+                    'formatted_location' => self::formatLocation($result['city'], $result['department_code'])
+                ];
+            }
+        }
+        
+        return null;
+    }
 }
 ?>

@@ -103,7 +103,7 @@ foreach ($items as $it) {
     
     // Si no hay imagen del producto, usar placeholder directo
     if (empty($image_url)) {
-        $image_url = 'http://localhost/MIAU/wp-content/uploads/woocommerce-placeholder.webp';
+        $image_url = env('WOOCOMMERCE_BASE_URL') .'/wp-content/uploads/woocommerce-placeholder.webp';
     }
     
     // Log mejorado para debugging
@@ -224,7 +224,7 @@ include('parts/header.php');
                             <h5 class="text-white">
                                 <i class="fas fa-info-circle me-2"></i>Detalles del Pedido
                             </h5>
-                            <a href="<?php echo $_ENV['WOOCOMMERCE_BASE_URL']; ?>/wp-admin/admin.php?page=wc-orders&action=edit&id=<?php echo htmlspecialchars((string)$order_id); ?>" class="text-white wp-eye-link" title="Ver en panel administrativo de WordPress" target="_blank">
+                            <a href="<?= env('WOOCOMMERCE_BASE_URL'); ?>/wp-admin/admin.php?page=wc-orders&action=edit&id=<?php echo htmlspecialchars((string)$order_id); ?>" class="text-white wp-eye-link" title="Ver en panel administrativo de WordPress" target="_blank">
                                 <i class="fas fa-eye wp-eye-icon"></i>
                             </a>
                         </div>

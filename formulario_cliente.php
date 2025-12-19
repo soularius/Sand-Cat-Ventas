@@ -5,35 +5,19 @@
 
 // 1. Cargar autoloader del sistema
 require_once('class/autoload.php');
-$MM_authorizedUsers = "a,v";
-$MM_donotCheckaccess = "false";
 
-// *** Restrict Access To Page: Grant or deny access to this page
-// La función isAuthorized() ahora está disponible desde tools.php
+// 2. Cargar login handler centralizado
+require_once('parts/login_handler.php');
+// 2. Cargar clases específicas
+require_once('class/woocommerce_orders.php');
 
-
-
-$MM_restrictGoTo = "http://localhost/ventas";
-
-
-if (!((isset($_SESSION['MM_Username'])))) { 
-  $MM_qsChar = "?";
-  $MM_referrer = $_SERVER['PHP_SELF'];
-  if (strpos($MM_restrictGoTo, "?")) $MM_qsChar = "&";
-  if (isset($QUERY_STRING) && strlen($QUERY_STRING) > 0) 
-  $MM_referrer .= "?" . $QUERY_STRING;
-  $MM_restrictGoTo = $MM_restrictGoTo. $MM_qsChar . "accesscheck=" . urlencode($MM_referrer);
-  header("Location: ". $MM_restrictGoTo); 
-  exit;
+// 4. Obtener datos del usuario usando función centralizada
+$row_usuario = getCurrentUserFromDB();
+if (!$row_usuario) {
+  Utils::logError("No se pudieron obtener datos del usuario en formulario_cliente.php", 'ERROR', 'formulario_cliente.php');
+  Header("Location: index.php");
+  exit();
 }
-if (isset($_SESSION['MM_Username'])) {
-$colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
-}
-
-$query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
-$row_usuario = mysqli_fetch_assoc($usuario);
-$totalRows_usuario = mysqli_num_rows($usuario);
 
 $ellogin = '';
 $ellogin = $row_usuario['elnombre'] ?? '';
@@ -48,10 +32,29 @@ $lista = null;
 $totalRows_lista = 0;
 $customer_found = false;
 $customer_data = [];
+$edit_mode = false;
+$cache_data = [];
+
+// NUEVO: Verificar si se está editando un pedido existente
+$edit_order_id = Utils::captureValue('id-orden', 'POST', '');
+$order_data = null;
+if (!empty($edit_order_id)) {
+    // Cargar detalles del pedido usando WooCommerceOrders
+    $woocommerce_orders = new WooCommerceOrders();
+    $order_data = $woocommerce_orders->getOrderDetails((int)$edit_order_id);
+    
+    if (!empty($order_data)) {
+        $edit_mode = true;
+        $post_id = $edit_order_id;
+        Utils::logError("Cargando pedido para edición: $edit_order_id", 'INFO', 'formulario_cliente.php');
+    } else {
+        Utils::logError("Error al cargar pedido para edición: $edit_order_id", 'ERROR', 'formulario_cliente.php');
+    }
+}
 
 // Si se navega desde pasos posteriores (3/4), puede venir un order_id para recargar datos
 $existing_order_id = Utils::captureValue('_order_id', 'POST', '');
-if (!empty($existing_order_id)) {
+if (!empty($existing_order_id) && !$edit_mode) {
     $post_id = $existing_order_id;
     $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$post_id'");
     $lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
@@ -124,54 +127,123 @@ include('parts/step_wizard.php');
         </div>
 
         <?php
-            // Verificar si hay datos de cliente en sesión antes de procesar postmeta
-            $session_customer_data = [];
-            $session_billing_id = '';
-            
-            // Iniciar sesión si no está iniciada
-            if (session_status() == PHP_SESSION_NONE) {
-                session_start();
-            }
-            
-            // Obtener datos de sesión si existen (sin incluir archivo externo)
-            if (isset($_SESSION['last_customer_data'])) {
-                $sessionData = $_SESSION['last_customer_data'];
+            // NUEVO: Verificar si estamos en modo edición y cargar datos de la orden
+            if ($edit_mode && !empty($order_data)) {
+                echo "<!-- EDIT MODE: Datos de orden cargados desde base de datos para edición -->";
                 
-                // Verificar que los datos no sean muy antiguos (1 hora)
-                $maxAge = 3600; // 1 hora
-                if ((time() - $sessionData['timestamp']) <= $maxAge) {
-                    $session_customer_data = $sessionData['customer'];
-                    $session_billing_id = $sessionData['billing_id'];
-                    
-                    echo "<!-- SESIÓN: Cliente encontrado en sesión - DNI: $session_billing_id -->";
-                    
-                    // Simular que se encontró el cliente para que postmeta.php use estos datos
-                    $customer_found = true;
-                    $customer_data = $session_customer_data;
-                    $billing_id = $session_billing_id;
-                } else {
-                    // Datos muy antiguos, limpiar
-                    unset($_SESSION['last_customer_data']);
-                    echo "<!-- SESIÓN: Datos expirados, limpiados -->";
-                }
+                // Asignar datos de la orden a las variables del formulario
+                $nombre1 = $order_data['billing_first_name'] ?? '';
+                $nombre2 = $order_data['billing_last_name'] ?? '';
+                $documento = $order_data['dni_cliente'] ?? $order_data['billing_id'] ?? '';
+                $correo = $order_data['billing_email'] ?? '';
+                $celular = $order_data['billing_phone'] ?? '';
+                $dir1 = $order_data['billing_address_1'] ?? '';
+                $dir2 = $order_data['billing_address_2'] ?? '';
+                $barrio = $order_data['billing_barrio'] ?? '';
+                $ciudad = $order_data['billing_city'] ?? '';
+                $departamento = $order_data['billing_state'] ?? '';
+                $comentarios = '';
+                $envio = $order_data['shipping_cost'] ?? '10000';
+                $descuento = '0';
+                $metodo_pago = $order_data['payment_method_title'] ?? '';
+                $billing_id = $documento;
+                
+                // Simular datos encontrados para compatibilidad
+                $customer_found = true;
+                $totalRows_lista = 1;
+                
+                echo "<!-- EDIT MODE: Pedido en edición - ID: {$order_data['ID']} -->";
+                
+                // Preparar datos completos para reconstruir cache
+                $order_cache_data = [
+                    'order_id' => $order_data['ID'],
+                    'billing_first_name' => $nombre1,
+                    'billing_last_name' => $nombre2,
+                    'dni_cliente' => $documento,
+                    'billing_id' => $documento, // Compatibilidad
+                    'billing_email' => $correo,
+                    'billing_phone' => $celular,
+                    'billing_address_1' => $dir1,
+                    'billing_address_2' => $dir2,
+                    'billing_barrio' => $barrio,
+                    'billing_city' => $ciudad,
+                    'billing_state' => $departamento,
+                    'shipping_cost' => $envio,
+                    'payment_method_title' => $metodo_pago,
+                    'items' => $order_data['items'] ?? []
+                ];
+                
+                $order_cache_json = json_encode($order_cache_data);
+                
+                echo "<script>\n";
+                echo "// Reconstruir cache completa desde datos de orden\n";
+                echo "document.addEventListener('DOMContentLoaded', function() {\n";
+                echo "    const orderData = " . $order_cache_json . ";\n";
+                echo "    if (window.buildOrderCache) {\n";
+                echo "        const success = window.buildOrderCache(orderData);\n";
+                echo "        if (success) {\n";
+                echo "            console.log('Cache de orden reconstruida para edición - ID: {$order_data['ID']}');\n";
+                echo "        } else {\n";
+                echo "            console.error('Error reconstruyendo cache de orden');\n";
+                echo "        }\n";
+                echo "    } else {\n";
+                echo "        console.error('Función buildOrderCache no disponible');\n";
+                echo "    }\n";
+                echo "});\n";
+                echo "</script>\n";
+            } elseif ($edit_mode) {
+                echo "<!-- EDIT MODE: Error - No se pudieron cargar datos de la orden -->";
+                $edit_mode = false;
             } else {
-                // Verificar si al menos hay un DNI guardado
-                if (isset($_SESSION['last_billing_id']) && empty($billing_id)) {
-                    $billing_id = $_SESSION['last_billing_id'];
-                    echo "<!-- SESIÓN: DNI recuperado de sesión: $billing_id -->";
+                // Lógica original para creación de nuevos pedidos
+                $session_customer_data = [];
+                $session_billing_id = '';
+                
+                // Iniciar sesión si no está iniciada
+                if (session_status() == PHP_SESSION_NONE) {
+                    session_start();
                 }
-            }
-            
-            // Procesar datos normalmente
-            include("postmeta.php");
-            $documento = !empty($billing_id) ? $billing_id : $documento;
-            
-            // Debug: Mostrar valores cargados
-            if (!empty($ciudad) || !empty($departamento)) {
-                echo "<!-- DEBUG: Ciudad='$ciudad', Departamento='$departamento' -->";
-            }
-            if (!empty($session_billing_id)) {
-                echo "<!-- SESIÓN: Datos cargados desde sesión PHP -->";
+                
+                // Obtener datos de sesión si existen (sin incluir archivo externo)
+                if (isset($_SESSION['last_customer_data'])) {
+                    $sessionData = $_SESSION['last_customer_data'];
+                    
+                    // Verificar que los datos no sean muy antiguos (1 hora)
+                    $maxAge = 3600; // 1 hora
+                    if ((time() - $sessionData['timestamp']) <= $maxAge) {
+                        $session_customer_data = $sessionData['customer'];
+                        $session_billing_id = $sessionData['billing_id'];
+                        
+                        echo "<!-- SESIÓN: Cliente encontrado en sesión - DNI: $session_billing_id -->";
+                        
+                        // Simular que se encontró el cliente para que postmeta.php use estos datos
+                        $customer_found = true;
+                        $customer_data = $session_customer_data;
+                        $billing_id = $session_billing_id;
+                    } else {
+                        // Datos muy antiguos, limpiar
+                        unset($_SESSION['last_customer_data']);
+                        echo "<!-- SESIÓN: Datos expirados, limpiados -->";
+                    }
+                } else {
+                    // Verificar si al menos hay un DNI guardado
+                    if (isset($_SESSION['last_billing_id']) && empty($billing_id)) {
+                        $billing_id = $_SESSION['last_billing_id'];
+                        echo "<!-- SESIÓN: DNI recuperado de sesión: $billing_id -->";
+                    }
+                }
+                
+                // Procesar datos normalmente solo si no estamos en modo edición
+                include("postmeta.php");
+                $documento = !empty($billing_id) ? $billing_id : $documento;
+                
+                // Debug: Mostrar valores cargados
+                if (!empty($ciudad) || !empty($departamento)) {
+                    echo "<!-- DEBUG: Ciudad='$ciudad', Departamento='$departamento' -->";
+                }
+                if (!empty($session_billing_id)) {
+                    echo "<!-- SESIÓN: Datos cargados desde sesión PHP -->";
+                }
             }
         ?>
 
@@ -300,11 +372,11 @@ include('parts/step_wizard.php');
                                     <div class="input-group">
                                         <span class="input-group-text bg-brand bg-custom text-white border-0">$</span>
                                         <input type="text" class="form-control" id="_order_shipping" name="_order_shipping" 
-                                               value="10,000" required placeholder="0"
-                                               data-value="10000"
+                                               value="<?php echo !empty($envio) ? number_format($envio) : '10,000'; ?>" required placeholder="0"
+                                               data-value="<?php echo !empty($envio) ? $envio : '10000'; ?>"
                                                oninput="formatCurrency(this)"
                                                onblur="validateCurrency(this)">
-                                        <input type="hidden" id="_order_shipping_value" name="_order_shipping_value" value="10000">
+                                        <input type="hidden" id="_order_shipping_value" name="_order_shipping_value" value="<?php echo !empty($envio) ? $envio : '10000'; ?>">
                                     </div>
                                     <small class="form-text text-muted">
                                         <i class="fas fa-info-circle me-1"></i>
@@ -316,10 +388,10 @@ include('parts/step_wizard.php');
                                 <div class="form-group mb-3">
                                     <label for="_payment_method_title" class="form-label">Forma de Pago *</label>
                                     <select class="form-control" id="_payment_method_title" name="_payment_method_title">
-                                        <option value="Pago Contra Entrega Aplica solo para Bogotá" selected>
+                                        <option value="Pago Contra Entrega Aplica solo para Bogotá" <?php echo ($metodo_pago == 'Pago Contra Entrega Aplica solo para Bogotá' || empty($metodo_pago)) ? 'selected' : ''; ?>>
                                             Pago Contra Entrega (Solo Bogotá)
                                         </option>
-                                        <option value="Paga con PSE y tarjetas de crédito">
+                                        <option value="Paga con PSE y tarjetas de crédito" <?php echo ($metodo_pago == 'Paga con PSE y tarjetas de crédito') ? 'selected' : ''; ?>>
                                             PSE y Tarjetas de Crédito
                                         </option>
                                     </select>
@@ -329,9 +401,9 @@ include('parts/step_wizard.php');
                         <div class="form-group mb-3">
                             <label for="post_expcerpt" class="form-label">Observaciones Adicionales</label>
                             <textarea class="form-control" id="post_expcerpt" name="post_expcerpt" rows="3" 
-                                      placeholder="Instrucciones especiales de entrega, comentarios, etc."></textarea>
+                                      placeholder="Instrucciones especiales de entrega, comentarios, etc."><?php echo htmlspecialchars($comentarios); ?></textarea>
                         </div>
-                        <input type="hidden" id="_cart_discount" name="_cart_discount" value="0">
+                        <input type="hidden" id="_cart_discount" name="_cart_discount" value="<?php echo !empty($descuento) ? $descuento : '0'; ?>">
                     </div>
                 </div>
             </div>
@@ -411,7 +483,16 @@ $(document).ready(function() {
         const citySelect = $('#_shipping_city');
         
         // Guardar la ciudad actualmente seleccionada para preservarla
-        const currentCity = citySelect.val();
+        let currentCity = citySelect.val();
+        
+        // En modo edición, verificar si hay una ciudad desde PHP que debe preservarse
+        <?php if ($edit_mode && !empty($ciudad)): ?>
+        const editModeCity = '<?php echo addslashes($ciudad); ?>';
+        if (!currentCity || currentCity === '') {
+            currentCity = editModeCity;
+            console.log('Usando ciudad del modo edición:', editModeCity);
+        }
+        <?php endif; ?>
         
         // Limpiar ciudades
         citySelect.html('<option value="">Cargando ciudades...</option>');
@@ -582,6 +663,3 @@ function showSessionDataNotification(dni) {
 </div>
 </body>
 </html>
-<?php
-mysqli_free_result($usuario);
-?>

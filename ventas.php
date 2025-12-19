@@ -1050,6 +1050,35 @@ include("parts/header.php");
       return statusMap[status] || `<span class="badge bg-light bg-custom"><i class="fas fa-question"></i> ${statusText || status}</span>`;
     }
 
+    // Función para editar pedido
+    function editOrder(orderId) {
+      // Confirmar edición
+      if (confirm('¿Desea editar el pedido #' + orderId + '?\n\nEsto cargará el pedido en modo edición.')) {
+        // Mostrar indicador de carga
+        const $button = $(`button[onclick="editOrder(${orderId})"]`);
+        const originalHtml = $button.html();
+        $button.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+        
+        // Limpiar localStorage anterior
+        localStorage.removeItem('editOrderData');
+        localStorage.removeItem('editMode');
+        
+        // Crear formulario para enviar POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'formulario_cliente.php';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'id-orden';
+        input.value = orderId;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      }
+    }
+
     // Función para facturar pedido
     function invoiceOrder(orderId) {
       // Mostrar modal de confirmación en lugar de alert
