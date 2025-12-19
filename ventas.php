@@ -216,6 +216,42 @@ include("parts/header.php");
         </div>
     </div>
 
+    <!-- Modal para Editar Pedido -->
+    <div class="modal fade" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger bg-custom text-white">
+                    <h5 class="modal-title" id="editOrderModalLabel">
+                        <i class="fas fa-edit me-2"></i>Editar Pedido
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="mb-4">
+                        <i class="fas fa-edit text-danger" style="font-size: 3rem;"></i>
+                    </div>
+                    <h6 class="mb-3">¿Está seguro de que desea editar este pedido?</h6>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-warning me-2"></i>
+                        <strong>Pedido #<span id="edit-order-id"></span></strong>
+                        <br>
+                        <small class="text-muted">
+                            Esta acción cargará el pedido en modo edición para modificar sus datos.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-danger btn-custom" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success btn-custom" id="btnConfirmarEdicion">
+                        <i class="fas fa-edit me-2"></i>Confirmar Edición
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tab content -->
     <div class="tab-content" id="orderTabsContent">
       <div class="tab-pane fade <?php echo $acti1; ?> <?php echo $acti1 === 'active' ? 'show' : ''; ?>"
@@ -669,11 +705,49 @@ include("parts/header.php");
   </div>
 
   <script>
-    // Función para editar pedido (placeholder por ahora)
+    // Función para editar pedido usando modal
     function editOrder(orderId) {
-      alert('Función de edición en desarrollo. Pedido ID: ' + orderId);
-      // TODO: Implementar redirección a página de edición
-      // window.location.href = 'edit_order.php?id=' + orderId;
+      // Mostrar el ID del pedido en el modal
+      document.getElementById('edit-order-id').textContent = orderId;
+      
+      // Mostrar el modal
+      const editModal = new bootstrap.Modal(document.getElementById('editOrderModal'));
+      editModal.show();
+      
+      // Configurar el botón de confirmación
+      document.getElementById('btnConfirmarEdicion').onclick = function() {
+        // Cerrar el modal
+        editModal.hide();
+        
+        // Ejecutar la lógica de edición
+        executeEditOrder(orderId);
+      };
+    }
+    
+    // Función para ejecutar la edición del pedido
+    function executeEditOrder(orderId) {
+      // Mostrar indicador de carga en el botón
+      const $button = $(`button[onclick="editOrder(${orderId})"]`);
+      const originalHtml = $button.html();
+      $button.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+      
+      // Limpiar localStorage anterior
+      localStorage.removeItem('editOrderData');
+      localStorage.removeItem('editMode');
+      
+      // Crear formulario para enviar POST
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = 'formulario_cliente.php';
+      
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'id-orden';
+      input.value = orderId;
+      
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
     }
 
     // Función para cerrar el modal
@@ -1050,34 +1124,7 @@ include("parts/header.php");
       return statusMap[status] || `<span class="badge bg-light bg-custom"><i class="fas fa-question"></i> ${statusText || status}</span>`;
     }
 
-    // Función para editar pedido
-    function editOrder(orderId) {
-      // Confirmar edición
-      if (confirm('¿Desea editar el pedido #' + orderId + '?\n\nEsto cargará el pedido en modo edición.')) {
-        // Mostrar indicador de carga
-        const $button = $(`button[onclick="editOrder(${orderId})"]`);
-        const originalHtml = $button.html();
-        $button.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
-        
-        // Limpiar localStorage anterior
-        localStorage.removeItem('editOrderData');
-        localStorage.removeItem('editMode');
-        
-        // Crear formulario para enviar POST
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'formulario_cliente.php';
-        
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'id-orden';
-        input.value = orderId;
-        
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-      }
-    }
+    // Función editOrder duplicada removida - ahora se usa la versión con modal
 
     // Función para facturar pedido
     function invoiceOrder(orderId) {
