@@ -418,7 +418,7 @@ include("parts/header.php");
           <div class="panel-header bg-success bg-custom">
             <h5><i class="fas fa-check-circle"></i> Pedidos Facturados
               <?php if ($totalRows_pendientesf > 0) { ?>
-                <span class="badge bg-light"><?php echo $totalRows_pendientesf; ?></span>
+                <span class="badge bg-light bg-custom"><?php echo $totalRows_pendientesf; ?></span>
               <?php } ?>
             </h5>
             <div class="dropdown">
@@ -595,19 +595,25 @@ include("parts/header.php");
   <div class="modal fade" id="orderDetailsModal" tabindex="-1" role="dialog" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
-        <div class="modal-header">
+        <div class="modal-header bg-cuertar bg-custom text-white">
           <h5 class="modal-title" id="orderDetailsModalLabel">
-            <i class="fas fa-eye"></i> Detalles del Pedido #<span id="modal-order-id"></span>
+            <i class="fas fa-eye me-2"></i> Detalles del Pedido #<span id="modal-order-id"></span>
           </h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="closeOrderModal()">
-            <span aria-hidden="true">&times;</span>
-          </button>
+          <button type="button" class="btn-close btn-close-white" data-dismiss="modal" aria-label="Close" onclick="closeOrderModal()"></button>
         </div>
         <div class="modal-body">
           <div id="order-details-content">
-            <div class="text-center">
-              <i class="fas fa-spinner fa-spin fa-2x"></i>
-              <p class="mt-2">Cargando detalles del pedido...</p>
+            <div class="table-responsive">
+              <table class="table table-hover table-striped">
+                <tbody>
+                  <tr>
+                    <td colspan="6" class="text-center">
+                      <i class="fas fa-spinner fa-spin fa-2x"></i>
+                      <p class="mt-2">Cargando detalles del pedido...</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -802,8 +808,8 @@ include("parts/header.php");
       // Procesar estado de facturación
       const hasInvoice = orderData.has_invoice === true || orderData.has_invoice === 1 || orderData.has_invoice === '1' || orderData.has_invoice === 'true';
       const invoiceBadge = hasInvoice ?
-        '<span class="badge bg-success"><i class="fas fa-check"></i> Facturado</span>' :
-        '<span class="badge bg-warning"><i class="fas fa-clock"></i> Pendiente</span>';
+        '<span class="badge bg-success bg-custom"><i class="fas fa-check"></i> Facturado</span>' :
+        '<span class="badge bg-warning bg-custom"><i class="fas fa-clock"></i> Pendiente</span>';
 
       console.log('Final Status:', status);
       console.log('Final HasInvoice:', hasInvoice);
@@ -815,12 +821,12 @@ include("parts/header.php");
         orderData.items.forEach(item => {
           itemsHtml += `
                 <tr>
-                    <td>${item.product_qty || 1}</td>
-                    <td>
+                    <td class="px-3 py-2">${item.product_qty || 1}</td>
+                    <td class="px-3 py-2">
                         ${item.sku ? `<small class="text-muted">SKU: ${item.sku}</small><br>` : ''}
                         ${item.order_item_name}
                     </td>
-                    <td class="text-right">$${parseFloat(item.line_total || 0).toLocaleString('es-CO')}</td>
+                    <td class="text-right px-3 py-2">$${parseFloat(item.line_total || 0).toLocaleString('es-CO')}</td>
                 </tr>
             `;
         });
@@ -828,46 +834,78 @@ include("parts/header.php");
 
       const html = `
         <div class="row">
-            <div class="col-md-6">
-                <h6><i class="fas fa-info-circle"></i> Información del Pedido</h6>
-                <table class="table table-sm">
-                    <tr><td><strong>Estado:</strong></td><td>${statusBadge || '<span class="badge bg-primary">Procesando</span>'}</td></tr>
-                    <tr><td><strong>Fecha:</strong></td><td>${orderData.post_date || 'N/A'}</td></tr>
-                    <tr><td><strong>Método de Pago:</strong></td><td>${orderData.payment_method_title || orderData.payment_method || 'N/A'}</td></tr>
-                    <tr><td><strong>Facturación:</strong></td><td>${invoiceBadge || '<span class="badge bg-warning">Pendiente</span>'}</td></tr>
+            <div class="col-md-6 table-responsive">
+                <hr>
+                <h6><i class="fas fa-info-circle me-2"></i> Información del Pedido</h6>
+                <hr>
+                <table class="table table-sm table-striped">
+                    <tr>
+                      <td class="px-3 py-2"><strong>Estado:</strong></td>
+                      <td class="px-3 py-2">${statusBadge || '<span class="badge bg-primary bg-custom">Procesando</span>'}</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2"><strong>Fecha:</strong></td>
+                      <td class="px-3 py-2">${orderData.post_date || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2"><strong>Método de Pago:</strong></td>
+                      <td class="px-3 py-2">${orderData.payment_method_title || orderData.payment_method || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2"><strong>Facturación:</strong></td>
+                      <td class="px-3 py-2">${invoiceBadge || '<span class="badge bg-warning bg-custom">Pendiente</span>'}</td>
+                    </tr>
                 </table>
             </div>
-            <div class="col-md-6">
-                <h6><i class="fas fa-user"></i> Información del Cliente</h6>
-                <table class="table table-sm">
-                    <tr><td><strong>Nombre:</strong></td><td>${orderData.billing_first_name} ${orderData.billing_last_name}</td></tr>
-                    <tr><td><strong>Email:</strong></td><td>${orderData.billing_email || 'N/A'}</td></tr>
-                    <tr><td><strong>Teléfono:</strong></td><td>${orderData.billing_phone || 'N/A'}</td></tr>
-                    <tr><td><strong>Dirección:</strong></td><td>${buildFullAddress(orderData)}</td></tr>
-                    <tr><td><strong>Ciudad:</strong></td><td>${buildLocationString(orderData)}</td></tr>
+            <div class="col-md-6 table-responsive">
+                <hr>
+                <h6><i class="fas fa-user me-2"></i> Información del Cliente</h6>
+                <hr>
+                <table class="table table-sm table-striped">
+                    <tr>
+                      <td class="px-3 py-2"><strong>Nombre:</strong></td>
+                      <td class="px-3 py-2">${orderData.billing_first_name} ${orderData.billing_last_name}</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2"><strong>Email:</strong></td>
+                      <td class="px-3 py-2">${orderData.billing_email || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2"><strong>Teléfono:</strong></td>
+                      <td class="px-3 py-2">${orderData.billing_phone || 'N/A'}</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2"><strong>Dirección:</strong></td>
+                      <td class="px-3 py-2">${buildFullAddress(orderData)}</td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-2"><strong>Ciudad:</strong></td>
+                      <td class="px-3 py-2">${buildLocationString(orderData)}</td>
+                    </tr>
                 </table>
             </div>
         </div>
         
         <hr>
-        
-        <h6><i class="fas fa-shopping-cart"></i> Productos del Pedido</h6>
+        <h6><i class="fas fa-shopping-cart me-2"></i> Productos del Pedido</h6>
+        <hr>
+
         <div class="table-responsive">
             <table class="table table-sm table-striped">
                 <thead class="thead-light">
                     <tr>
-                        <th>Cant.</th>
-                        <th>Producto</th>
-                        <th class="text-right">Total</th>
+                        <th class="px-3 py-2">Cant.</th>
+                        <th class="px-3 py-2">Producto</th>
+                        <th class="text-right px-3 py-2">Total</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${itemsHtml}
                 </tbody>
                 <tfoot>
-                    <tr class="table-info">
-                        <th colspan="2">Total del Pedido</th>
-                        <th class="text-right">$${parseFloat(orderData.total || 0).toLocaleString('es-CO')}</th>
+                    <tr class="table-success">
+                        <th colspan="2" class="px-3 py-2">Total del Pedido</th>
+                        <th class="text-right px-3 py-2">$${parseFloat(orderData.total || 0).toLocaleString('es-CO')}</th>
                     </tr>
                 </tfoot>
             </table>
@@ -881,15 +919,15 @@ include("parts/header.php");
     function getStatusBadge(status) {
       const statusText = getStatusText(status);
       const statusMap = {
-        'wc-processing': `<span class="badge bg-primary"><i class="fas fa-cog"></i> ${statusText}</span>`,
-        'wc-completed': `<span class="badge bg-success"><i class="fas fa-check"></i> ${statusText}</span>`,
-        'wc-on-hold': `<span class="badge bg-warning"><i class="fas fa-pause"></i> ${statusText}</span>`,
-        'wc-cancelled': `<span class="badge bg-danger"><i class="fas fa-times"></i> ${statusText}</span>`,
-        'wc-pending': `<span class="badge bg-secondary"><i class="fas fa-clock"></i> ${statusText}</span>`,
-        'wc-refunded': `<span class="badge bg-info"><i class="fas fa-undo"></i> ${statusText}</span>`,
-        'wc-failed': `<span class="badge bg-danger"><i class="fas fa-exclamation"></i> ${statusText}</span>`
+        'wc-processing': `<span class="badge bg-primary bg-custom"><i class="fas fa-cog"></i> ${statusText}</span>`,
+        'wc-completed': `<span class="badge bg-success bg-custom"><i class="fas fa-check"></i> ${statusText}</span>`,
+        'wc-on-hold': `<span class="badge bg-warning bg-custom"><i class="fas fa-pause"></i> ${statusText}</span>`,
+        'wc-cancelled': `<span class="badge bg-danger bg-custom"><i class="fas fa-times"></i> ${statusText}</span>`,
+        'wc-pending': `<span class="badge bg-secondary bg-custom"><i class="fas fa-clock"></i> ${statusText}</span>`,
+        'wc-refunded': `<span class="badge bg-info bg-custom"><i class="fas fa-undo"></i> ${statusText}</span>`,
+        'wc-failed': `<span class="badge bg-danger bg-custom"><i class="fas fa-exclamation"></i> ${statusText}</span>`
       };
-      return statusMap[status] || `<span class="badge bg-light"><i class="fas fa-question"></i> ${statusText || status}</span>`;
+      return statusMap[status] || `<span class="badge bg-light bg-custom"><i class="fas fa-question"></i> ${statusText || status}</span>`;
     }
 
     // Función para facturar pedido
