@@ -618,10 +618,13 @@ include("parts/header.php");
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="closeOrderModal()">
+          <button type="button" class="btn btn-secondary btn-custom" data-dismiss="modal" onclick="closeOrderModal()">
             <i class="fas fa-times"></i> Cerrar
           </button>
-          <button type="button" class="btn btn-primary" id="btn-print-order" onclick="printOrderDetails()">
+          <a class="btn btn-success btn-custom" target="_blank" href="#" id="btn-view-detail">
+            <i class="fas fa-eye"></i> Ver Detalle
+          </a>
+          <button type="button" class="btn btn-primary btn-custom" id="btn-print-order" onclick="printOrderDetails()">
             <i class="fas fa-print"></i> Imprimir
           </button>
         </div>
@@ -640,6 +643,37 @@ include("parts/header.php");
     // Función para cerrar el modal
     function closeOrderModal() {
       $('#orderDetailsModal').modal('hide');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('btn-view-detail');
+
+      if (!btn) return;
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault(); // ✅ evita que agregue #
+        openOrderDetail();  // ✅ abre la url real
+      });
+    });
+
+    function openOrderDetail() {
+      const orderId = $('#modal-order-id').text().trim();
+      console.log('Order ID from modal:', orderId);
+
+      if (!orderId) {
+        console.error('No order ID found in modal');
+        alert('Error: No se pudo obtener el ID del pedido');
+        return;
+      }
+
+      // ✅ Usa el ENV correcto. Si env() no existe en PHP puro, usa $_ENV o getenv.
+      const baseUrl = <?= json_encode($_ENV['VENTAS_URL'] ?? 'http://localhost/ventas'); ?>;
+
+      // ✅ Construye query correcto
+      const url = `${baseUrl}/detalle_pedido.php?id-orden=${encodeURIComponent(orderId)}&common=true`;
+
+      console.log('Constructed URL:', url);
+      window.open(url, '_blank', 'noopener'); // noopener por seguridad
     }
 
     // Eventos para el modal

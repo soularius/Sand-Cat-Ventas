@@ -4,6 +4,8 @@ require_once('parts/login_handler.php');
 requireLogin('facturacion.php');
 
 $order_id = Utils::captureValue('id-orden', 'GET', '');
+$common = Utils::captureValue('common', 'GET', '');
+
 $order_id = intval($order_id);
 if ($order_id <= 0) {
     Header("Location: inicio.php");
@@ -186,7 +188,7 @@ include('parts/header.php');
 
         <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars((string)$order_id); ?>">
 
-        <?php include('parts/step_wizard.php'); ?>
+        <?php if(empty($common)) include('parts/step_wizard.php'); ?>
 
         <div class="row justify-content-center">
             <div class="col-md-10 text-center mb-4">
