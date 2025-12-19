@@ -1057,20 +1057,8 @@ include("parts/header.php");
         // Ocultar modal
         $('#invoiceModal').modal('hide');
         
-        // Crear formulario dinámico para enviar a facturacion.php
-        const form = $('<form>', {
-          'method': 'POST',
-          'action': 'facturacion.php'
-        });
-
-        form.append($('<input>', {
-          'type': 'hidden',
-          'name': 'id_ventas',
-          'value': orderId
-        }));
-
-        $('body').append(form);
-        form.submit();
+        // Redirigir a facturacion.php con order_id en URL
+        window.location.href = 'facturacion.php?id=' + orderId;
       });
     }
 
