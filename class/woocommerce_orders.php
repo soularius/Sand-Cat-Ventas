@@ -2094,7 +2094,7 @@ class WooCommerceOrders
     }
 
     /**
-     * Obtener pedidos pendientes (processing y on-hold con cheque)
+     * Obtener pedidos pendientes de facturación (completados/procesados que NO han sido facturados)
      * @param int $page Página actual (empezando en 1)
      * @param int $per_page Pedidos por página
      * @return array Array con 'data' (pedidos) y 'pagination' (info de paginación)
@@ -2107,21 +2107,33 @@ class WooCommerceOrders
             $per_page = max(1, min(100, (int)$per_page)); // Máximo 100 por página
             $offset = ($page - 1) * $per_page;
             
-            // Consulta para contar total de registros
+            // Primero obtener IDs de órdenes ya facturadas del sistema de ventas
+            $ventas_connection = DatabaseConfig::getVentasConnection();
+            $query_facturas = "SELECT id_order FROM facturas WHERE estado = 'a'";
+            $facturas_result = mysqli_query($ventas_connection, $query_facturas);
+            
+            $facturas_ids = [];
+            if ($facturas_result) {
+                while ($row_fact = mysqli_fetch_assoc($facturas_result)) {
+                    $facturas_ids[] = (int)$row_fact['id_order'];
+                }
+                mysqli_free_result($facturas_result);
+            }
+            mysqli_close($ventas_connection);
+            
+            // Crear cláusula NOT IN para excluir órdenes ya facturadas
+            $not_in_clause = '';
+            if (!empty($facturas_ids)) {
+                $ids_string = implode(',', $facturas_ids);
+                $not_in_clause = "AND o.id NOT IN ($ids_string)";
+            }
+            
+            // Consulta para contar órdenes pendientes de facturación
             $count_query = "SELECT COUNT(*) as total
-            FROM miau_posts p
-            WHERE (
-                p.post_status = 'wc-processing' 
-                OR (
-                    p.post_status = 'wc-on-hold' 
-                    AND p.ID IN (
-                        SELECT pm_payment.post_id 
-                        FROM miau_postmeta pm_payment 
-                        WHERE pm_payment.meta_key = '_payment_method' 
-                        AND pm_payment.meta_value = 'cheque'
-                    )
-                )
-            )";
+            FROM miau_wc_orders o
+            WHERE o.status IN ('wc-completed', 'wc-processing')
+            AND o.type = 'shop_order'
+            $not_in_clause";
             
             $count_result = mysqli_query($this->wp_connection, $count_query);
             $total_records = 0;
@@ -2129,30 +2141,20 @@ class WooCommerceOrders
                 $total_records = (int)$count_row['total'];
             }
             
-            // Consulta principal con paginación
+            // Consulta principal para órdenes pendientes de facturación
             $query = "SELECT 
-                p.ID,
-                p.post_date,
-                COALESCE(pm_fname.meta_value, '') as nombre1,
-                COALESCE(pm_lname.meta_value, '') as nombre2,
-                COALESCE(os.total_sales, 0) as valor
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
-            LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
-            LEFT JOIN miau_wc_order_stats os ON p.ID = os.order_id
-            WHERE (
-                p.post_status = 'wc-processing' 
-                OR (
-                    p.post_status = 'wc-on-hold' 
-                    AND p.ID IN (
-                        SELECT pm_payment.post_id 
-                        FROM miau_postmeta pm_payment 
-                        WHERE pm_payment.meta_key = '_payment_method' 
-                        AND pm_payment.meta_value = 'cheque'
-                    )
-                )
-            )
-            ORDER BY p.ID DESC
+                o.id as ID,
+                o.date_created_gmt as post_date,
+                o.status as post_status,
+                COALESCE(ba.first_name, '') as nombre1,
+                COALESCE(ba.last_name, '') as nombre2,
+                COALESCE(o.total_amount, 0) as valor
+            FROM miau_wc_orders o
+            LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+            WHERE o.status IN ('wc-completed', 'wc-processing')
+            AND o.type = 'shop_order'
+            $not_in_clause
+            ORDER BY o.id DESC
             LIMIT $per_page OFFSET $offset";
             
             $result = mysqli_query($this->wp_connection, $query);
@@ -2164,6 +2166,9 @@ class WooCommerceOrders
             
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
+                // Agregar información de que está pendiente de facturación
+                $row['invoice_status'] = 'Pendiente de Facturación';
+                $row['has_invoice'] = false;
                 $orders[] = $row;
             }
             
@@ -2182,7 +2187,7 @@ class WooCommerceOrders
                 'end_record' => min($offset + $per_page, $total_records)
             ];
             
-            Utils::logError("Pedidos pendientes obtenidos: " . count($orders) . " de $total_records (página $page de $total_pages)", 'INFO', 'WooCommerceOrders');
+            Utils::logError("Pedidos pendientes de facturación obtenidos: " . count($orders) . " de $total_records (página $page de $total_pages)", 'INFO', 'WooCommerceOrders');
             
             return [
                 'data' => $orders,
@@ -2206,19 +2211,26 @@ class WooCommerceOrders
     public function getInvoicedOrders(string $date_from, string $date_to, int $page = 1, int $per_page = 20): array
     {
         try {
-            // Primero obtener IDs de órdenes facturadas del sistema local
-            $query_facturas = "SELECT id_order FROM facturas WHERE estado = 'a'";
-            $facturas_result = mysqli_query($this->wp_connection, $query_facturas);
+            // Obtener IDs de órdenes facturadas del sistema de ventas (ventassc) con números de factura
+            $ventas_connection = DatabaseConfig::getVentasConnection();
+            $query_facturas = "SELECT id_order, factura FROM facturas WHERE estado = 'a'";
+            $facturas_result = mysqli_query($ventas_connection, $query_facturas);
             
             if (!$facturas_result) {
-                Utils::logError("Error obteniendo facturas: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
-                return [];
+                Utils::logError("Error obteniendo facturas: " . mysqli_error($ventas_connection), 'ERROR', 'WooCommerceOrders');
+                mysqli_close($ventas_connection);
+                return ['data' => [], 'pagination' => []];
             }
             
             $facturas_ids = [];
+            $facturas_map = []; // Mapeo de order_id => factura_number
             while ($row_fact = mysqli_fetch_assoc($facturas_result)) {
-                $facturas_ids[] = (int)$row_fact['id_order'];
+                $order_id = (int)$row_fact['id_order'];
+                $facturas_ids[] = $order_id;
+                $facturas_map[$order_id] = $row_fact['factura'];
             }
+            mysqli_free_result($facturas_result);
+            mysqli_close($ventas_connection);
             
             // Si no hay facturas, retornar array vacío
             if (empty($facturas_ids)) {
@@ -2238,12 +2250,13 @@ class WooCommerceOrders
             // Crear string de IDs para la consulta
             $ids_string = implode(',', $facturas_ids);
             
-            // Consulta para contar total de registros
+            // Consulta para contar total de registros usando HPOS (miau_wc_orders)
             $count_query = "SELECT COUNT(*) as total
-            FROM miau_posts p
-            WHERE p.ID IN ($ids_string) 
-            AND p.post_date >= '$date_from' 
-            AND p.post_date <= '$date_to'";
+            FROM miau_wc_orders o
+            WHERE o.id IN ($ids_string) 
+            AND o.date_created_gmt >= '$date_from' 
+            AND o.date_created_gmt <= '$date_to'
+            AND o.type = 'shop_order'";
             
             $count_result = mysqli_query($this->wp_connection, $count_query);
             $total_records = 0;
@@ -2251,21 +2264,21 @@ class WooCommerceOrders
                 $total_records = (int)$count_row['total'];
             }
             
-            // Consulta principal con paginación
+            // Consulta principal usando HPOS (miau_wc_orders) con JOINs optimizados
             $query = "SELECT 
-                p.ID,
-                p.post_date,
-                COALESCE(pm_fname.meta_value, '') as nombre1,
-                COALESCE(pm_lname.meta_value, '') as nombre2,
-                COALESCE(os.total_sales, 0) as valor
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
-            LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
-            LEFT JOIN miau_wc_order_stats os ON p.ID = os.order_id
-            WHERE p.ID IN ($ids_string) 
-            AND p.post_date >= '$date_from' 
-            AND p.post_date <= '$date_to'
-            ORDER BY p.ID DESC
+                o.id as ID,
+                o.date_created_gmt as post_date,
+                o.status as post_status,
+                COALESCE(ba.first_name, '') as nombre1,
+                COALESCE(ba.last_name, '') as nombre2,
+                COALESCE(o.total_amount, 0) as valor
+            FROM miau_wc_orders o
+            LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+            WHERE o.id IN ($ids_string) 
+            AND o.date_created_gmt >= '$date_from' 
+            AND o.date_created_gmt <= '$date_to'
+            AND o.type = 'shop_order'
+            ORDER BY o.id DESC
             LIMIT $per_page OFFSET $offset";
             
             $result = mysqli_query($this->wp_connection, $query);
@@ -2277,6 +2290,9 @@ class WooCommerceOrders
             
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
+                // Agregar número de factura al registro
+                $order_id = (int)$row['ID'];
+                $row['factura_number'] = $facturas_map[$order_id] ?? '';
                 $orders[] = $row;
             }
             
@@ -2320,22 +2336,132 @@ class WooCommerceOrders
             
             // Usar conexión de ventassc para tabla facturas
             $ventas_connection = DatabaseConfig::getVentasConnection();
-            $query = "SELECT COUNT(*) as count FROM facturas WHERE id_order = '$order_id' AND estado = 'a'";
-            $result = mysqli_query($ventas_connection, $query);
+            $query = "SELECT COUNT(*) as count FROM facturas WHERE id_order = ? AND estado = 'a'";
+            $stmt = mysqli_prepare($ventas_connection, $query);
             
-            if ($result) {
-                $row = mysqli_fetch_assoc($result);
-                $has_invoice = (int)$row['count'] > 0;
+            if (!$stmt) {
+                Utils::logError("Error preparando consulta hasInvoice: " . mysqli_error($ventas_connection), 'ERROR', 'WooCommerceOrders');
                 mysqli_close($ventas_connection);
-                return $has_invoice;
+                return false;
             }
             
+            mysqli_stmt_bind_param($stmt, 'i', $order_id);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+            
+            $has_invoice = false;
+            if ($result && $row = mysqli_fetch_assoc($result)) {
+                $has_invoice = (int)$row['count'] > 0;
+                Utils::logError("Verificación factura orden #{$order_id}: " . ($has_invoice ? 'FACTURADA' : 'SIN FACTURAR'), 'DEBUG', 'WooCommerceOrders');
+            }
+            
+            mysqli_stmt_close($stmt);
             mysqli_close($ventas_connection);
-            return false;
+            return $has_invoice;
             
         } catch (Exception $e) {
-            Utils::logError("Error en hasInvoice: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            Utils::logError("Error en hasInvoice para orden #{$order_id}: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return false;
+        }
+    }
+    
+    /**
+     * Obtener todas las órdenes con estado de facturación
+     * @param int $page Página actual (empezando en 1)
+     * @param int $per_page Pedidos por página
+     * @return array Array con 'data' (pedidos) y 'pagination' (info de paginación)
+     */
+    public function getAllOrdersWithInvoiceStatus(int $page = 1, int $per_page = 20): array
+    {
+        try {
+            // Validar parámetros de paginación
+            $page = max(1, (int)$page);
+            $per_page = max(1, min(100, (int)$per_page)); // Máximo 100 por página
+            $offset = ($page - 1) * $per_page;
+            
+            // NOTA: Verificaremos el estado de facturación de cada orden individualmente
+            // usando el método hasInvoice que consulta la base de datos de ventas
+            
+            // Consulta para contar total de registros usando HPOS (miau_wc_orders)
+            $count_query = "SELECT COUNT(*) as total
+            FROM miau_wc_orders o
+            WHERE o.status IN ('wc-processing', 'wc-completed', 'wc-on-hold', 'wc-pending', 'wc-cancelled', 'wc-refunded', 'wc-failed')
+            AND o.type = 'shop_order'";
+            
+            $count_result = mysqli_query($this->wp_connection, $count_query);
+            $total_records = 0;
+            if ($count_result && $count_row = mysqli_fetch_assoc($count_result)) {
+                $total_records = (int)$count_row['total'];
+            }
+            
+            // Consulta principal usando HPOS (miau_wc_orders) con JOINs optimizados
+            $query = "SELECT 
+                o.id as ID,
+                o.date_created_gmt as post_date,
+                o.status as post_status,
+                COALESCE(ba.first_name, '') as nombre1,
+                COALESCE(ba.last_name, '') as nombre2,
+                COALESCE(o.total_amount, 0) as valor
+            FROM miau_wc_orders o
+            LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+            WHERE o.status IN ('wc-processing', 'wc-completed', 'wc-on-hold', 'wc-pending', 'wc-cancelled', 'wc-refunded', 'wc-failed')
+            AND o.type = 'shop_order'
+            ORDER BY o.id DESC
+            LIMIT $per_page OFFSET $offset";
+            
+            $result = mysqli_query($this->wp_connection, $query);
+            
+            if (!$result) {
+                Utils::logError("Error en getAllOrdersWithInvoiceStatus: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
+                return ['data' => [], 'pagination' => []];
+            }
+            
+            $orders = [];
+            while ($row = mysqli_fetch_assoc($result)) {
+                $order_id = (int)$row['ID'];
+                
+                // Verificar si esta orden tiene factura consultando directamente la base de datos de ventas
+                $row['has_invoice'] = $this->hasInvoice($order_id);
+                $row['invoice_status'] = $row['has_invoice'] ? 'Facturado' : 'Sin Facturar';
+                
+                // Formatear datos
+                $row['valor'] = (float)($row['valor'] ?? 0);
+                $row['estado_legible'] = $this->getStatusLabel($row['post_status']);
+                $row['fecha_formateada'] = date('d/m/Y H:i', strtotime($row['post_date']));
+                
+                $orders[] = $row;
+            }
+            
+            // Calcular información de paginación
+            $total_pages = ceil($total_records / $per_page);
+            $pagination = [
+                'current_page' => $page,
+                'per_page' => $per_page,
+                'total_records' => $total_records,
+                'total_pages' => $total_pages,
+                'has_previous' => $page > 1,
+                'has_next' => $page < $total_pages,
+                'previous_page' => $page > 1 ? $page - 1 : null,
+                'next_page' => $page < $total_pages ? $page + 1 : null,
+                'start_record' => $total_records > 0 ? $offset + 1 : 0,
+                'end_record' => min($offset + $per_page, $total_records)
+            ];
+            
+            // Contar órdenes facturadas y sin facturar
+            $facturadas_count = array_sum(array_column($orders, 'has_invoice'));
+            $sin_facturar_count = count($orders) - $facturadas_count;
+            
+            Utils::logError("Total órdenes procesadas: " . count($orders) . " - Facturadas: $facturadas_count, Sin facturar: $sin_facturar_count", 'INFO', 'WooCommerceOrders');
+            
+            return [
+                'data' => $orders,
+                'pagination' => $pagination
+            ];
+            
+        } catch (Exception $e) {
+            Utils::logError("Error en getAllOrdersWithInvoiceStatus: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            Utils::logError("Stack trace: " . $e->getTraceAsString(), 'ERROR', 'WooCommerceOrders');
+            return ['data' => [], 'pagination' => []];
         }
     }
     

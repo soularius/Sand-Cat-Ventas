@@ -20,16 +20,50 @@ $ellogin = $row_usuario['elnombre'] ?? '';
 // 5. Inicializar clase de órdenes WooCommerce
 $wc_orders = new WooCommerceOrders();
 
+// Configurar tabs activos
 $acti1 = 'active';
 $acti2 = 'fade';
+$acti3 = 'fade';
 $pes1 = 'active';
 $pes2 = '';
-if (isset($_GET['df']) && !empty($_GET['df'])) {
+$pes3 = '';
+
+// Determinar tab activo basado en parámetros
+if (isset($_GET['tab'])) {
+  $active_tab = $_GET['tab'];
+  switch ($active_tab) {
+    case 'facturados':
+      $acti1 = 'fade';
+      $acti2 = 'active';
+      $acti3 = 'fade';
+      $pes1 = '';
+      $pes2 = 'active';
+      $pes3 = '';
+      break;
+    case 'todos':
+      $acti1 = 'fade';
+      $acti2 = 'fade';
+      $acti3 = 'active';
+      $pes1 = '';
+      $pes2 = '';
+      $pes3 = 'active';
+      break;
+    default: // pendientes
+      $acti1 = 'active';
+      $acti2 = 'fade';
+      $acti3 = 'fade';
+      $pes1 = 'active';
+      $pes2 = '';
+      $pes3 = '';
+  }
+} elseif (isset($_GET['df']) && !empty($_GET['df'])) {
   $diasfin = $_GET['df'];
   $acti1 = 'fade';
   $acti2 = 'active';
+  $acti3 = 'fade';
   $pes1 = '';
   $pes2 = 'active';
+  $pes3 = '';
 }
 // 6. Configurar fechas para filtros
 $hoy = date("Y-m-d");
@@ -45,6 +79,7 @@ if (isset($diasfin)) {
 // 6.1. Configurar parámetros de paginación
 $page_pendientes = isset($_GET['page_pendientes']) ? max(1, (int)$_GET['page_pendientes']) : 1;
 $page_facturados = isset($_GET['page_facturados']) ? max(1, (int)$_GET['page_facturados']) : 1;
+$page_todos = isset($_GET['page_todos']) ? max(1, (int)$_GET['page_todos']) : 1;
 $per_page = isset($_GET['per_page']) ? max(5, min(100, (int)$_GET['per_page'])) : 20;
 
 // 7. Procesar acciones de pedidos usando clase WooCommerce
@@ -98,6 +133,13 @@ $facturados_pagination = $facturados_result['pagination'] ?? [];
 $totalRows_pendientesf = $facturados_pagination['total_records'] ?? count($pendientesf_data);
 $row_pendientesf = $totalRows_pendientesf > 0 ? $pendientesf_data[0] : null;
 
+// 10. Obtener todas las órdenes con estado de facturación
+$todos_result = $wc_orders->getAllOrdersWithInvoiceStatus($page_todos, $per_page);
+$todos_data = $todos_result['data'] ?? [];
+$todos_pagination = $todos_result['pagination'] ?? [];
+$totalRows_todos = $todos_pagination['total_records'] ?? count($todos_data);
+$row_todos = $totalRows_todos > 0 ? $todos_data[0] : null;
+
 // 3. DESPUÉS: Cargar presentación
 include("parts/header.php");
 ?>
@@ -118,32 +160,50 @@ include("parts/header.php");
     <!-- Nav tabs modernos -->
     <ul class="nav nav-pills nav-fill mb-4" id="orderTabs" role="tablist">
       <li class="nav-item" role="presentation">
-        <a class="nav-link <?php echo $pes1; ?> d-flex align-items-center justify-content-center btn btn-success btn-custom text-white <?php echo $pes1 === 'active' ? '' : 'opacity-50'; ?>"
+        <a class="nav-link <?php echo $pes1; ?> d-flex align-items-center justify-content-center btn btn-danger btn-custom text-white <?php echo $pes1 === 'active' ? '' : 'opacity-50'; ?>"
           id="pendiente-tab"
           data-toggle="pill"
           href="#pendiente"
           role="tab"
           aria-controls="pendiente"
-          aria-selected="<?php echo $pes1 === 'active' ? 'true' : 'false'; ?>">
+          aria-selected="<?php echo $pes1 === 'active' ? 'true' : 'false'; ?>"
+          onclick="changeTab('pendientes')">
           <i class="fas fa-clock me-2"></i>
           <span>Pendientes</span>
           <?php if ($totalRows_pendientes > 0) { ?>
-            <span class="badge bg-primary bg-custom ms-2"><?php echo $totalRows_pendientes; ?></span>
+            <span class="badge bg-success bg-custom ms-2"><?php echo $totalRows_pendientes; ?></span>
           <?php } ?>
         </a>
       </li>
       <li class="nav-item" role="presentation">
-        <a class="nav-link <?php echo $pes2; ?> d-flex align-items-center justify-content-center btn btn-primary btn-custom text-white <?php echo $pes2 === 'active' ? '' : 'opacity-50'; ?>"
+        <a class="nav-link <?php echo $pes2; ?> d-flex align-items-center justify-content-center btn btn-success btn-custom text-white <?php echo $pes2 === 'active' ? '' : 'opacity-50'; ?>"
           id="terminada-tab"
           data-toggle="pill"
           href="#terminada"
           role="tab"
           aria-controls="terminada"
-          aria-selected="<?php echo $pes2 === 'active' ? 'true' : 'false'; ?>">
+          aria-selected="<?php echo $pes2 === 'active' ? 'true' : 'false'; ?>"
+          onclick="changeTab('facturados')">
           <i class="fas fa-check-circle me-2"></i>
           <span>Facturados</span>
           <?php if ($totalRows_pendientesf > 0) { ?>
-            <span class="badge bg-success bg-custom ms-2"><?php echo $totalRows_pendientesf; ?></span>
+            <span class="badge bg-primary bg-custom ms-2"><?php echo $totalRows_pendientesf; ?></span>
+          <?php } ?>
+        </a>
+      </li>
+      <li class="nav-item" role="presentation">
+        <a class="nav-link <?php echo $pes3; ?> d-flex align-items-center justify-content-center btn btn-primary btn-custom text-white <?php echo $pes3 === 'active' ? '' : 'opacity-50'; ?>"
+          id="todos-tab"
+          data-toggle="pill"
+          href="#todos"
+          role="tab"
+          aria-controls="todos"
+          aria-selected="<?php echo $pes3 === 'active' ? 'true' : 'false'; ?>"
+          onclick="changeTab('todos')">
+          <i class="fas fa-list me-2"></i>
+          <span>Todas</span>
+          <?php if ($totalRows_todos > 0) { ?>
+            <span class="badge bg-danger bg-custom ms-2"><?php echo $totalRows_todos; ?></span>
           <?php } ?>
         </a>
       </li>
@@ -153,7 +213,9 @@ include("parts/header.php");
     <div class="alert alert-success d-flex justify-content-between align-items-center mb-4">
       <div>
         <i class="fas fa-info-circle me-2"></i>
-        Total de pedidos: <strong><?php echo ($totalRows_pendientes + $totalRows_pendientesf); ?></strong>
+        Pendientes: <strong><?php echo $totalRows_pendientes; ?></strong>
+        | Facturados: <strong><?php echo $totalRows_pendientesf; ?></strong>
+        | Todas: <strong><?php echo $totalRows_todos; ?></strong>
       </div>
       <div class="d-flex align-items-center gap-3 form-group">
         <label for="per_page" class="form-label mb-0 text-primary">Por página:</label>
@@ -182,74 +244,74 @@ include("parts/header.php");
     <?php } ?>
     <!-- Modal para Facturación -->
     <div class="modal fade" id="invoiceModal" tabindex="-1" aria-labelledby="invoiceModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-warning bg-custom text-dark">
-                    <h5 class="modal-title text-white" id="invoiceModalLabel">
-                        <i class="fas fa-file-invoice me-2"></i>Confirmar Facturación
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center py-4">
-                    <div class="mb-4">
-                        <i class="fas fa-file-invoice text-warning" style="font-size: 3rem;"></i>
-                    </div>
-                    <h6 class="mb-3">¿Está seguro de que desea facturar este pedido?</h6>
-                    <div class="alert alert-success">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Pedido #<span id="invoice-order-id"></span></strong>
-                        <br>
-                        <small class="text-muted">
-                            Esta acción procesará el pedido y generará la factura correspondiente.
-                        </small>
-                    </div>
-                </div>
-                <div class="modal-footer justify-content-center">
-                    <button type="button" class="btn btn-secondary btn-custom" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </button>
-                    <button type="button" class="btn btn-warning btn-custom text-white" id="btnConfirmarFactura">
-                        <i class="fas fa-file-invoice me-2"></i>Confirmar Facturación
-                    </button>
-                </div>
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-warning bg-custom text-dark">
+            <h5 class="modal-title text-white" id="invoiceModalLabel">
+              <i class="fas fa-file-invoice me-2"></i>Confirmar Facturación
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center py-4">
+            <div class="mb-4">
+              <i class="fas fa-file-invoice text-warning" style="font-size: 3rem;"></i>
             </div>
+            <h6 class="mb-3">¿Está seguro de que desea facturar este pedido?</h6>
+            <div class="alert alert-success">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Pedido #<span id="invoice-order-id"></span></strong>
+              <br>
+              <small class="text-muted">
+                Esta acción procesará el pedido y generará la factura correspondiente.
+              </small>
+            </div>
+          </div>
+          <div class="modal-footer justify-content-center">
+            <button type="button" class="btn btn-secondary btn-custom" data-bs-dismiss="modal">
+              <i class="fas fa-times me-2"></i>Cancelar
+            </button>
+            <button type="button" class="btn btn-warning btn-custom text-white" id="btnConfirmarFactura">
+              <i class="fas fa-file-invoice me-2"></i>Confirmar Facturación
+            </button>
+          </div>
         </div>
+      </div>
     </div>
 
     <!-- Modal para Editar Pedido -->
     <div class="modal fade" id="editOrderModal" tabindex="-1" aria-labelledby="editOrderModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-danger bg-custom text-white">
-                    <h5 class="modal-title" id="editOrderModalLabel">
-                        <i class="fas fa-edit me-2"></i>Editar Pedido
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center py-4">
-                    <div class="mb-4">
-                        <i class="fas fa-edit text-danger" style="font-size: 3rem;"></i>
-                    </div>
-                    <h6 class="mb-3">¿Está seguro de que desea editar este pedido?</h6>
-                    <div class="alert alert-warning">
-                        <i class="fas fa-warning me-2"></i>
-                        <strong>Pedido #<span id="edit-order-id"></span></strong>
-                        <br>
-                        <small class="text-muted">
-                            Esta acción cargará el pedido en modo edición para modificar sus datos.
-                        </small>
-                    </div>
-                </div>
-                <div class="modal-footer justify-content-center">
-                    <button type="button" class="btn btn-danger btn-custom" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </button>
-                    <button type="button" class="btn btn-success btn-custom" id="btnConfirmarEdicion">
-                        <i class="fas fa-edit me-2"></i>Confirmar Edición
-                    </button>
-                </div>
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-danger bg-custom text-white">
+            <h5 class="modal-title" id="editOrderModalLabel">
+              <i class="fas fa-edit me-2"></i>Editar Pedido
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center py-4">
+            <div class="mb-4">
+              <i class="fas fa-edit text-danger" style="font-size: 3rem;"></i>
             </div>
+            <h6 class="mb-3">¿Está seguro de que desea editar este pedido?</h6>
+            <div class="alert alert-warning">
+              <i class="fas fa-warning me-2"></i>
+              <strong>Pedido #<span id="edit-order-id"></span></strong>
+              <br>
+              <small class="text-muted">
+                Esta acción cargará el pedido en modo edición para modificar sus datos.
+              </small>
+            </div>
+          </div>
+          <div class="modal-footer justify-content-center">
+            <button type="button" class="btn btn-danger btn-custom" data-bs-dismiss="modal">
+              <i class="fas fa-times me-2"></i>Cancelar
+            </button>
+            <button type="button" class="btn btn-success btn-custom" id="btnConfirmarEdicion">
+              <i class="fas fa-edit me-2"></i>Confirmar Edición
+            </button>
+          </div>
         </div>
+      </div>
     </div>
 
     <!-- Tab content -->
@@ -376,6 +438,11 @@ include("parts/header.php");
                               <i class="fas fa-eye"></i>
                             </button>
 
+                            <!-- Botón Ver en WordPress Admin -->
+                            <button type="button" class="btn btn-sm btn-info btn-custom px-3" onclick="window.open('<?php echo Utils::env('WOOCOMMERCE_BASE_URL', 'http://localhost/MIAU'); ?>/wp-admin/post.php?post=<?php echo $row_pendientes['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
+                              <i class="fab fa-wordpress"></i>
+                            </button>
+
                             <!-- Botón Facturar -->
                             <?php if ($has_invoice) { ?>
                               <button type="button" class="btn btn-sm btn-warning btn-custom px-3" disabled title="<?php echo $has_invoice ? 'Ya facturado' : 'Estado no válido para facturar'; ?>">
@@ -394,85 +461,85 @@ include("parts/header.php");
                   </tbody>
                 </table>
               </div>
-              
+
               <!-- Paginación Pendientes -->
               <?php if (!empty($pendientes_pagination) && $pendientes_pagination['total_pages'] > 1): ?>
-              <nav aria-label="Paginación pedidos pendientes" class="mt-4">
-                <ul class="pagination justify-content-center">
-                  <!-- Botón Anterior -->
-                  <?php if ($pendientes_pagination['has_previous']): ?>
-                    <li class="page-item">
-                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['previous_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">
-                        <i class="fas fa-chevron-left me-1"></i>Anterior
-                      </a>
-                    </li>
-                  <?php else: ?>
-                    <li class="page-item disabled">
-                      <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">
-                        <i class="fas fa-chevron-left me-1"></i>Anterior
-                      </span>
-                    </li>
-                  <?php endif; ?>
-                  
-                  <!-- Números de página -->
-                  <?php
-                  $start_page = max(1, $pendientes_pagination['current_page'] - 2);
-                  $end_page = min($pendientes_pagination['total_pages'], $pendientes_pagination['current_page'] + 2);
-                  
-                  // Mostrar primera página si no está en el rango
-                  if ($start_page > 1): ?>
-                    <li class="page-item">
-                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=1&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">1</a>
-                    </li>
-                    <?php if ($start_page > 2): ?>
+                <nav aria-label="Paginación pedidos pendientes" class="mt-4">
+                  <ul class="pagination justify-content-center">
+                    <!-- Botón Anterior -->
+                    <?php if ($pendientes_pagination['has_previous']): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['previous_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>">
+                          <i class="fas fa-chevron-left me-1"></i>Anterior
+                        </a>
+                      </li>
+                    <?php else: ?>
                       <li class="page-item disabled">
-                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">
+                          <i class="fas fa-chevron-left me-1"></i>Anterior
+                        </span>
                       </li>
                     <?php endif; ?>
-                  <?php endif; ?>
-                  
-                  <!-- Páginas en el rango -->
-                  <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
-                    <li class="page-item <?php echo ($i == $pendientes_pagination['current_page']) ? 'active' : ''; ?>">
-                      <a class="page-link text-white btn btn-sm btn-custom px-3 py-2 mx-1 <?php echo ($i == $pendientes_pagination['current_page']) ? 'btn-success' : 'btn-danger'; ?>" href="?page_pendientes=<?php echo $i; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>"><?php echo $i; ?></a>
-                    </li>
-                  <?php endfor; ?>
-                  
-                  <!-- Mostrar última página si no está en el rango -->
-                  <?php if ($end_page < $pendientes_pagination['total_pages']): ?>
-                    <?php if ($end_page < $pendientes_pagination['total_pages'] - 1): ?>
-                      <li class="page-item disabled">
-                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+
+                    <!-- Números de página -->
+                    <?php
+                    $start_page = max(1, $pendientes_pagination['current_page'] - 2);
+                    $end_page = min($pendientes_pagination['total_pages'], $pendientes_pagination['current_page'] + 2);
+
+                    // Mostrar primera página si no está en el rango
+                    if ($start_page > 1): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=1&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>">1</a>
+                      </li>
+                      <?php if ($start_page > 2): ?>
+                        <li class="page-item disabled">
+                          <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                        </li>
+                      <?php endif; ?>
+                    <?php endif; ?>
+
+                    <!-- Páginas en el rango -->
+                    <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                      <li class="page-item <?php echo ($i == $pendientes_pagination['current_page']) ? 'active' : ''; ?>">
+                        <a class="page-link text-white btn btn-sm btn-custom px-3 py-2 mx-1 <?php echo ($i == $pendientes_pagination['current_page']) ? 'btn-success' : 'btn-danger'; ?>" href="?page_pendientes=<?php echo $i; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>"><?php echo $i; ?></a>
+                      </li>
+                    <?php endfor; ?>
+
+                    <!-- Mostrar última página si no está en el rango -->
+                    <?php if ($end_page < $pendientes_pagination['total_pages']): ?>
+                      <?php if ($end_page < $pendientes_pagination['total_pages'] - 1): ?>
+                        <li class="page-item disabled">
+                          <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                        </li>
+                      <?php endif; ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['total_pages']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>"><?php echo $pendientes_pagination['total_pages']; ?></a>
                       </li>
                     <?php endif; ?>
-                    <li class="page-item">
-                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['total_pages']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>"><?php echo $pendientes_pagination['total_pages']; ?></a>
-                    </li>
-                  <?php endif; ?>
-                  
-                  <!-- Botón Siguiente -->
-                  <?php if ($pendientes_pagination['has_next']): ?>
-                    <li class="page-item">
-                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['next_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">
-                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
-                      </a>
-                    </li>
-                  <?php else: ?>
-                    <li class="page-item disabled">
-                      <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 opacity-50 mx-1">
-                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
-                      </span>
-                    </li>
-                  <?php endif; ?>
-                </ul>
-              </nav>
-              
-              <!-- Información adicional de paginación -->
-              <div class="text-center text-muted mt-2">
-                <small>
-                  Mostrando <?php echo $pendientes_pagination['start_record']; ?>-<?php echo $pendientes_pagination['end_record']; ?> de <?php echo $pendientes_pagination['total_records']; ?> pedidos
-                </small>
-              </div>
+
+                    <!-- Botón Siguiente -->
+                    <?php if ($pendientes_pagination['has_next']): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_pendientes=<?php echo $pendientes_pagination['next_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>">
+                          Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                        </a>
+                      </li>
+                    <?php else: ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 opacity-50 mx-1">
+                          Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                        </span>
+                      </li>
+                    <?php endif; ?>
+                  </ul>
+                </nav>
+
+                <!-- Información adicional de paginación -->
+                <div class="text-center text-muted mt-2">
+                  <small>
+                    Mostrando <?php echo $pendientes_pagination['start_record']; ?>-<?php echo $pendientes_pagination['end_record']; ?> de <?php echo $pendientes_pagination['total_records']; ?> pedidos
+                  </small>
+                </div>
               <?php endif; ?>
             </div>
           <?php } else { ?>
@@ -487,21 +554,6 @@ include("parts/header.php");
         role="tabpanel"
         aria-labelledby="terminada-tab">
         <div class="search-panel">
-          <div class="panel-header bg-success bg-custom">
-            <h5><i class="fas fa-check-circle"></i> Pedidos Facturados
-              <?php if ($totalRows_pendientesf > 0) { ?>
-                <span class="badge bg-light bg-custom"><?php echo $totalRows_pendientesf; ?></span>
-              <?php } ?>
-            </h5>
-            <div class="dropdown">
-              <a class="nav-link dropdown-toggle" data-toggle="dropdown" href="#">Últimos <?php echo $dias; ?> días</a>
-              <div class="dropdown-menu">
-                <a class="dropdown-item" href="ventas.php?df=30">30</a>
-                <a class="dropdown-item" href="ventas.php?df=60">60</a>
-                <a class="dropdown-item" href="ventas.php?df=90">90</a>
-              </div>
-            </div>
-          </div>
           <?php if ($totalRows_pendientesf > 0) { ?>
             <div class="panel-body">
               <div class="row mb-4">
@@ -522,86 +574,7 @@ include("parts/header.php");
                   </div>
                 </div>
               </div>
-              
-              <!-- Paginación Facturados -->
-              <?php if (!empty($facturados_pagination) && $facturados_pagination['total_pages'] > 1): ?>
-              <nav aria-label="Paginación pedidos facturados" class="mt-4">
-                <ul class="pagination justify-content-center">
-                  <!-- Botón Anterior -->
-                  <?php if ($facturados_pagination['has_previous']): ?>
-                    <li class="page-item">
-                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_facturados=<?php echo $facturados_pagination['previous_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">
-                        <i class="fas fa-chevron-left me-1"></i>Anterior
-                      </a>
-                    </li>
-                  <?php else: ?>
-                    <li class="page-item disabled">
-                      <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">
-                        <i class="fas fa-chevron-left me-1"></i>Anterior
-                      </span>
-                    </li>
-                  <?php endif; ?>
-                  
-                  <!-- Números de página -->
-                  <?php
-                  $start_page = max(1, $facturados_pagination['current_page'] - 2);
-                  $end_page = min($facturados_pagination['total_pages'], $facturados_pagination['current_page'] + 2);
-                  
-                  // Mostrar primera página si no está en el rango
-                  if ($start_page > 1): ?>
-                    <li class="page-item">
-                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_facturados=1&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">1</a>
-                    </li>
-                    <?php if ($start_page > 2): ?>
-                      <li class="page-item disabled">
-                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
-                      </li>
-                    <?php endif; ?>
-                  <?php endif; ?>
-                  
-                  <!-- Páginas en el rango -->
-                  <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
-                    <li class="page-item <?php echo ($i == $facturados_pagination['current_page']) ? 'active' : ''; ?>">
-                      <a class="page-link text-white btn btn-sm btn-custom px-3 py-2 mx-1 <?php echo ($i == $facturados_pagination['current_page']) ? 'btn-success' : 'btn-danger'; ?>" href="?page_facturados=<?php echo $i; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>"><?php echo $i; ?></a>
-                    </li>
-                  <?php endfor; ?>
-                  
-                  <!-- Mostrar última página si no está en el rango -->
-                  <?php if ($end_page < $facturados_pagination['total_pages']): ?>
-                    <?php if ($end_page < $facturados_pagination['total_pages'] - 1): ?>
-                      <li class="page-item disabled">
-                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
-                      </li>
-                    <?php endif; ?>
-                    <li class="page-item">
-                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_facturados=<?php echo $facturados_pagination['total_pages']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>"><?php echo $facturados_pagination['total_pages']; ?></a>
-                    </li>
-                  <?php endif; ?>
-                  
-                  <!-- Botón Siguiente -->
-                  <?php if ($facturados_pagination['has_next']): ?>
-                    <li class="page-item">
-                      <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?page_facturados=<?php echo $facturados_pagination['next_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df='.$diasfin : ''; ?>">
-                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
-                      </a>
-                    </li>
-                  <?php else: ?>
-                    <li class="page-item disabled">
-                      <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 opacity-50 mx-1">
-                        Siguiente<i class="fas fa-chevron-right ms-1"></i>
-                      </span>
-                    </li>
-                  <?php endif; ?>
-                </ul>
-              </nav>
-              
-              <!-- Información adicional de paginación -->
-              <div class="text-center text-muted mt-2">
-                <small>
-                  Mostrando <?php echo $facturados_pagination['start_record']; ?>-<?php echo $facturados_pagination['end_record']; ?> de <?php echo $facturados_pagination['total_records']; ?> pedidos
-                </small>
-              </div>
-              <?php endif; ?>
+
               <div class="table-responsive">
                 <table class="table table-hover table-striped">
                   <thead class="table-dark">
@@ -610,19 +583,71 @@ include("parts/header.php");
                       <th class="text-center"><i class="fas fa-calendar me-1"></i>Fecha</th>
                       <th><i class="fas fa-user me-1"></i>Cliente</th>
                       <th class="text-center"><i class="fas fa-dollar-sign me-1"></i>Valor</th>
+                      <th class="text-center"><i class="fas fa-info-circle me-1"></i>Estado</th>
                       <th class="text-center"><i class="fas fa-file-invoice me-1"></i>Factura</th>
                       <th class="text-center"><i class="fas fa-cogs me-1"></i>Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="dondec">
                     <?php foreach ($pendientesf_data as $row_pendientesf) {
-                      // Pedidos facturados - solo permitir ver detalle
+                      // Pedidos facturados - verificar estado para alertas visuales
+                      $is_completed = ($row_pendientesf['post_status'] === 'wc-completed');
+                      $row_class = !$is_completed ? 'table-danger' : '';
+
+                      // Determinar badge de estado
+                      $status_text = '';
+                      $status_class = '';
+                      $status_icon = '';
+                      $alert_badge = '';
+
+                      switch ($row_pendientesf['post_status']) {
+                        case 'wc-completed':
+                          $status_text = 'Completado';
+                          $status_class = 'bg-success';
+                          $status_icon = 'fas fa-check-circle';
+                          break;
+                        case 'wc-processing':
+                          $status_text = 'Procesando';
+                          $status_class = 'bg-warning';
+                          $status_icon = 'fas fa-spinner';
+                          $alert_badge = '<span class="badge bg-danger ms-2"><i class="fas fa-exclamation-triangle"></i> Alerta</span>';
+                          break;
+                        case 'wc-on-hold':
+                          $status_text = 'En Espera';
+                          $status_class = 'bg-warning';
+                          $status_icon = 'fas fa-pause-circle';
+                          $alert_badge = '<span class="badge bg-danger ms-2"><i class="fas fa-exclamation-triangle"></i> Alerta</span>';
+                          break;
+                        case 'wc-pending':
+                          $status_text = 'Pendiente';
+                          $status_class = 'bg-secondary';
+                          $status_icon = 'fas fa-clock';
+                          $alert_badge = '<span class="badge bg-danger ms-2"><i class="fas fa-exclamation-triangle"></i> Alerta</span>';
+                          break;
+                        case 'wc-cancelled':
+                          $status_text = 'Cancelado';
+                          $status_class = 'bg-danger';
+                          $status_icon = 'fas fa-times-circle';
+                          $alert_badge = '<span class="badge bg-danger ms-2"><i class="fas fa-exclamation-triangle"></i> Alerta</span>';
+                          break;
+                        default:
+                          $status_text = 'Desconocido';
+                          $status_class = 'bg-light text-dark';
+                          $status_icon = 'fas fa-question-circle';
+                          $alert_badge = '<span class="badge bg-danger ms-2"><i class="fas fa-exclamation-triangle"></i> Alerta</span>';
+                      }
                     ?>
-                      <tr>
+                      <tr class="<?php echo $row_class; ?>">
                         <td style="text-align: center"><?php echo $row_pendientesf['ID']; ?></td>
                         <td style="text-align: center"><?php echo $row_pendientesf['post_date']; ?></td>
                         <td style="text-align: left"><?php echo strtoupper($row_pendientesf['nombre1'] . " " . $row_pendientesf['nombre2']); ?></td>
                         <td style="text-align: right"><?php echo number_format($row_pendientesf['valor']); ?></td>
+                        <td class="text-center">
+                          <span class="badge <?php echo $status_class; ?> bg-custom px-3 py-2">
+                            <i class="<?php echo $status_icon; ?> me-1"></i><?php echo $status_text; ?>
+                          </span>
+                          <?php echo $alert_badge; ?>
+                        </td>
                         <td class="text-center">
                           <span class="badge bg-success bg-custom px-3 py-2">
                             <i class="fas fa-check-circle me-1"></i>Facturado
@@ -630,19 +655,19 @@ include("parts/header.php");
                         </td>
                         <td class="text-center">
                           <div class="btn-group" role="group">
-                            <!-- Botón Editar - Deshabilitado para facturados -->
-                            <button type="button" class="btn btn-sm btn-secondary" disabled title="No se puede editar (ya facturado)">
-                              <i class="fas fa-edit"></i>
-                            </button>
-
                             <!-- Botón Ver Detalle -->
-                            <button type="button" class="btn btn-sm btn-danger btn-custom" onclick="viewOrderDetails(<?php echo $row_pendientesf['ID']; ?>)" title="Ver Detalle">
+                            <button type="button" class="btn btn-sm btn-success btn-custom px-3 py-2" onclick="viewOrderDetails(<?php echo $row_pendientesf['ID']; ?>)" title="Ver Detalle">
                               <i class="fas fa-eye"></i>
                             </button>
 
-                            <!-- Botón Facturar - Deshabilitado para facturados -->
-                            <button type="button" class="btn btn-sm btn-secondary" disabled title="Ya facturado">
-                              <i class="fas fa-file-invoice"></i>
+                            <!-- Botón Ver en WordPress Admin -->
+                            <button type="button" class="btn btn-sm btn-info btn-custom px-3 py-2" onclick="window.open('<?php echo Utils::env('WOOCOMMERCE_BASE_URL', 'http://localhost/MIAU'); ?>/wp-admin/post.php?post=<?php echo $row_pendientesf['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
+                              <i class="fab fa-wordpress"></i>
+                            </button>
+
+                            <!-- Botón Abrir PDF Factura -->
+                            <button type="button" class="btn btn-sm btn-warning btn-custom px-3 py-2" onclick="window.open('generar_pdf.php?orden=<?php echo $row_pendientesf['ID']; ?>&factura=<?php echo $row_pendientesf['factura_number']; ?>', '_blank')" title="Abrir PDF Factura">
+                              <i class="fas fa-file-pdf"></i>
                             </button>
                           </div>
                         </td>
@@ -652,6 +677,85 @@ include("parts/header.php");
                   </tbody>
                 </table>
               </div>
+              <!-- Paginación Facturados -->
+              <?php if (!empty($facturados_pagination) && $facturados_pagination['total_pages'] > 1): ?>
+                <nav aria-label="Paginación pedidos facturados" class="mt-4">
+                  <ul class="pagination justify-content-center">
+                    <!-- Botón Anterior -->
+                    <?php if ($facturados_pagination['has_previous']): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?tab=facturados&page_facturados=<?php echo $facturados_pagination['previous_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>">
+                          <i class="fas fa-chevron-left me-1"></i>Anterior
+                        </a>
+                      </li>
+                    <?php else: ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">
+                          <i class="fas fa-chevron-left me-1"></i>Anterior
+                        </span>
+                      </li>
+                    <?php endif; ?>
+
+                    <!-- Números de página -->
+                    <?php
+                    $start_page = max(1, $facturados_pagination['current_page'] - 2);
+                    $end_page = min($facturados_pagination['total_pages'], $facturados_pagination['current_page'] + 2);
+
+                    // Mostrar primera página si no está en el rango
+                    if ($start_page > 1): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?tab=facturados&page_facturados=1&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>">1</a>
+                      </li>
+                      <?php if ($start_page > 2): ?>
+                        <li class="page-item disabled">
+                          <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                        </li>
+                      <?php endif; ?>
+                    <?php endif; ?>
+
+                    <!-- Páginas en el rango -->
+                    <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                      <li class="page-item <?php echo ($i == $facturados_pagination['current_page']) ? 'active' : ''; ?>">
+                        <a class="page-link text-white btn btn-sm btn-custom px-3 py-2 mx-1 <?php echo ($i == $facturados_pagination['current_page']) ? 'btn-success' : 'btn-danger'; ?>" href="?tab=facturados&page_facturados=<?php echo $i; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>"><?php echo $i; ?></a>
+                      </li>
+                    <?php endfor; ?>
+
+                    <!-- Mostrar última página si no está en el rango -->
+                    <?php if ($end_page < $facturados_pagination['total_pages']): ?>
+                      <?php if ($end_page < $facturados_pagination['total_pages'] - 1): ?>
+                        <li class="page-item disabled">
+                          <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1 opacity-50">...</span>
+                        </li>
+                      <?php endif; ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?tab=facturados&page_facturados=<?php echo $facturados_pagination['total_pages']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>"><?php echo $facturados_pagination['total_pages']; ?></a>
+                      </li>
+                    <?php endif; ?>
+
+                    <!-- Botón Siguiente -->
+                    <?php if ($facturados_pagination['has_next']): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 mx-1" href="?tab=facturados&page_facturados=<?php echo $facturados_pagination['next_page']; ?>&per_page=<?php echo $per_page; ?><?php echo isset($diasfin) ? '&df=' . $diasfin : ''; ?>">
+                          Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                        </a>
+                      </li>
+                    <?php else: ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-danger text-white px-3 py-2 opacity-50 mx-1">
+                          Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                        </span>
+                      </li>
+                    <?php endif; ?>
+                  </ul>
+                </nav>
+
+                <!-- Información adicional de paginación -->
+                <div class="text-center text-muted mt-2">
+                  <small>
+                    Mostrando <?php echo $facturados_pagination['start_record']; ?>-<?php echo $facturados_pagination['end_record']; ?> de <?php echo $facturados_pagination['total_records']; ?> pedidos
+                  </small>
+                </div>
+              <?php endif; ?>
             </div>
           <?php } else { ?>
             <div class="panel-body">
@@ -660,7 +764,240 @@ include("parts/header.php");
           <?php } ?>
         </div>
       </div>
-      <div class="tab-pane container fade" id="menu2">...</div>
+
+      <!-- Tab Todas las Órdenes -->
+      <div class="tab-pane fade <?php echo $acti3; ?> <?php echo $acti3 === 'active' ? 'show' : ''; ?>"
+        id="todos"
+        role="tabpanel"
+        aria-labelledby="todos-tab">
+        <div class="search-panel">
+          <?php if ($totalRows_todos > 0) { ?>
+            <div class="panel-body">
+              <div class="row mb-4">
+                <div class="col-md-8">
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="busca_todos"
+                      placeholder="Buscar por código, cliente o fecha...">
+                    <button type="button" class="btn btn-primary btn-custom">
+                      <i class="fas fa-search"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="d-flex justify-content-end">
+                    <span class="badge bg-success bg-custom px-3 py-2 text-white">
+                      <i class="fas fa-list me-1"></i><?php echo $totalRows_todos; ?> órdenes
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                  <thead class="table-dark">
+                    <tr>
+                      <th class="text-center"><i class="fas fa-hashtag me-1"></i>Código</th>
+                      <th class="text-center"><i class="fas fa-calendar me-1"></i>Fecha</th>
+                      <th><i class="fas fa-user me-1"></i>Cliente</th>
+                      <th class="text-center"><i class="fas fa-dollar-sign me-1"></i>Valor</th>
+                      <th class="text-center"><i class="fas fa-info-circle me-1"></i>Estado</th>
+                      <th class="text-center"><i class="fas fa-file-invoice me-1"></i>Factura</th>
+                      <th class="text-center"><i class="fas fa-cogs me-1"></i>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="donde_todos">
+                    <?php foreach ($todos_data as $row_todos) {
+                      // Verificar estado de facturación usando el campo agregado
+                      $has_invoice = $row_todos['has_invoice'];
+                      $can_edit = !$has_invoice; // Solo editar si no tiene factura
+                      $can_invoice = !$has_invoice && in_array($row_todos['post_status'], ['wc-processing', 'wc-on-hold', 'wc-completed']);
+                    ?>
+                      <tr>
+                        <td style="text-align: center"><?php echo $row_todos['ID']; ?></td>
+                        <td style="text-align: center"><?php echo date('d/m/Y H:i', strtotime($row_todos['post_date'])); ?></td>
+                        <td style="text-align: left"><?php echo strtoupper($row_todos['nombre1'] . " " . $row_todos['nombre2']); ?></td>
+                        <td style="text-align: right"><?php echo number_format($row_todos['valor']); ?></td>
+                        <td class="text-center">
+                          <?php
+                          // Mostrar badge de estado con estilo moderno
+                          $status_text = '';
+                          $status_class = '';
+                          $status_icon = '';
+                          switch ($row_todos['post_status']) {
+                            case 'wc-processing':
+                              $status_text = 'Procesando';
+                              $status_class = 'bg-primary';
+                              $status_icon = 'fas fa-spinner';
+                              break;
+                            case 'wc-completed':
+                              $status_text = 'Completado';
+                              $status_class = 'bg-success';
+                              $status_icon = 'fas fa-check-circle';
+                              break;
+                            case 'wc-on-hold':
+                              $status_text = 'En Espera';
+                              $status_class = 'bg-warning';
+                              $status_icon = 'fas fa-pause-circle';
+                              break;
+                            case 'wc-pending':
+                              $status_text = 'Pendiente';
+                              $status_class = 'bg-secondary';
+                              $status_icon = 'fas fa-clock';
+                              break;
+                            case 'wc-cancelled':
+                              $status_text = 'Cancelado';
+                              $status_class = 'bg-danger';
+                              $status_icon = 'fas fa-times-circle';
+                              break;
+                            default:
+                              $status_text = 'Desconocido';
+                              $status_class = 'bg-light';
+                              $status_icon = 'fas fa-question-circle';
+                          }
+                          ?>
+                          <span class="badge <?php echo $status_class; ?> bg-custom px-3 py-2">
+                            <i class="<?php echo $status_icon; ?> me-1"></i><?php echo $status_text; ?>
+                          </span>
+                        </td>
+                        <td class="text-center">
+                          <?php if ($has_invoice): ?>
+                            <span class="badge bg-success bg-custom px-3 py-2">
+                              <i class="fas fa-check-circle me-1"></i>Facturado
+                            </span>
+                          <?php else: ?>
+                            <span class="badge bg-warning bg-custom px-3 py-2">
+                              <i class="fas fa-clock me-1"></i>Sin Facturar
+                            </span>
+                          <?php endif; ?>
+                        </td>
+                        <td class="text-center">
+                          <div class="btn-group" role="group">
+                            <!-- Botón Editar -->
+                            <?php if ($can_edit) { ?>
+                              <button type="button" class="btn btn-sm btn-danger btn-custom px-3" onclick="editOrder(<?php echo $row_todos['ID']; ?>)" title="Editar Pedido">
+                                <i class="fas fa-edit"></i>
+                              </button>
+                            <?php } else { ?>
+                              <button type="button" class="btn btn-sm btn-danger btn-custom px-3" disabled title="No se puede editar (ya facturado)">
+                                <i class="fas fa-edit"></i>
+                              </button>
+                            <?php } ?>
+
+                            <!-- Botón Ver Detalle -->
+                            <button type="button" class="btn btn-sm btn-success btn-custom px-3" onclick="viewOrderDetails(<?php echo $row_todos['ID']; ?>)" title="Ver Detalle">
+                              <i class="fas fa-eye"></i>
+                            </button>
+
+                            <!-- Botón Ver en WordPress Admin -->
+                            <button type="button" class="btn btn-sm btn-info btn-custom px-3" onclick="window.open('<?php echo Utils::env('WOOCOMMERCE_BASE_URL', 'http://localhost/MIAU'); ?>/wp-admin/post.php?post=<?php echo $row_todos['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
+                              <i class="fab fa-wordpress"></i>
+                            </button>
+
+                            <!-- Botón Facturar -->
+                            <?php if ($can_invoice) { ?>
+                              <button type="button" class="btn btn-sm btn-warning btn-custom px-3" onclick="invoiceOrder(<?php echo $row_todos['ID']; ?>)" title="Facturar Pedido">
+                                <i class="fas fa-file-invoice"></i>
+                              </button>
+                            <?php } else { ?>
+                              <button type="button" class="btn btn-sm btn-warning btn-custom px-3" disabled title="<?php echo $has_invoice ? 'Ya facturado' : 'Estado no válido para facturar'; ?>">
+                                <i class="fas fa-file-invoice"></i>
+                              </button>
+                            <?php } ?>
+                          </div>
+                        </td>
+                      </tr>
+                    <?php } // end foreach 
+                    ?>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Paginación Todas las Órdenes -->
+              <?php if (!empty($todos_pagination) && $todos_pagination['total_pages'] > 1): ?>
+                <nav aria-label="Paginación todas las órdenes" class="mt-4">
+                  <ul class="pagination justify-content-center">
+                    <!-- Botón Anterior -->
+                    <?php if ($todos_pagination['has_previous']): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-primary text-white px-3 py-2 mx-1" href="?tab=todos&page_todos=<?php echo $todos_pagination['previous_page']; ?>&per_page=<?php echo $per_page; ?>">
+                          <i class="fas fa-chevron-left me-1"></i>Anterior
+                        </a>
+                      </li>
+                    <?php else: ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-primary text-white px-3 py-2 mx-1 opacity-50">
+                          <i class="fas fa-chevron-left me-1"></i>Anterior
+                        </span>
+                      </li>
+                    <?php endif; ?>
+
+                    <!-- Números de página -->
+                    <?php
+                    $start_page = max(1, $todos_pagination['current_page'] - 2);
+                    $end_page = min($todos_pagination['total_pages'], $todos_pagination['current_page'] + 2);
+
+                    // Mostrar primera página si no está en el rango
+                    if ($start_page > 1): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-primary text-white px-3 py-2 mx-1" href="?tab=todos&page_todos=1&per_page=<?php echo $per_page; ?>">1</a>
+                      </li>
+                      <?php if ($start_page > 2): ?>
+                        <li class="page-item disabled">
+                          <span class="page-link btn btn-sm btn-custom btn-primary text-white px-3 py-2 mx-1 opacity-50">...</span>
+                        </li>
+                      <?php endif; ?>
+                    <?php endif; ?>
+
+                    <!-- Páginas en el rango -->
+                    <?php for ($i = $start_page; $i <= $end_page; $i++): ?>
+                      <li class="page-item <?php echo ($i == $todos_pagination['current_page']) ? 'active' : ''; ?>">
+                        <a class="page-link text-white btn btn-sm btn-custom px-3 py-2 mx-1 <?php echo ($i == $todos_pagination['current_page']) ? 'btn-success' : 'btn-primary'; ?>" href="?tab=todos&page_todos=<?php echo $i; ?>&per_page=<?php echo $per_page; ?>"><?php echo $i; ?></a>
+                      </li>
+                    <?php endfor; ?>
+
+                    <!-- Mostrar última página si no está en el rango -->
+                    <?php if ($end_page < $todos_pagination['total_pages']): ?>
+                      <?php if ($end_page < $todos_pagination['total_pages'] - 1): ?>
+                        <li class="page-item disabled">
+                          <span class="page-link btn btn-sm btn-custom btn-primary text-white px-3 py-2 mx-1 opacity-50">...</span>
+                        </li>
+                      <?php endif; ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-primary text-white px-3 py-2 mx-1" href="?tab=todos&page_todos=<?php echo $todos_pagination['total_pages']; ?>&per_page=<?php echo $per_page; ?>"><?php echo $todos_pagination['total_pages']; ?></a>
+                      </li>
+                    <?php endif; ?>
+
+                    <!-- Botón Siguiente -->
+                    <?php if ($todos_pagination['has_next']): ?>
+                      <li class="page-item">
+                        <a class="page-link btn btn-sm btn-custom btn-primary text-white px-3 py-2 mx-1" href="?tab=todos&page_todos=<?php echo $todos_pagination['next_page']; ?>&per_page=<?php echo $per_page; ?>">
+                          Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                        </a>
+                      </li>
+                    <?php else: ?>
+                      <li class="page-item disabled">
+                        <span class="page-link btn btn-sm btn-custom btn-primary text-white px-3 py-2 opacity-50 mx-1">
+                          Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                        </span>
+                      </li>
+                    <?php endif; ?>
+                  </ul>
+                </nav>
+
+                <!-- Información adicional de paginación -->
+                <div class="text-center text-muted mt-2">
+                  <small>
+                    Mostrando <?php echo $todos_pagination['start_record']; ?>-<?php echo $todos_pagination['end_record']; ?> de <?php echo $todos_pagination['total_records']; ?> órdenes
+                  </small>
+                </div>
+              <?php endif; ?>
+            </div>
+          <?php } else { ?>
+            <div class="panel-body">
+              <h4 class="text-center mb-4">No se encontraron órdenes en el sistema.</h4>
+            </div>
+          <?php } ?>
+        </div>
+      </div>
     </div>
   </div>
   <!-- Modal para Ver Detalles del Pedido -->
@@ -693,6 +1030,9 @@ include("parts/header.php");
           <button type="button" class="btn btn-secondary btn-custom" data-dismiss="modal" onclick="closeOrderModal()">
             <i class="fas fa-times"></i> Cerrar
           </button>
+          <button type="button" class="btn btn-danger btn-custom" id="btn-edit-order" onclick="editOrderFromModal()">
+            <i class="fas fa-edit"></i> Editar
+          </button>
           <a class="btn btn-success btn-custom" target="_blank" href="#" id="btn-view-detail">
             <i class="fas fa-eye"></i> Ver Detalle
           </a>
@@ -709,42 +1049,42 @@ include("parts/header.php");
     function editOrder(orderId) {
       // Mostrar el ID del pedido en el modal
       document.getElementById('edit-order-id').textContent = orderId;
-      
+
       // Mostrar el modal
       const editModal = new bootstrap.Modal(document.getElementById('editOrderModal'));
       editModal.show();
-      
+
       // Configurar el botón de confirmación
       document.getElementById('btnConfirmarEdicion').onclick = function() {
         // Cerrar el modal
         editModal.hide();
-        
+
         // Ejecutar la lógica de edición
         executeEditOrder(orderId);
       };
     }
-    
+
     // Función para ejecutar la edición del pedido
     function executeEditOrder(orderId) {
       // Mostrar indicador de carga en el botón
       const $button = $(`button[onclick="editOrder(${orderId})"]`);
       const originalHtml = $button.html();
       $button.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
-      
+
       // Limpiar localStorage anterior
       localStorage.removeItem('editOrderData');
       localStorage.removeItem('editMode');
-      
+
       // Crear formulario para enviar POST
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = 'formulario_cliente.php';
-      
+
       const input = document.createElement('input');
       input.type = 'hidden';
       input.name = 'id-orden';
       input.value = orderId;
-      
+
       form.appendChild(input);
       document.body.appendChild(form);
       form.submit();
@@ -755,6 +1095,24 @@ include("parts/header.php");
       $('#orderDetailsModal').modal('hide');
     }
 
+    // Función para editar pedido desde el modal de detalles
+    function editOrderFromModal() {
+      // Obtener el ID del pedido del modal actual
+      const orderId = document.getElementById('modal-order-id').textContent;
+
+      if (orderId) {
+        // Cerrar el modal de detalles primero
+        $('#orderDetailsModal').modal('hide');
+
+        // Llamar a la función de edición existente
+        setTimeout(() => {
+          editOrder(orderId);
+        }, 300); // Pequeño delay para que se cierre el modal anterior
+      } else {
+        console.error('No se pudo obtener el ID del pedido para editar');
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('btn-view-detail');
 
@@ -762,7 +1120,7 @@ include("parts/header.php");
 
       btn.addEventListener('click', (e) => {
         e.preventDefault(); // ✅ evita que agregue #
-        openOrderDetail();  // ✅ abre la url real
+        openOrderDetail(); // ✅ abre la url real
       });
     });
 
@@ -967,17 +1325,17 @@ include("parts/header.php");
           const lineTotal = parseFloat(item.line_total || 0);
           const quantity = parseInt(item.product_qty || 1);
           const unitPrice = quantity > 0 ? lineTotal / quantity : 0;
-          
+
           // Obtener precios del producto si están disponibles
           const regularPrice = parseFloat(item.regular_price || item._regular_price || 0);
           const salePrice = parseFloat(item.sale_price || item._sale_price || 0);
-          
+
           // Determinar si hay descuento - usar flag del backend o detectar por precios
-          const hasDiscount = item.has_discount === true || item.has_discount === 1 || 
-                             (salePrice > 0 && salePrice < regularPrice) ||
-                             (parseFloat(item.subtotal_linea || 0) > lineTotal);
-          
-          
+          const hasDiscount = item.has_discount === true || item.has_discount === 1 ||
+            (salePrice > 0 && salePrice < regularPrice) ||
+            (parseFloat(item.subtotal_linea || 0) > lineTotal);
+
+
           // Construir HTML del precio
           let priceHtml = '';
           if (hasDiscount) {
@@ -1005,7 +1363,7 @@ include("parts/header.php");
               </div>
             `;
           }
-          
+
           itemsHtml += `
                 <tr>
                     <td class="px-3 py-2">${quantity}</td>
@@ -1131,12 +1489,12 @@ include("parts/header.php");
       // Mostrar modal de confirmación en lugar de alert
       $('#invoice-order-id').text(orderId);
       $('#invoiceModal').modal('show');
-      
+
       // Configurar el botón de confirmación
       $('#btnConfirmarFactura').off('click').on('click', function() {
         // Ocultar modal
         $('#invoiceModal').modal('hide');
-        
+
         // Redirigir a facturacion.php con order_id en URL
         window.location.href = 'facturacion.php?id=' + orderId;
       });
@@ -1193,32 +1551,65 @@ include("parts/header.php");
         });
       });
     });
-    
+
+    // Búsqueda para el tab "Todas las Órdenes"
+    $(document).ready(function() {
+      $("#busca_todos").on("keyup", function() {
+        var value = $(this).val().toLowerCase();
+        $("#donde_todos tr").filter(function() {
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+        });
+      });
+    });
+
     // Función para cambiar el número de elementos por página
     function changePerPage(perPage) {
       const urlParams = new URLSearchParams(window.location.search);
       urlParams.set('per_page', perPage);
-      
+
       // Resetear páginas a 1 cuando se cambia el tamaño de página
       urlParams.delete('page_pendientes');
       urlParams.delete('page_facturados');
-      
+      urlParams.delete('page_todos');
+
       window.location.search = urlParams.toString();
     }
-    
+
+    // Función para cambiar de tab
+    function changeTab(tabName) {
+      const urlParams = new URLSearchParams(window.location.search);
+
+      // Limpiar parámetros de paginación al cambiar de tab
+      urlParams.delete('page_pendientes');
+      urlParams.delete('page_facturados');
+      urlParams.delete('page_todos');
+      urlParams.delete('df'); // Limpiar filtro de días
+
+      // Establecer el tab activo
+      if (tabName !== 'pendientes') {
+        urlParams.set('tab', tabName);
+      } else {
+        urlParams.delete('tab'); // Tab por defecto
+      }
+
+      window.location.search = urlParams.toString();
+    }
+
     // Función para ir a una página específica
     function goToPage(page, type) {
       const urlParams = new URLSearchParams(window.location.search);
-      
+
       if (type === 'pendientes') {
         urlParams.set('page_pendientes', page);
       } else if (type === 'facturados') {
         urlParams.set('page_facturados', page);
+      } else if (type === 'todos') {
+        urlParams.set('page_todos', page);
       }
-      
+
       window.location.search = urlParams.toString();
     }
-    
+
     // Mejorar la experiencia de usuario con indicadores de carga
     $(document).on('click', '.pagination .page-link', function(e) {
       const $this = $(this);
@@ -1226,21 +1617,21 @@ include("parts/header.php");
         $this.html('<i class="fas fa-spinner fa-spin"></i>');
       }
     });
-    
+
     // Función para actualizar la página manteniendo filtros
     function refreshPage() {
       window.location.reload();
     }
-    
+
     // Agregar tooltips a los controles de paginación
     $(document).ready(function() {
       $('[data-bs-toggle="tooltip"]').tooltip();
-      
+
       // Agregar tooltips dinámicos a los enlaces de paginación
       $('.pagination .page-link').each(function() {
         const $link = $(this);
         const href = $link.attr('href');
-        
+
         if (href && href.includes('page_')) {
           const pageMatch = href.match(/page_(?:pendientes|facturados)=(\d+)/);
           if (pageMatch) {
