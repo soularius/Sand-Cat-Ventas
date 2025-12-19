@@ -987,6 +987,10 @@ include("parts/header.php");
                       <td class="px-3 py-2">${orderData.billing_email || 'N/A'}</td>
                     </tr>
                     <tr>
+                      <td class="px-3 py-2"><strong>DNI:</strong></td>
+                      <td class="px-3 py-2">${orderData.dni_cliente || orderData.dni || 'N/A'}</td>
+                    </tr>
+                    <tr>
                       <td class="px-3 py-2"><strong>Teléfono:</strong></td>
                       <td class="px-3 py-2">${orderData.billing_phone || 'N/A'}</td>
                     </tr>

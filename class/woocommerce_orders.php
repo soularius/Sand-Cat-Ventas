@@ -2311,6 +2311,7 @@ class WooCommerceOrders
                 COALESCE(pm_state.meta_value, '') as billing_state,
                 COALESCE(pm_country.meta_value, '') as billing_country,
                 COALESCE(pm_barrio.meta_value, '') as billing_barrio,
+                COALESCE(pm_dni.meta_value, '') as dni_cliente,
                 COALESCE(pm_payment.meta_value, '') as payment_method,
                 COALESCE(pm_payment_title.meta_value, '') as payment_method_title,
                 COALESCE(pm_shipping.meta_value, '0') as shipping_cost,
@@ -2325,7 +2326,8 @@ class WooCommerceOrders
             LEFT JOIN miau_postmeta pm_city ON p.ID = pm_city.post_id AND pm_city.meta_key = '_billing_city'
             LEFT JOIN miau_postmeta pm_state ON p.ID = pm_state.post_id AND pm_state.meta_key = '_billing_state'
             LEFT JOIN miau_postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
-            LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_barrio'
+            LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_neighborhood'
+            LEFT JOIN miau_postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_id'
             LEFT JOIN miau_postmeta pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
             LEFT JOIN miau_postmeta pm_payment_title ON p.ID = pm_payment_title.post_id AND pm_payment_title.meta_key = '_payment_method_title'
             LEFT JOIN miau_postmeta pm_shipping ON p.ID = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'

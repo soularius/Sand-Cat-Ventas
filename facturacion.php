@@ -68,7 +68,7 @@ if ($numfact_result) {
 $customer_data = [
     'nombre1' => $order_details['billing_first_name'] ?? '',
     'nombre2' => $order_details['billing_last_name'] ?? '',
-    'documento' => $order_details['billing_dni'] ?? $order_details['billing_id'] ?? '',
+    'documento' => $order_details['dni_cliente'] ?? $order_details['dni_cliente'] ?? '',
     'correo' => $order_details['billing_email'] ?? '',
     'celular' => $order_details['billing_phone'] ?? '',
     'dir1' => $order_details['billing_address_1'] ?? '',
@@ -268,6 +268,10 @@ if (Utils::isPostRequest() && isset($_POST['ingfact'])) {
                                         <td><?php echo $customer_data['correo'] ?: 'N/A'; ?></td>
                                     </tr>
                                     <tr>
+                                        <td><strong>DNI:</strong></td>
+                                        <td><?php echo $customer_data['documento'] ?: 'N/A'; ?></td>
+                                    </tr>
+                                    <tr>
                                         <td><strong>Teléfono:</strong></td>
                                         <td><?php echo $customer_data['celular'] ?: 'N/A'; ?></td>
                                     </tr>
@@ -284,7 +288,7 @@ if (Utils::isPostRequest() && isset($_POST['ingfact'])) {
                                     </tr>
                                     <tr>
                                         <td><strong>Ciudad:</strong></td>
-                                        <td><?php echo $customer_data['ciudad'] . ' (' . $customer_data['departamento'] . ')'; ?></td>
+                                        <td><?= Utils::formatLocation($customer_data['ciudad'], $customer_data['departamento'], 'CO', true); ?></td>
                                     </tr>
                                 </table>
                             </div>
