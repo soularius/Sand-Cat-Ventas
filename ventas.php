@@ -180,6 +180,42 @@ include("parts/header.php");
         </div>
       </form>
     <?php } ?>
+    <!-- Modal para Facturación -->
+    <div class="modal fade" id="invoiceModal" tabindex="-1" aria-labelledby="invoiceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-custom text-dark">
+                    <h5 class="modal-title text-white" id="invoiceModalLabel">
+                        <i class="fas fa-file-invoice me-2"></i>Confirmar Facturación
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="mb-4">
+                        <i class="fas fa-file-invoice text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    <h6 class="mb-3">¿Está seguro de que desea facturar este pedido?</h6>
+                    <div class="alert alert-success">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Pedido #<span id="invoice-order-id"></span></strong>
+                        <br>
+                        <small class="text-muted">
+                            Esta acción procesará el pedido y generará la factura correspondiente.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary btn-custom" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-warning btn-custom text-white" id="btnConfirmarFactura">
+                        <i class="fas fa-file-invoice me-2"></i>Confirmar Facturación
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tab content -->
     <div class="tab-content" id="orderTabsContent">
       <div class="tab-pane fade <?php echo $acti1; ?> <?php echo $acti1 === 'active' ? 'show' : ''; ?>"
@@ -1012,11 +1048,19 @@ include("parts/header.php");
 
     // Función para facturar pedido
     function invoiceOrder(orderId) {
-      if (confirm('¿Está seguro de que desea facturar este pedido?')) {
-        // Crear formulario dinámico para enviar a detventafact.php
+      // Mostrar modal de confirmación en lugar de alert
+      $('#invoice-order-id').text(orderId);
+      $('#invoiceModal').modal('show');
+      
+      // Configurar el botón de confirmación
+      $('#btnConfirmarFactura').off('click').on('click', function() {
+        // Ocultar modal
+        $('#invoiceModal').modal('hide');
+        
+        // Crear formulario dinámico para enviar a facturacion.php
         const form = $('<form>', {
           'method': 'POST',
-          'action': 'detventafact.php'
+          'action': 'facturacion.php'
         });
 
         form.append($('<input>', {
@@ -1027,7 +1071,7 @@ include("parts/header.php");
 
         $('body').append(form);
         form.submit();
-      }
+      });
     }
 
     // Función para imprimir detalles del pedido

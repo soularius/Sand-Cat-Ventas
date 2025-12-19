@@ -14,7 +14,7 @@ $menu_items_f = [
     'resumen_cliente.php' => 'facturacion',
     'detventaf.php' => 'facturacion',
     'detventafinal.php' => 'facturacion',
-    'detventafact.php' => 'facturacion'
+    'facturacion.php' => 'facturacion'
 ];
 
 $active_menu_f = isset($menu_items_f[$current_page]) ? $menu_items_f[$current_page] : '';
