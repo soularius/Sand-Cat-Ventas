@@ -1096,7 +1096,16 @@ class WooCommerceOrders
                 p_parent.post_title as parent_name,
                 
                 -- Nombre de la variación (si existe)
-                p_variation.post_title as variation_name
+                p_variation.post_title as variation_name,
+                
+                -- PRECIOS PARA DETECTAR DESCUENTOS
+                -- Precios del producto padre
+                pm_regular_parent.meta_value as parent_regular_price,
+                pm_sale_parent.meta_value as parent_sale_price,
+                
+                -- Precios de la variación (si existe)
+                pm_regular_variation.meta_value as variation_regular_price,
+                pm_sale_variation.meta_value as variation_sale_price
 
             FROM miau_woocommerce_order_items oi
 
@@ -1123,6 +1132,15 @@ class WooCommerceOrders
                 ON pm_sku_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
                 AND pm_sku_parent.meta_key = '_sku'
                 
+            -- Precios del producto padre
+            LEFT JOIN miau_postmeta pm_regular_parent 
+                ON pm_regular_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
+                AND pm_regular_parent.meta_key = '_regular_price'
+                
+            LEFT JOIN miau_postmeta pm_sale_parent 
+                ON pm_sale_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
+                AND pm_sale_parent.meta_key = '_sale_price'
+                
             -- Datos de la variación (si existe)
             LEFT JOIN miau_posts p_variation 
                 ON p_variation.ID = CAST(oim_variation_id.meta_value AS UNSIGNED) 
@@ -1131,6 +1149,17 @@ class WooCommerceOrders
             LEFT JOIN miau_postmeta pm_sku_variation 
                 ON pm_sku_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
                 AND pm_sku_variation.meta_key = '_sku'
+                AND oim_variation_id.meta_value > 0
+                
+            -- Precios de la variación (si existe)
+            LEFT JOIN miau_postmeta pm_regular_variation 
+                ON pm_regular_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
+                AND pm_regular_variation.meta_key = '_regular_price'
+                AND oim_variation_id.meta_value > 0
+                
+            LEFT JOIN miau_postmeta pm_sale_variation 
+                ON pm_sale_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
+                AND pm_sale_variation.meta_key = '_sale_price'
                 AND oim_variation_id.meta_value > 0
 
             WHERE oi.order_id = {$order_id} 
@@ -1157,11 +1186,35 @@ class WooCommerceOrders
                 // Es una variación - usar nombre de la variación o del item
                 $row['product_name'] = $row['variation_name'] ?: $row['nombre_producto'];
                 $row['sku'] = $row['variation_sku'] ?: $row['parent_sku'] ?: '';
+                
+                // Usar precios de la variación si están disponibles
+                $row['regular_price'] = (float)($row['variation_regular_price'] ?: $row['parent_regular_price'] ?: 0);
+                $row['sale_price'] = (float)($row['variation_sale_price'] ?: $row['parent_sale_price'] ?: 0);
             } else {
                 // Es un producto simple - usar nombre del producto padre
                 $row['product_name'] = $row['parent_name'] ?: $row['nombre_producto'];
                 $row['sku'] = $row['parent_sku'] ?: '';
+                
+                // Usar precios del producto padre
+                $row['regular_price'] = (float)($row['parent_regular_price'] ?: 0);
+                $row['sale_price'] = (float)($row['parent_sale_price'] ?: 0);
             }
+            
+            // Calcular precio unitario actual del pedido
+            $row['unit_price'] = $row['cantidad'] > 0 ? $row['total_linea'] / $row['cantidad'] : 0;
+            
+            // Determinar si hay descuento
+            // Un producto tiene descuento si:
+            // 1. Tiene sale_price > 0 Y sale_price < regular_price
+            // 2. O si line_subtotal > line_total (descuento aplicado en el pedido)
+            $has_product_discount = ($row['sale_price'] > 0 && $row['sale_price'] < $row['regular_price']);
+            $has_order_discount = ($row['subtotal_linea'] > $row['total_linea']);
+            $row['has_discount'] = $has_product_discount || $has_order_discount;
+            
+            
+            // Agregar campos adicionales para compatibilidad con ventas.php
+            $row['_regular_price'] = $row['regular_price'];
+            $row['_sale_price'] = $row['sale_price'];
             
             // Asegurar que tenemos un nombre de producto
             if (empty($row['product_name'])) {

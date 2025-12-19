@@ -819,14 +819,60 @@ include("parts/header.php");
       let itemsHtml = '';
       if (orderData.items && orderData.items.length > 0) {
         orderData.items.forEach(item => {
+          // Calcular precios para detectar descuentos
+          const lineTotal = parseFloat(item.line_total || 0);
+          const quantity = parseInt(item.product_qty || 1);
+          const unitPrice = quantity > 0 ? lineTotal / quantity : 0;
+          
+          // Obtener precios del producto si están disponibles
+          const regularPrice = parseFloat(item.regular_price || item._regular_price || 0);
+          const salePrice = parseFloat(item.sale_price || item._sale_price || 0);
+          
+          // Determinar si hay descuento - usar flag del backend o detectar por precios
+          const hasDiscount = item.has_discount === true || item.has_discount === 1 || 
+                             (salePrice > 0 && salePrice < regularPrice) ||
+                             (parseFloat(item.subtotal_linea || 0) > lineTotal);
+          
+          
+          // Construir HTML del precio
+          let priceHtml = '';
+          if (hasDiscount) {
+            priceHtml = `
+              <div class="d-flex align-items-center justify-content-end">
+                <div class="text-end">
+                  <div class="d-flex align-items-center justify-content-end">
+                    <span class="text-danger fw-bold me-2">$${salePrice.toLocaleString('es-CO')}</span>
+                    <span class="text-muted text-decoration-line-through small">$${regularPrice.toLocaleString('es-CO')}</span>
+                  </div>
+                  <div class="mt-1">
+                    <span class="badge bg-danger bg-custom rounded-pill small">Oferta</span>
+                  </div>
+                </div>
+              </div>
+              <div class="text-end mt-1">
+                <strong>Total: $${lineTotal.toLocaleString('es-CO')}</strong>
+              </div>
+            `;
+          } else {
+            priceHtml = `
+              <div class="text-end">
+                ${quantity > 1 ? `<div class="small text-muted">$${unitPrice.toLocaleString('es-CO')} c/u</div>` : ''}
+                <strong>$${lineTotal.toLocaleString('es-CO')}</strong>
+              </div>
+            `;
+          }
+          
           itemsHtml += `
                 <tr>
-                    <td class="px-3 py-2">${item.product_qty || 1}</td>
+                    <td class="px-3 py-2">${quantity}</td>
                     <td class="px-3 py-2">
                         ${item.sku ? `<small class="text-muted">SKU: ${item.sku}</small><br>` : ''}
                         ${item.order_item_name}
+                        ${hasDiscount ? '<br><small class="text-success"><i class="fas fa-tag me-1"></i>Producto con descuento</small>' : ''}
                     </td>
-                    <td class="text-right px-3 py-2">$${parseFloat(item.line_total || 0).toLocaleString('es-CO')}</td>
+                    <td class="px-3 py-2">
+                        ${priceHtml}
+                    </td>
                 </tr>
             `;
         });

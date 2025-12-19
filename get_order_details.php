@@ -87,7 +87,16 @@ try {
                 'order_item_name' => $item['order_item_name'] ?? $item['product_name'] ?? 'Producto sin nombre',
                 'product_qty' => $item['product_qty'] ?? $item['qty'] ?? $item['quantity'] ?? 1,
                 'line_total' => $item['line_total'] ?? $item['total'] ?? 0,
-                'sku' => $item['sku'] ?? $item['product_sku'] ?? ''
+                'subtotal_linea' => $item['subtotal_linea'] ?? $item['line_subtotal'] ?? 0,
+                'sku' => $item['sku'] ?? $item['product_sku'] ?? '',
+                
+                // Campos de descuento necesarios para ventas.php
+                'regular_price' => $item['regular_price'] ?? 0,
+                'sale_price' => $item['sale_price'] ?? 0,
+                '_regular_price' => $item['_regular_price'] ?? $item['regular_price'] ?? 0,
+                '_sale_price' => $item['_sale_price'] ?? $item['sale_price'] ?? 0,
+                'has_discount' => $item['has_discount'] ?? false,
+                'unit_price' => $item['unit_price'] ?? 0
             ];
         }
     }
