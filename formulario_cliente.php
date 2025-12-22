@@ -34,6 +34,7 @@ $customer_found = false;
 $customer_data = [];
 $edit_mode = false;
 $cache_data = [];
+$comentarios = '';
 
 // NUEVO: Verificar si se está editando un pedido existente
 $edit_order_id = Utils::captureValue('id-orden', 'POST', '');

@@ -496,9 +496,11 @@ class WooCommerceCustomer
     /**
      * Obtener todos los usuarios WordPress con metadatos completos
      * @param array $roles Roles a filtrar (opcional)
+     * @param int $limit Límite de registros por página (opcional)
+     * @param int $offset Desplazamiento para paginación (opcional)
      * @return array Lista de usuarios con metadatos
      */
-    public function getAllWordPressUsers(array $roles = []): array
+    public function getAllWordPressUsers(array $roles = [], int $limit = 0, int $offset = 0): array
     {
         $query = "SELECT 
             u.ID as id_usuarios,
@@ -506,37 +508,41 @@ class WooCommerceCustomer
             u.user_email as email,
             u.user_registered as fecha_registro,
             u.user_status as estado,
-            um_first.meta_value as nombre,
-            um_last.meta_value as apellido,
-            um_dni.meta_value as documento,
-            um_barrio.meta_value as barrio,
-            um_phone.meta_value as telefono,
-            um_address.meta_value as direccion,
-            um_city.meta_value as ciudad,
-            um_state.meta_value as departamento,
-            um_role.meta_value as rol
+            MAX(CASE WHEN um.meta_key = 'first_name' THEN um.meta_value END) as nombre,
+            MAX(CASE WHEN um.meta_key = 'last_name' THEN um.meta_value END) as apellido,
+            MAX(CASE WHEN um.meta_key = 'billing_dni' THEN um.meta_value END) as documento,
+            MAX(CASE WHEN um.meta_key = 'billing_barrio' THEN um.meta_value END) as barrio,
+            MAX(CASE WHEN um.meta_key = 'billing_phone' THEN um.meta_value END) as telefono,
+            MAX(CASE WHEN um.meta_key = 'billing_address_1' THEN um.meta_value END) as direccion,
+            MAX(CASE WHEN um.meta_key = 'billing_city' THEN um.meta_value END) as ciudad,
+            MAX(CASE WHEN um.meta_key = 'billing_state' THEN um.meta_value END) as departamento,
+            MAX(CASE WHEN um.meta_key = 'miau_capabilities' THEN um.meta_value END) as rol
         FROM miau_users u
-        LEFT JOIN miau_usermeta um_first ON u.ID = um_first.user_id AND um_first.meta_key = 'first_name'
-        LEFT JOIN miau_usermeta um_last ON u.ID = um_last.user_id AND um_last.meta_key = 'last_name'
-        LEFT JOIN miau_usermeta um_dni ON u.ID = um_dni.user_id AND um_dni.meta_key = 'billing_dni'
-        LEFT JOIN miau_usermeta um_barrio ON u.ID = um_barrio.user_id AND um_barrio.meta_key = 'billing_barrio'
-        LEFT JOIN miau_usermeta um_phone ON u.ID = um_phone.user_id AND um_phone.meta_key = 'billing_phone'
-        LEFT JOIN miau_usermeta um_address ON u.ID = um_address.user_id AND um_address.meta_key = 'billing_address_1'
-        LEFT JOIN miau_usermeta um_city ON u.ID = um_city.user_id AND um_city.meta_key = 'billing_city'
-        LEFT JOIN miau_usermeta um_state ON u.ID = um_state.user_id AND um_state.meta_key = 'billing_state'
-        LEFT JOIN miau_usermeta um_role ON u.ID = um_role.user_id AND um_role.meta_key = 'miau_capabilities'";
+        LEFT JOIN miau_usermeta um ON u.ID = um.user_id 
+            AND um.meta_key IN ('first_name', 'last_name', 'billing_dni', 'billing_barrio', 
+                               'billing_phone', 'billing_address_1', 'billing_city', 
+                               'billing_state', 'miau_capabilities')
+        GROUP BY u.ID, u.user_login, u.user_email, u.user_registered, u.user_status";
         
         // Filtrar por roles si se especifican
         if (!empty($roles)) {
             $roleConditions = [];
             foreach ($roles as $role) {
                 $roleEscaped = mysqli_real_escape_string($this->wp_connection, $role);
-                $roleConditions[] = "um_role.meta_value LIKE '%{$roleEscaped}%'";
+                $roleConditions[] = "MAX(CASE WHEN um.meta_key = 'miau_capabilities' THEN um.meta_value END) LIKE '%{$roleEscaped}%'";
             }
-            $query .= " WHERE " . implode(' OR ', $roleConditions);
+            $query .= " HAVING " . implode(' OR ', $roleConditions);
         }
         
         $query .= " ORDER BY u.user_registered DESC";
+        
+        // Agregar LIMIT y OFFSET para paginación si se especifican
+        if ($limit > 0) {
+            $query .= " LIMIT " . intval($limit);
+            if ($offset > 0) {
+                $query .= " OFFSET " . intval($offset);
+            }
+        }
         
         $result = mysqli_query($this->wp_connection, $query);
         $users = [];
@@ -549,6 +555,40 @@ class WooCommerceCustomer
         }
         
         return $users;
+    }
+
+    /**
+     * Contar total de usuarios WordPress para paginación
+     * @param array $roles Roles a filtrar (opcional)
+     * @return int Total de usuarios
+     */
+    public function countWordPressUsers(array $roles = []): int
+    {
+        $query = "SELECT COUNT(DISTINCT u.ID) as total
+        FROM miau_users u
+        LEFT JOIN miau_usermeta um ON u.ID = um.user_id 
+            AND um.meta_key = 'miau_capabilities'";
+        
+        // Filtrar por roles si se especifican
+        if (!empty($roles)) {
+            $roleConditions = [];
+            foreach ($roles as $role) {
+                $roleEscaped = mysqli_real_escape_string($this->wp_connection, $role);
+                $roleConditions[] = "um.meta_value LIKE '%{$roleEscaped}%'";
+            }
+            $query .= " WHERE " . implode(' OR ', $roleConditions);
+        }
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        $count = 0;
+        
+        if ($result) {
+            $row = mysqli_fetch_assoc($result);
+            $count = intval($row['total']);
+            mysqli_free_result($result);
+        }
+        
+        return $count;
     }
 
     /* ==============================================================

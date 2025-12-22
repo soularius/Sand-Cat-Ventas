@@ -3123,6 +3123,12 @@ html {
     margin-top: 15px;
 }
 
+.avatar-sm {
+  width: 25px;
+  height: 25px;
+  margin-right: 15px;
+}
+
 /* Si el usuario prefiere menos movimiento, se respeta */
 @media (prefers-reduced-motion: reduce){
   .wp-eye-icon{ animation: none; }
