@@ -1,138 +1,93 @@
 <?php
-/* ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL); */
-require_once('conectar.php'); 
+/**
+ * ==============================================================
+ * FILE: usuarios.php
+ * ==============================================================
+ * ✅ Gestión de usuarios WordPress/WooCommerce modernizada
+ * ✅ Usa sistema de login centralizado
+ * ✅ Integración con WooCommerceCustomer class
+ * ✅ Solo listado y datos básicos de usuarios
+ */
 
-if (!isset($_SESSION)) {
-  session_start();
-}
-$MM_authorizedUsers = "a,v";
-$MM_donotCheckaccess = "false";
+// 1. Cargar autoloader del sistema
+require_once('class/autoload.php');
 
-// *** Restrict Access To Page: Grant or deny access to this page
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) { 
-  // For security, start by assuming the visitor is NOT authorized. 
-  $isValid = False; 
+// 2. Cargar login handler centralizado
+require_once('parts/login_handler.php');
 
-  // When a visitor has logged into this site, the Session variable MM_Username set equal to their username. 
-  // Therefore, we know that a user is NOT logged in if that Session variable is blank. 
-  if (!empty($UserName)) { 
-    // Besides being logged in, you may restrict access to only certain users based on an ID established when they login. 
-    // Parse the strings into arrays. 
-    $arrUsers = Explode(",", $strUsers); 
-    $arrGroups = Explode(",", $strGroups); 
-    if (in_array($UserName, $arrUsers)) { 
-      $isValid = true; 
-    } 
-    // Or, you may restrict access to only certain users based on their username. 
-    if (in_array($UserGroup, $arrGroups)) { 
-      $isValid = true; 
-    } 
-    if (($strUsers == "") && false) { 
-      $isValid = true; 
-    } 
-  } 
-  return $isValid; 
+// 3. Cargar clases específicas
+require_once('class/woocommerce_customer.php');
+
+// 4. Verificar autenticación usando sistema moderno
+requireLogin();
+
+// 5. Obtener datos del usuario actual
+$row_usuario = getCurrentUserFromDB();
+if (!$row_usuario) {
+    Header("Location: index.php");
+    exit();
 }
 
+// 6. Inicializar clase WooCommerceCustomer
+$wooCustomer = new WooCommerceCustomer();
 
+// 7. Procesar acciones CRUD usando WooCommerceCustomer
+$message = '';
+$messageType = '';
 
-$MM_restrictGoTo = "http://localhost/ventas";
-
-
-if (!((isset($_SESSION['MM_Username'])))) { 
-  $MM_qsChar = "?";
-  $MM_referrer = $_SERVER['PHP_SELF'];
-  if (strpos($MM_restrictGoTo, "?")) $MM_qsChar = "&";
-  if (isset($QUERY_STRING) && strlen($QUERY_STRING) > 0) 
-  $MM_referrer .= "?" . $QUERY_STRING;
-  $MM_restrictGoTo = $MM_restrictGoTo. $MM_qsChar . "accesscheck=" . urlencode($MM_referrer);
-  header("Location: ". $MM_restrictGoTo); 
-  exit;
-}
-$colname_usuario = '';
-if (isset($_SESSION['MM_Username'])) {
-$colname_usuario=mysqli_real_escape_string($sandycat,$_SESSION['MM_Username']);
-}
-
-$query_usuario = sprintf("SELECT * FROM usuarios WHERE documento = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
-$row_usuario = mysqli_fetch_assoc($usuario);
-$totalRows_usuario = mysqli_num_rows($usuario);
-
-if(isset($_POST['id_usuarios']) && isset($_POST['m_usuarios'])) {
-	$_POST['id_usuarios'];
-	$_POST['nombre'];
-	$_POST['apellido'];
-	$_POST['documento'];
-	$_POST['clave'];
-	$_POST['permiso'];
-	$id_usuarios = $_POST['id_usuarios'];
-	$apellido = $_POST['apellido'];
-	$nombre = $_POST['nombre'];
-	$documento = $_POST['documento'];
-	$clave = $_POST['clave'];
-	$permiso = $_POST['permiso'];
-	$query = "UPDATE usuarios SET nombre = '$nombre', apellido ='$apellido', documento='$documento', clave='$clave', rol='$permiso' WHERE id_usuarios = '$id_usuarios'";
-	mysqli_query($sandycat, $query);
-}
-
-if(isset($_POST['id_usuarios']) && isset($_POST['n_usuarios'])) {
-	$_POST['id_usuarios'];
-	$_POST['nombre'];
-	$_POST['apellido'];
-	$_POST['documento'];
-	$_POST['clave'];
-	$_POST['permiso'];
-	$id_usuarios = $_POST['id_usuarios'];
-	$apellido = $_POST['apellido'];
-	$nombre = $_POST['nombre'];
-	$documento = $_POST['documento'];
-	$clave = $_POST['clave'];
-	$permiso = $_POST['permiso'];
-	$query = "INSERT INTO usuarios (nombre, apellido, documento, clave, rol, estado) VALUES ('$nombre', '$apellido', '$documento', '$clave', '$permiso', 'a')";
-	mysqli_query($sandycat, $query);
+try {
+    // Crear nuevo usuario usando WooCommerceCustomer
+    if (Utils::isPostRequest() && isset($_POST['n_usuarios'])) {
+        $userData = Utils::capturePostData(['nombre', 'apellido', 'documento', 'email'], true);
+        
+        if (!empty($userData['nombre']) && !empty($userData['apellido']) && !empty($userData['documento'])) {
+            // Preparar datos para WooCommerceCustomer
+            $customerData = [
+                '_shipping_first_name' => Utils::sanitizeInput($userData['nombre']),
+                '_shipping_last_name' => Utils::sanitizeInput($userData['apellido']),
+                '_billing_email' => filter_var($userData['email'], FILTER_SANITIZE_EMAIL),
+                'billing_id' => Utils::sanitizeInput($userData['documento'])
+            ];
+            
+            $result = $wooCustomer->createWordPressUser($customerData);
+            
+            if ($result > 0) {
+                $message = 'Usuario creado correctamente con ID: ' . $result;
+                $messageType = 'success';
+                Utils::logError("Usuario WordPress creado: ID=$result, DNI={$userData['documento']}", 'INFO', 'usuarios.php');
+            } else {
+                $message = 'Error al crear usuario';
+                $messageType = 'error';
+            }
+        } else {
+            $message = 'Nombre, apellido y documento son requeridos';
+            $messageType = 'error';
+        }
+    }
+    
+    // Nota: La edición y cambio de estado se implementarán usando consultas directas
+    // ya que la clase WooCommerceCustomer está enfocada en creación de usuarios
+    
+} catch (Exception $e) {
+    $message = 'Error en operación: ' . $e->getMessage();
+    $messageType = 'error';
+    Utils::logError("Error en usuarios.php: " . $e->getMessage(), 'ERROR', 'usuarios.php');
 }
 
-if(isset($_POST['id_usuarios']) && isset($_POST['m_estado'])) {
-	$estadoac = "";
-	$_POST['id_usuarios'];
-	$_POST['estado'];
-	$id_usuarios = $_POST['id_usuarios'];
-	$estadoac = $_POST['estado'];
-	if($estadoac == "a") {
-		$estadoc = "i";
-	} else {
-		$estadoc = "a";		
-	}
-	$query = "UPDATE usuarios SET estado = '$estadoc' WHERE id_usuarios = '$id_usuarios'";
-	mysqli_query($sandycat, $query);
+// 8. Obtener lista de usuarios WordPress usando WooCommerceCustomer
+$usuarios_list = [];
+try {
+    // Usar método de la clase WooCommerceCustomer en lugar de consulta directa
+    $usuarios_list = $wooCustomer->getAllWordPressUsers(['guest_customer', 'customer', 'administrator']);
+    
+    Utils::logError("Usuarios WordPress cargados usando WooCommerceCustomer: " . count($usuarios_list), 'INFO', 'usuarios.php');
+} catch (Exception $e) {
+    Utils::logError("Error cargando usuarios WordPress: " . $e->getMessage(), 'ERROR', 'usuarios.php');
 }
 
-$query_usuarios = sprintf("SELECT * FROM usuarios");
-$usuarios = mysqli_query($sandycat, $query_usuarios) or die(mysqli_error($sandycat));
-$row_usuarios = mysqli_fetch_assoc($usuarios);
-$totalRows_usuarios = mysqli_num_rows($usuarios);
-
-$ellogin = '';
-$ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
-$id_usuarios = isset($row_usuario['id_usuarios']) ? $row_usuario['id_usuarios'] : 0;
-
-
-if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
-	$_POST['doc_cliente'];
-	$_POST['nom_cliente'];
-	$doc_cliente = $_POST['doc_cliente'];
-	$nom_cliente = strtoupper($_POST['nom_cliente']);
-	$estado = "i";
-	$query = "INSERT INTO ventas (id_usuarios, doc_cliente, nom_cliente, estado, fecha) VALUES ('$id_usuarios', '$doc_cliente', '$nom_cliente', '$estado', '$hoy')";
-	mysqli_query($sandycat, $query);
-
-	$id_creado = mysqli_insert_id($sandycat);
-  	$elnuevo = "v_producto.php?i=$id_creado";
-    header("Location: $elnuevo");
-}
+// 9. Variables para compatibilidad con el menú
+$ellogin = $row_usuario['elnombre'] ?? '';
+$id_usuarios = $row_usuario['id_ingreso'] ?? 0;
 
 ?>
 <?php include("parts/header.php"); ?>
@@ -140,179 +95,465 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 <div class="container">
 <?php include("parts/men.php"); ?><br />
 <br />
-  <h2>Usuarios del sistema <a class="btn btn-default" href="#" title="Agregar" data-toggle="modal" data-target="#creausu"><i class="fa fa-plus-circle fa-lg"></i></a></h2>
+
+<!-- Mostrar mensajes de éxito/error -->
+<?php if (!empty($message)): ?>
+<div class="alert alert-<?php echo $messageType === 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
+    <i class="fa fa-<?php echo $messageType === 'success' ? 'check-circle' : 'exclamation-triangle'; ?>"></i>
+    <?php echo htmlspecialchars($message); ?>
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+<?php endif; ?>
+
+<h2>Usuarios WordPress/WooCommerce 
+    <a class="btn btn-success" href="#" title="Agregar Usuario" data-bs-toggle="modal" data-bs-target="#creausu">
+        <i class="fa fa-plus-circle fa-lg"></i> Nuevo Usuario
+    </a>
+</h2>
+
 <div class="tab-content">
-  <br />
-		<?php if($row_usuarios && isset($row_usuarios['id_usuarios']) && !empty($row_usuarios['id_usuarios'])) { ?>
-	  <input class="form-control" id="busca" type="text" placeholder="Busqueda..">
-  <table class="table table-hover">
-    <thead>
-      <tr>
-        <th>Nombre</th>
-        <th>Apellido</th>
-        <th style="text-align: right">Documento</th>
-        <th style="text-align: center">Clave</th>
-        <th style="text-align: center">Permisos</th>
-        <th style="text-align: center">Estado</th>
-      </tr>
-    </thead>
-    <tbody id="donde">
-		<?php do { 		
-			if($row_usuarios['estado']=="a") {
-				$estado = "Activo";
-			} else {
-				$estado = "Inactivo";
-			}		
-			if($row_usuarios['rol']=="a") {
-				$permiso = "Administrador";
-			} else {
-				$permiso = "Vendedor";
-			}
-	
-		?>
-      <tr>
-        <td style="text-align: left"><button type="submit" class="btn btn-link">
-			<a href="#" data-toggle="modal" data-target="#editarprod" data-id_usuarios="<?php echo $row_usuarios['id_usuarios']; ?>" data-nombre="<?php echo $row_usuarios['nombre']; ?>" data-apellido="<?php echo $row_usuarios['apellido']; ?>" data-documento="<?php echo $row_usuarios['documento']; ?>" data-clave="<?php echo $row_usuarios['clave']; ?>" data-permiso="<?php echo $row_usuarios['rol']; ?>" title="Editar"><?php echo $row_usuarios['nombre']; ?></a></button></td>
-        <td style="text-align: left"><?php echo $row_usuarios['apellido']; ?></td>
-        <td style="text-align: right"><?php echo $row_usuarios['documento']; ?></td>
-        <td style="text-align: center"><?php echo $row_usuarios['clave']; ?></td>
-        <td style="text-align: center"><?php echo $permiso; ?></td>
-        <td style="text-align: center">		
-		<form action="usuarios.php" class="login-form" method="post">
-        <input id="m_estado" type="hidden" name="m_estado" value="1"/>
-        <input id="estado" type="hidden" name="estado" value="<?php echo $row_usuarios['estado']; ?>"/>				
-        <input id="id_usuarios" class="form-control" type="hidden" name="id_usuarios" value="<?php echo $row_usuarios['id_usuarios']; ?>"/>
-			<button type="submit" class="btn btn-link"><?php echo $estado; ?></button></td>
-			</form>
-      </tr>
-    	<?php } while ($row_usuarios = mysqli_fetch_assoc($usuarios)); ?>
-    </tbody>
-  </table>
-    	<?php } else { ?>
-		      	<h4 class="text-center mb-4">El sistema no encuentra usuarios en la base de datos.</h3>
-	  <?php } ?>
+    <br />
+    <?php if (!empty($usuarios_list)): ?>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <input class="form-control" id="busca" type="text" placeholder="Buscar por nombre, email o documento...">
+            </div>
+            <div class="col-md-6 text-right">
+                <span class="badge badge-info">Total usuarios: <?php echo count($usuarios_list); ?></span>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="thead-dark">
+                    <tr>
+                        <th><i class="fa fa-user"></i> Usuario</th>
+                        <th><i class="fa fa-envelope"></i> Email</th>
+                        <th><i class="fa fa-id-card"></i> DNI/Documento</th>
+                        <th><i class="fa fa-calendar"></i> Registro</th>
+                        <th><i class="fa fa-shield"></i> Rol</th>
+                        <th class="text-center"><i class="fa fa-toggle-on"></i> Estado</th>
+                        <th class="text-center"><i class="fa fa-cogs"></i> Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="donde">
+                    <?php foreach ($usuarios_list as $usuario): 
+                        // Procesar estado
+                        $estado_texto = ($usuario['estado'] == 0) ? 'Activo' : 'Inactivo';
+                        $estado_class = ($usuario['estado'] == 0) ? 'success' : 'secondary';
+                        
+                        // Procesar rol
+                        $rol_texto = 'Usuario';
+                        if (strpos($usuario['rol'], 'administrator') !== false) {
+                            $rol_texto = 'Administrador';
+                        } elseif (strpos($usuario['rol'], 'customer') !== false) {
+                            $rol_texto = 'Cliente';
+                        } elseif (strpos($usuario['rol'], 'guest_customer') !== false) {
+                            $rol_texto = 'Cliente Invitado';
+                        }
+                        
+                        // Formatear fecha
+                        $fecha_registro = date('d/m/Y', strtotime($usuario['fecha_registro']));
+                    ?>
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mr-2">
+                                    <?php echo strtoupper(substr($usuario['nombre'] ?: $usuario['username'], 0, 1)); ?>
+                                </div>
+                                <div>
+                                    <strong><?php echo htmlspecialchars($usuario['nombre'] . ' ' . $usuario['apellido']); ?></strong>
+                                    <br><small class="text-muted">@<?php echo htmlspecialchars($usuario['username']); ?></small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="mailto:<?php echo htmlspecialchars($usuario['email']); ?>" class="text-decoration-none">
+                                <?php echo htmlspecialchars($usuario['email']); ?>
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge badge-outline-primary">
+                                <?php echo htmlspecialchars($usuario['documento'] ?: 'N/A'); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <small><?php echo $fecha_registro; ?></small>
+                        </td>
+                        <td>
+                            <span class="badge badge-info"><?php echo $rol_texto; ?></span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge badge-<?php echo $estado_class; ?>">
+                                <?php echo $estado_texto; ?>
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                        data-bs-toggle="modal" data-bs-target="#verUsuario"
+                                        data-id="<?php echo $usuario['id_usuarios']; ?>"
+                                        data-nombre="<?php echo htmlspecialchars($usuario['nombre']); ?>"
+                                        data-apellido="<?php echo htmlspecialchars($usuario['apellido']); ?>"
+                                        data-email="<?php echo htmlspecialchars($usuario['email']); ?>"
+                                        data-documento="<?php echo htmlspecialchars($usuario['documento']); ?>"
+                                        data-barrio="<?php echo htmlspecialchars($usuario['barrio']); ?>"
+                                        data-telefono="<?php echo htmlspecialchars($usuario['telefono']); ?>"
+                                        data-direccion="<?php echo htmlspecialchars($usuario['direccion']); ?>"
+                                        data-ciudad="<?php echo htmlspecialchars($usuario['ciudad']); ?>"
+                                        data-departamento="<?php echo htmlspecialchars($usuario['departamento']); ?>"
+                                        data-username="<?php echo htmlspecialchars($usuario['username']); ?>"
+                                        data-rol="<?php echo htmlspecialchars($rol_texto); ?>"
+                                        data-estado="<?php echo $estado_texto; ?>"
+                                        data-fecha="<?php echo $fecha_registro; ?>"
+                                        title="Ver detalles completos">
+                                    <i class="fa fa-eye"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php else: ?>
+        <div class="text-center py-5">
+            <i class="fa fa-users fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No se encontraron usuarios WordPress</h4>
+            <p class="text-muted">Los usuarios se crearán automáticamente cuando se registren clientes en el sistema.</p>
+        </div>
+    <?php endif; ?>
 </div>
 </div>
 	<?php include("parts/foot.php"); ?>
 
 	
-<!-- Modal -->
-  <div class="modal fade" id="editarprod" role="dialog">
-    <div class="modal-dialog">
-		<!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-body">
-  <h2>Editar usuario</h2>
-  <p>Por favor modifique los datos.</p>
-  <form action="usuarios.php" method="POST">
-        <input id="m_usuarios" type="hidden" name="m_usuarios" value="1"/>
-        <input id="id_usuarios" class="form-control" type="hidden" name="id_usuarios" value=""/>
-    <div class="form-group">
-      <label for="text">Nombre:</label>
-      <input type="text" class="form-control" id="nombre" value="" name="nombre" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Apellido:</label>
-      <input type="text" class="form-control" id="apellido" name="apellido" value="" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Documento:</label>
-      <input type="number" class="form-control" id="documento" name="documento" value="" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Clave:</label>
-      <input type="text" class="form-control" id="clave" name="clave" value="">
-    </div>
-    <div class="form-group">
-      <label for="permiso">Permisos:</label>
-      <select class="form-control" id="permiso" name="permiso">
-        <option value="v">Vendedor</option>
-        <option value="a">Administrador</option>
-      </select>
-    </div>
-    <button type="submit" class="btn btn-primary">Continuar</button>
-  </form>
+<!-- Modal Ver Usuario -->
+<div class="modal fade" id="verUsuario" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h4 class="modal-title">
+                    <i class="fa fa-user"></i> Detalles del Usuario WordPress
+                </h4>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 table-responsive">
+                        <hr>
+                        <h6><i class="fas fa-user me-2"></i> Información del Cliente</h6>
+                        <hr>
+                        <table class="table table-sm table-striped">
+                            <tr>
+                                <td class="px-3 py-2"><strong>Nombre:</strong></td>
+                                <td class="px-3 py-2" id="modal-nombre-completo">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Email:</strong></td>
+                                <td class="px-3 py-2">
+                                    <a href="#" id="modal-email-link" class="text-decoration-none">
+                                        <span id="modal-email">-</span>
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>DNI:</strong></td>
+                                <td class="px-3 py-2" id="modal-documento">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Teléfono:</strong></td>
+                                <td class="px-3 py-2" id="modal-telefono">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Dirección:</strong></td>
+                                <td class="px-3 py-2" id="modal-direccion">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Ciudad:</strong></td>
+                                <td class="px-3 py-2" id="modal-ubicacion">-</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6 table-responsive">
+                        <hr>
+                        <h6><i class="fas fa-info-circle me-2"></i> Información del Sistema</h6>
+                        <hr>
+                        <table class="table table-sm table-striped">
+                            <tr>
+                                <td class="px-3 py-2"><strong>ID Usuario:</strong></td>
+                                <td class="px-3 py-2" id="modal-id">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Username:</strong></td>
+                                <td class="px-3 py-2"><code id="modal-username">-</code></td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Rol:</strong></td>
+                                <td class="px-3 py-2">
+                                    <span class="badge badge-info" id="modal-rol">-</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Estado:</strong></td>
+                                <td class="px-3 py-2">
+                                    <span class="badge" id="modal-estado-badge">-</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Fecha Registro:</strong></td>
+                                <td class="px-3 py-2" id="modal-fecha">-</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2"><strong>Barrio:</strong></td>
+                                <td class="px-3 py-2" id="modal-barrio">-</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fa fa-info-circle"></i>
+                    <strong>Nota:</strong> Este usuario está gestionado por WordPress/WooCommerce. 
+                    Los cambios deben realizarse desde el panel de administración de WordPress.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fa fa-times"></i> Cerrar
+                </button>
+            </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-info" data-dismiss="modal">Cerrar</button>
-        </div>
-      </div>
-        </div>
-      </div>
+    </div>
+</div>
 		
-<!-- Modal -->
-  <div class="modal fade" id="creausu" role="dialog">
+<!-- Modal Crear Usuario -->
+<div class="modal fade" id="creausu" role="dialog">
     <div class="modal-dialog">
-		<!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-body">
-  <h2>Crear usuario</h2>
-  <p>Por favor ingrese la información.</p>
-  <form action="usuarios.php" method="POST">
-        <input id="n_usuarios" type="hidden" name="n_usuarios" value="1"/>
-        <input id="id_usuarios" class="form-control" type="hidden" name="id_usuarios" value=""/>
-    <div class="form-group">
-      <label for="text">Nombre:</label>
-      <input type="text" class="form-control" id="nombre" value="" name="nombre" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Apellido:</label>
-      <input type="text" class="form-control" id="apellido" name="apellido" value="" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Documento:</label>
-      <input type="number" class="form-control" id="documento" name="documento" value="" required>
-    </div>
-    <div class="form-group">
-      <label for="text">Clave:</label>
-      <input type="text" class="form-control" id="clave" name="clave" value="">
-    </div>
-    <div class="form-group">
-      <label for="permiso">Permisos:</label>
-      <select class="form-control" id="permiso" name="permiso">
-        <option value="v">Vendedor</option>
-        <option value="a">Administrador</option>
-      </select>
-    </div>
-    <button type="submit" class="btn btn-primary">Enviar</button>
-  </form>
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h4 class="modal-title">
+                    <i class="fa fa-user-plus"></i> Crear Usuario WordPress
+                </h4>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="usuarios.php" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="n_usuarios" value="1"/>
+                    
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle"></i>
+                        <strong>Información:</strong> Se creará un usuario WordPress con rol de cliente invitado.
+                        La contraseña se generará automáticamente.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="nombre">
+                                    <i class="fa fa-user"></i> Nombre <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="nombre" name="nombre" 
+                                       placeholder="Ej: Juan" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="apellido">
+                                    <i class="fa fa-user"></i> Apellido <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="apellido" name="apellido" 
+                                       placeholder="Ej: Pérez" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">
+                            <i class="fa fa-envelope"></i> Email <span class="text-danger">*</span>
+                        </label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               placeholder="ejemplo@correo.com" required>
+                        <small class="form-text text-muted">
+                            Se usará como identificador único del usuario
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="documento">
+                            <i class="fa fa-id-card"></i> DNI/Documento <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="documento" name="documento" 
+                               placeholder="Ej: 12345678" required>
+                        <small class="form-text text-muted">
+                            Número de identificación del cliente
+                        </small>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        <strong>Nota:</strong> El username se generará automáticamente en formato nombre.apellido
+                        y la contraseña será aleatoria por seguridad.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fa fa-times"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa fa-plus-circle"></i> Crear Usuario
+                    </button>
+                </div>
+            </form>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-info" data-dismiss="modal">Cerrar</button>
-        </div>
-      </div>
-        </div>
-      </div>
+    </div>
+</div>
 <script>
+// Generar mapeo de estados desde datos centralizados (igual que ventas.php)
+const colombiaStates = <?php
+    $states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
+    if (file_exists($states_file)) {
+        $colombia_states = include($states_file);
+        echo json_encode($colombia_states);
+    } else {
+        echo '{}';
+    }
+?>;
+
+function convertStateCode(stateCode) {
+    // Usar datos centralizados del plugin de Colombia
+    return colombiaStates[stateCode] || stateCode;
+}
+
+function buildLocationString(userData) {
+    let location = '';
+    if (userData.ciudad) {
+        location = userData.ciudad;
+    }
+    if (userData.departamento) {
+        location += (location ? ', ' : '') + convertStateCode(userData.departamento);
+    }
+    // Agregar Colombia por defecto
+    location += (location ? ', ' : '') + 'Colombia';
+    return location || 'N/A';
+}
+
 $(document).ready(function(){
-  $("#busca").on("keyup", function() {
-    var value = $(this).val().toLowerCase();
-    $("#donde tr").filter(function() {
-      $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+    // Búsqueda en tiempo real
+    $("#busca").on("keyup", function() {
+        var value = $(this).val().toLowerCase();
+        $("#donde tr").filter(function() {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+        });
     });
-  });
-});
-$(document).ready(function(){
-  $("#buscac").on("keyup", function() {
-    var value = $(this).val().toLowerCase();
-    $("#dondec tr").filter(function() {
-      $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+    
+    // Modal Ver Usuario - Cargar datos (Bootstrap 5 compatible)
+    document.getElementById('verUsuario').addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        
+        // Obtener datos del botón
+        var id = button.getAttribute('data-id');
+        var nombre = button.getAttribute('data-nombre');
+        var apellido = button.getAttribute('data-apellido');
+        var email = button.getAttribute('data-email');
+        var documento = button.getAttribute('data-documento');
+        var barrio = button.getAttribute('data-barrio');
+        var telefono = button.getAttribute('data-telefono');
+        var direccion = button.getAttribute('data-direccion');
+        var ciudad = button.getAttribute('data-ciudad');
+        var departamento = button.getAttribute('data-departamento');
+        var username = button.getAttribute('data-username');
+        var rol = button.getAttribute('data-rol');
+        var estado = button.getAttribute('data-estado');
+        var fecha = button.getAttribute('data-fecha');
+        
+        // Información del Cliente (formato tabla como ventas.php)
+        document.getElementById('modal-nombre-completo').textContent = (nombre || '') + ' ' + (apellido || '') || 'N/A';
+        document.getElementById('modal-email').textContent = email || 'N/A';
+        document.getElementById('modal-email-link').href = 'mailto:' + (email || '');
+        document.getElementById('modal-documento').textContent = documento || 'N/A';
+        
+        // Teléfono con enlace si existe
+        var telefonoElement = document.getElementById('modal-telefono');
+        if (telefono && telefono !== 'N/A' && telefono !== '') {
+            telefonoElement.innerHTML = '<a href="tel:' + telefono + '" class="text-decoration-none">' + telefono + '</a>';
+        } else {
+            telefonoElement.textContent = 'N/A';
+        }
+        
+        // Dirección completa (igual que buildFullAddress en ventas.php)
+        var direccionCompleta = direccion || '';
+        if (barrio) {
+            if (direccionCompleta) direccionCompleta += ', ';
+            direccionCompleta += barrio;
+        }
+        document.getElementById('modal-direccion').textContent = direccionCompleta || 'N/A';
+        
+        // Ubicación usando buildLocationString (igual que ventas.php)
+        var userData = {
+            ciudad: ciudad,
+            departamento: departamento
+        };
+        var ubicacion = buildLocationString(userData);
+        document.getElementById('modal-ubicacion').textContent = ubicacion;
+        
+        // Información del Sistema
+        document.getElementById('modal-id').textContent = id;
+        document.getElementById('modal-username').textContent = username;
+        document.getElementById('modal-rol').textContent = rol;
+        document.getElementById('modal-fecha').textContent = fecha;
+        document.getElementById('modal-barrio').textContent = barrio || 'N/A';
+        
+        // Configurar badge de estado
+        var estadoBadge = document.getElementById('modal-estado-badge');
+        estadoBadge.textContent = estado;
+        estadoBadge.className = 'badge'; // Reset classes
+        if (estado === 'Activo') {
+            estadoBadge.classList.add('badge-success');
+        } else {
+            estadoBadge.classList.add('badge-secondary');
+        }
     });
-  });
+    
+    // Validación del formulario de crear usuario
+    $('#creausu form').on('submit', function(e) {
+        var nombre = $('#nombre').val().trim();
+        var apellido = $('#apellido').val().trim();
+        var email = $('#email').val().trim();
+        var documento = $('#documento').val().trim();
+        
+        if (!nombre || !apellido || !email || !documento) {
+            e.preventDefault();
+            alert('Por favor complete todos los campos requeridos.');
+            return false;
+        }
+        
+        // Validar formato de email
+        var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            e.preventDefault();
+            alert('Por favor ingrese un email válido.');
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Auto-cerrar alertas después de 5 segundos
+    setTimeout(function() {
+        $('.alert-dismissible').fadeOut();
+    }, 5000);
 });
- $('#editarprod').on('show.bs.modal', function(e) {
-    var id_usuarios= $(e.relatedTarget).data('id_usuarios');
-	 $(e.currentTarget).find('input[name="id_usuarios"]').val(id_usuarios);
-    var nombre= $(e.relatedTarget).data('nombre'); $(e.currentTarget).find('input[name="nombre"]').val(nombre);
-    var apellido= $(e.relatedTarget).data('apellido'); $(e.currentTarget).find('input[name="apellido"]').val(apellido);
-    var clave= $(e.relatedTarget).data('clave');	 $(e.currentTarget).find('input[name="clave"]').val(clave);
-    var documento= $(e.relatedTarget).data('documento');	 $(e.currentTarget).find('input[name="documento"]').val(documento);
-    var permiso= $(e.relatedTarget).data('permiso');	 $(e.currentTarget).find('input[name="permiso"]').val(permiso);
-});
+
+// Función para actualizar contador de usuarios
+function updateUserCount() {
+    var visibleRows = $("#donde tr:visible").length;
+    $('.badge-info').text('Usuarios visibles: ' + visibleRows);
+}
+
 </script>
 
 </body>
 </html>
-<?php
-mysqli_free_result($usuario);
-?>

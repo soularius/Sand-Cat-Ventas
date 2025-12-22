@@ -493,6 +493,64 @@ class WooCommerceCustomer
         ];
     }
 
+    /**
+     * Obtener todos los usuarios WordPress con metadatos completos
+     * @param array $roles Roles a filtrar (opcional)
+     * @return array Lista de usuarios con metadatos
+     */
+    public function getAllWordPressUsers(array $roles = []): array
+    {
+        $query = "SELECT 
+            u.ID as id_usuarios,
+            u.user_login as username,
+            u.user_email as email,
+            u.user_registered as fecha_registro,
+            u.user_status as estado,
+            um_first.meta_value as nombre,
+            um_last.meta_value as apellido,
+            um_dni.meta_value as documento,
+            um_barrio.meta_value as barrio,
+            um_phone.meta_value as telefono,
+            um_address.meta_value as direccion,
+            um_city.meta_value as ciudad,
+            um_state.meta_value as departamento,
+            um_role.meta_value as rol
+        FROM miau_users u
+        LEFT JOIN miau_usermeta um_first ON u.ID = um_first.user_id AND um_first.meta_key = 'first_name'
+        LEFT JOIN miau_usermeta um_last ON u.ID = um_last.user_id AND um_last.meta_key = 'last_name'
+        LEFT JOIN miau_usermeta um_dni ON u.ID = um_dni.user_id AND um_dni.meta_key = 'billing_dni'
+        LEFT JOIN miau_usermeta um_barrio ON u.ID = um_barrio.user_id AND um_barrio.meta_key = 'billing_barrio'
+        LEFT JOIN miau_usermeta um_phone ON u.ID = um_phone.user_id AND um_phone.meta_key = 'billing_phone'
+        LEFT JOIN miau_usermeta um_address ON u.ID = um_address.user_id AND um_address.meta_key = 'billing_address_1'
+        LEFT JOIN miau_usermeta um_city ON u.ID = um_city.user_id AND um_city.meta_key = 'billing_city'
+        LEFT JOIN miau_usermeta um_state ON u.ID = um_state.user_id AND um_state.meta_key = 'billing_state'
+        LEFT JOIN miau_usermeta um_role ON u.ID = um_role.user_id AND um_role.meta_key = 'miau_capabilities'";
+        
+        // Filtrar por roles si se especifican
+        if (!empty($roles)) {
+            $roleConditions = [];
+            foreach ($roles as $role) {
+                $roleEscaped = mysqli_real_escape_string($this->wp_connection, $role);
+                $roleConditions[] = "um_role.meta_value LIKE '%{$roleEscaped}%'";
+            }
+            $query .= " WHERE " . implode(' OR ', $roleConditions);
+        }
+        
+        $query .= " ORDER BY u.user_registered DESC";
+        
+        $result = mysqli_query($this->wp_connection, $query);
+        $users = [];
+        
+        if ($result) {
+            while ($row = mysqli_fetch_assoc($result)) {
+                $users[] = $row;
+            }
+            mysqli_free_result($result);
+        }
+        
+        return $users;
+    }
+
     /* ==============================================================
      *  FUNCIONES REUTILIZABLES PARA PROCESAMIENTO DE FORMULARIOS
      * ============================================================ */
