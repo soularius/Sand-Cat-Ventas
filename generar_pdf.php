@@ -50,7 +50,9 @@ $query_orden = "
         COALESCE(pm_state.meta_value, '') as departamento,
         COALESCE(pm_country.meta_value, '') as pais,
         COALESCE(pm_barrio.meta_value, '') as barrio,
-        COALESCE(pm_dni.meta_value, '') as dni
+        COALESCE(pm_dni.meta_value, '') as dni,
+        COALESCE(p.post_excerpt, '') as comentarios_excerpt,
+        COALESCE(GROUP_CONCAT(c.comment_content SEPARATOR '\n'), '') as comentarios_notas
     FROM miau_posts p
     LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
     LEFT JOIN miau_postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
@@ -65,7 +67,11 @@ $query_orden = "
     LEFT JOIN miau_postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
     LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_neighborhood'
     LEFT JOIN miau_postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_dni'
+    LEFT JOIN miau_comments c ON p.ID = c.comment_post_ID 
+        AND c.comment_type IN ('order_note', 'order_note_private') 
+        AND c.comment_approved = '1'
     WHERE p.ID = '$orden_id' AND p.post_type = 'shop_order'
+    GROUP BY p.ID
 ";
 
 $result_orden = mysqli_query($miau, $query_orden);
@@ -74,6 +80,28 @@ if (mysqli_num_rows($result_orden) == 0) {
 }
 
 $orden = mysqli_fetch_assoc($result_orden);
+
+// Combinar comentarios del post_excerpt y las notas de WooCommerce
+$comentarios_combinados = [];
+
+// Agregar comentarios del excerpt si existen
+if (!empty($orden['comentarios_excerpt'])) {
+    $comentarios_combinados[] = trim($orden['comentarios_excerpt']);
+}
+
+// Agregar notas de WooCommerce si existen
+if (!empty($orden['comentarios_notas'])) {
+    $notas_woocommerce = explode('\n', $orden['comentarios_notas']);
+    foreach ($notas_woocommerce as $nota) {
+        $nota = trim($nota);
+        if (!empty($nota)) {
+            $comentarios_combinados[] = $nota;
+        }
+    }
+}
+
+// Combinar todos los comentarios en un solo string
+$orden['comentarios'] = implode("\n\n", $comentarios_combinados);
 
 // Obtener envío y descuento desde postmeta (no están en HPOS)
 $query_meta = "
@@ -243,7 +271,8 @@ $datos_pdf = [
     'departamento' => $orden['departamento'],
     'pais' => $orden['pais'],
     'barrio' => $orden['barrio'],
-    'dni' => $orden['dni']
+    'dni' => $orden['dni'],
+    'comentarios' => $orden['comentarios']
 ];
 
 // Determinar modo de salida

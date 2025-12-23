@@ -89,6 +89,24 @@ $pes2 = '';
                             </div>
                         </div>
                     </div>
+
+                    <!-- Order Notes Panel -->
+                    <div class="summary-panel mt-4">
+                        <div class="panel-header bg-info bg-custom">
+                            <h5 class="text-white">
+                                <i class="fas fa-sticky-note me-2"></i>Comentarios y Notas
+                            </h5>
+                        </div>
+
+                        <div class="panel-body">
+                            <div id="order-notes">
+                                <div class="info-loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>Cargando comentarios...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Products Summary Panel -->

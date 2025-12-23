@@ -35,6 +35,9 @@ if (!$order) {
 
 $items = $ordersService->getOrderItems($order_id);
 
+// Obtener notas de la orden
+$order_notes = $ordersService->getOrderNotes($order_id);
+
 // DEBUG: Ver qué items se obtuvieron del pedido
 Utils::logError("ORDER ITEMS DEBUG: " . json_encode($items), 'DEBUG', 'detalle_pedido.php');
 
@@ -144,7 +147,10 @@ $serverOrderData = [
     'total_discount' => (float)$order_discounts['total_discount'],
     'cart_discount_amount' => (float)$order_discounts['cart_discount'],
     'coupons_used' => $order_discounts['coupons'],
-    'fees_applied' => $order_discounts['fees']
+    'fees_applied' => $order_discounts['fees'],
+    
+    // ✅ Notas de la orden
+    'order_notes' => $order_notes
 ];
 
 $serverCustomerData = [
@@ -234,6 +240,23 @@ include('parts/header.php');
                                 <div class="info-loading">
                                     <i class="fas fa-spinner fa-spin"></i>
                                     <p>Cargando detalles del pedido...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="summary-panel mt-4">
+                        <div class="panel-header bg-info bg-custom">
+                            <h5 class="text-white">
+                                <i class="fas fa-sticky-note me-2"></i>Comentarios y Notas
+                            </h5>
+                        </div>
+
+                        <div class="panel-body">
+                            <div id="order-notes">
+                                <div class="info-loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>Cargando comentarios...</p>
                                 </div>
                             </div>
                         </div>
@@ -654,6 +677,57 @@ include('parts/header.php');
                     };
                 };
             }
+
+            // Función para renderizar las notas de la orden
+            function renderOrderNotes() {
+                const orderNotesContainer = document.getElementById('order-notes');
+                const orderNotes = window.serverOrderData?.order_notes || [];
+
+                if (!orderNotesContainer) return;
+
+                if (orderNotes.length === 0) {
+                    orderNotesContainer.innerHTML = `
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-comment-slash fa-2x mb-2"></i>
+                            <p>No hay comentarios o notas para este pedido</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let notesHtml = '';
+                orderNotes.forEach(note => {
+                    const noteTypeIcon = note.type === 'customer' ? 'fas fa-user' : 'fas fa-lock';
+                    const noteTypeLabel = note.type === 'customer' ? 'Visible al cliente' : 'Nota privada';
+                    const noteTypeClass = note.type === 'customer' ? 'text-success' : 'text-warning';
+
+                    notesHtml += `
+                        <div class="order-note-item mb-3 p-3 border rounded">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="note-header">
+                                    <span class="badge ${noteTypeClass}">
+                                        <i class="${noteTypeIcon} me-1"></i>${noteTypeLabel}
+                                    </span>
+                                    <small class="text-muted ms-2">
+                                        <i class="fas fa-clock me-1"></i>${note.formatted_date}
+                                    </small>
+                                </div>
+                                <small class="text-muted">por ${note.author}</small>
+                            </div>
+                            <div class="note-content">
+                                <p class="mb-0">${note.content.replace(/\n/g, '<br>')}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                orderNotesContainer.innerHTML = notesHtml;
+            }
+
+            // Renderizar las notas cuando se carga la página
+            document.addEventListener('DOMContentLoaded', function() {
+                renderOrderNotes();
+            });
         })();
     </script>
     <script src="assets/js/resumen_pedido.js"></script>

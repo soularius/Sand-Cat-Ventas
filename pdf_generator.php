@@ -76,6 +76,7 @@ function generarHTMLFactura($datos) {
     $pais = $datos['pais'] ?? '';
     $barrio = $datos['barrio'] ?? '';
     $dni = $datos['dni'] ?? '';
+    $comentarios = $datos['comentarios'] ?? '';
 
     // Generar HTML base
     $cuerpo = '
@@ -236,6 +237,14 @@ function generarHTMLFactura($datos) {
         $cuerpo .= '
       <tr>
         <td colspan="4" style="word-wrap: break-word; width: 180"><strong>'.$observaciones.'</strong></td>
+      </tr>';
+    }
+
+    // Agregar comentarios si existen
+    if (!empty($comentarios)) {
+        $cuerpo .= '
+      <tr>
+        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Observaciones:</strong> '.htmlspecialchars($comentarios).'</td>
       </tr>';
     }
 

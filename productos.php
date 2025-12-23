@@ -344,12 +344,12 @@ include("parts/header.php");
           </div>
         </td>
         <td class="text-center">
-          <span class="badge <?php echo $producto['en_stock'] ? 'bg-success' : 'bg-danger'; ?>">
+          <span class="badge bg-custom px-3 py-2 <?php echo $producto['en_stock'] ? 'bg-success' : 'bg-danger'; ?>">
             <?php echo $producto['stock']; ?> unidades
           </span>
         </td>
         <td class="text-center">
-          <span class="badge <?php echo $producto['en_stock'] ? 'bg-success' : 'bg-warning'; ?>">
+          <span class="badge bg-custom px-3 py-2 <?php echo $producto['en_stock'] ? 'bg-success' : 'bg-warning'; ?>">
             <?php echo $producto['en_stock'] ? 'Disponible' : 'Agotado'; ?>
           </span>
         </td>

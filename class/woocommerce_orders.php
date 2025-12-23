@@ -750,6 +750,18 @@ class WooCommerceOrders
             // ✅ Establecer atribución del pedido para tracking en WooCommerce
             $this->setOrderAttribution($postId, 'Sistema de Facturacion');
 
+            /* --------------------------------------------------------------
+             * 7) Agregar comentarios como notas de la orden
+             * ------------------------------------------------------------ */
+            if (!empty($orderNotes)) {
+                try {
+                    $this->addOrderNote($postId, $orderNotes, 'customer', $customerId);
+                    $debug['steps'][] = ['order_note_added' => true, 'note_content' => substr($orderNotes, 0, 100) . '...'];
+                } catch (Exception $e) {
+                    $debug['warnings'][] = 'No se pudo agregar nota de orden: ' . $e->getMessage();
+                }
+            }
+
             mysqli_commit($this->wp_connection);
 
             return [
@@ -2554,6 +2566,146 @@ class WooCommerceOrders
         } catch (Exception $e) {
             Utils::logError("Error en getOrderDetails: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return [];
+        }
+    }
+
+    /**
+     * Obtener todas las notas de una orden de WooCommerce
+     * @param int $order_id ID de la orden
+     * @return array Array de notas con información completa
+     */
+    public function getOrderNotes(int $order_id): array
+    {
+        try {
+            if ($order_id <= 0) {
+                return [];
+            }
+
+            // Verificar si la tabla de comentarios existe
+            if (!$this->tableExists('miau_comments')) {
+                return [];
+            }
+
+            $query = "
+                SELECT 
+                    c.comment_ID,
+                    c.comment_content,
+                    c.comment_date,
+                    c.comment_type,
+                    c.comment_author,
+                    CASE 
+                        WHEN c.comment_type = 'order_note' THEN 'customer'
+                        WHEN c.comment_type = 'order_note_private' THEN 'private'
+                        ELSE 'system'
+                    END as note_type
+                FROM miau_comments c
+                WHERE c.comment_post_ID = ?
+                    AND c.comment_type IN ('order_note', 'order_note_private')
+                    AND c.comment_approved = '1'
+                ORDER BY c.comment_date DESC
+            ";
+
+            $stmt = mysqli_prepare($this->wp_connection, $query);
+            if (!$stmt) {
+                Utils::logError("Error preparando consulta de notas: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
+                return [];
+            }
+
+            mysqli_stmt_bind_param($stmt, 'i', $order_id);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+
+            $notes = [];
+            if ($result) {
+                while ($row = mysqli_fetch_assoc($result)) {
+                    $notes[] = [
+                        'id' => (int)$row['comment_ID'],
+                        'content' => $row['comment_content'],
+                        'date' => $row['comment_date'],
+                        'type' => $row['note_type'],
+                        'author' => $row['comment_author'],
+                        'formatted_date' => date('d/m/Y H:i', strtotime($row['comment_date']))
+                    ];
+                }
+            }
+
+            mysqli_stmt_close($stmt);
+            return $notes;
+
+        } catch (Exception $e) {
+            Utils::logError("Error obteniendo notas de orden: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return [];
+        }
+    }
+
+    /**
+     * Agregar una nota a la orden de WooCommerce
+     * @param int $order_id ID de la orden
+     * @param string $note_content Contenido de la nota
+     * @param string $note_type Tipo de nota: 'customer' (visible al cliente) o 'private' (solo admin)
+     * @param int $user_id ID del usuario que agrega la nota (opcional)
+     * @return bool True si se agregó correctamente
+     */
+    private function addOrderNote(int $order_id, string $note_content, string $note_type = 'customer', int $user_id = 0): bool
+    {
+        try {
+            if (empty($note_content) || $order_id <= 0) {
+                return false;
+            }
+
+            // Verificar si la tabla de comentarios existe
+            if (!$this->tableExists('miau_comments')) {
+                Utils::logError("Tabla miau_comments no existe, no se puede agregar nota de orden", 'WARNING', 'WooCommerceOrders');
+                return false;
+            }
+
+            // Preparar datos para la nota
+            date_default_timezone_set('America/Bogota');
+            $nowLocal = date('Y-m-d H:i:s');
+            $nowGmt = gmdate('Y-m-d H:i:s');
+
+            // Determinar el tipo de comentario según WooCommerce
+            $comment_type = ($note_type === 'customer') ? 'order_note' : 'order_note_private';
+            
+            // Insertar la nota como comentario
+            $comment_data = [
+                'comment_post_ID' => $order_id,
+                'comment_author' => 'WooCommerce',
+                'comment_author_email' => 'woocommerce@' . ($_SERVER['HTTP_HOST'] ?? 'localhost'),
+                'comment_author_url' => '',
+                'comment_author_IP' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+                'comment_date' => $nowLocal,
+                'comment_date_gmt' => $nowGmt,
+                'comment_content' => $note_content,
+                'comment_karma' => 0,
+                'comment_approved' => '1',
+                'comment_agent' => 'Sistema de Facturacion',
+                'comment_type' => $comment_type,
+                'comment_parent' => 0,
+                'user_id' => $user_id
+            ];
+
+            $comment_id = $this->insertRow('miau_comments', $comment_data);
+
+            if ($comment_id > 0) {
+                // Agregar metadatos del comentario si es necesario
+                if ($this->tableExists('miau_commentmeta')) {
+                    $this->insertRow('miau_commentmeta', [
+                        'comment_id' => $comment_id,
+                        'meta_key' => 'is_customer_note',
+                        'meta_value' => ($note_type === 'customer') ? '1' : '0'
+                    ]);
+                }
+
+                Utils::logError("Nota de orden agregada exitosamente - Order ID: $order_id, Comment ID: $comment_id", 'INFO', 'WooCommerceOrders');
+                return true;
+            }
+
+            return false;
+
+        } catch (Exception $e) {
+            Utils::logError("Error agregando nota de orden: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return false;
         }
     }
 

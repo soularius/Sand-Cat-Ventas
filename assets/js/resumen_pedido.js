@@ -131,6 +131,9 @@ class OrderSummary {
         // Renderizar detalles del pedido
         this.renderOrderDetails();
         
+        // Renderizar notas del pedido
+        this.renderOrderNotes();
+        
         // Habilitar botón de crear pedido (si existe en la página)
         const createBtn = document.getElementById('create-order-btn');
         if (createBtn) {
@@ -562,6 +565,63 @@ class OrderSummary {
         `;
 
         container.innerHTML = html;
+    }
+    
+    // Renderizar notas del pedido
+    renderOrderNotes() {
+        const container = document.getElementById('order-notes');
+        
+        if (!container) return;
+        
+        // Obtener notas desde los datos del servidor o desde el cache
+        let orderNotes = [];
+        
+        // Primero intentar desde serverOrderData (para páginas con datos del servidor)
+        if (window.serverOrderData && window.serverOrderData.order_notes) {
+            orderNotes = window.serverOrderData.order_notes;
+        }
+        // Si no hay datos del servidor, intentar desde orderData local
+        else if (this.orderData && this.orderData.order_notes) {
+            orderNotes = this.orderData.order_notes;
+        }
+        
+        if (!orderNotes || orderNotes.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-comment-slash fa-2x mb-2"></i>
+                    <p>No hay comentarios o notas para este pedido</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let notesHtml = '';
+        orderNotes.forEach(note => {
+            const noteTypeIcon = note.type === 'customer' ? 'fas fa-user' : 'fas fa-lock';
+            const noteTypeLabel = note.type === 'customer' ? 'Visible al cliente' : 'Nota privada';
+            const noteTypeClass = note.type === 'customer' ? 'text-success' : 'text-warning';
+            
+            notesHtml += `
+                <div class="order-note-item mb-3 p-3 border rounded">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="note-header">
+                            <span class="badge ${noteTypeClass}">
+                                <i class="${noteTypeIcon} me-1"></i>${noteTypeLabel}
+                            </span>
+                            <small class="text-muted ms-2">
+                                <i class="fas fa-clock me-1"></i>${note.formatted_date}
+                            </small>
+                        </div>
+                        <small class="text-muted">por ${note.author}</small>
+                    </div>
+                    <div class="note-content">
+                        <p class="mb-0">${note.content.replace(/\n/g, '<br>')}</p>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = notesHtml;
     }
     
     // Mostrar error

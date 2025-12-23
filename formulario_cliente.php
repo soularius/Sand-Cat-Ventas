@@ -35,6 +35,7 @@ $customer_data = [];
 $edit_mode = false;
 $cache_data = [];
 $comentarios = '';
+$metodo_pago = '';
 
 // NUEVO: Verificar si se está editando un pedido existente
 $edit_order_id = Utils::captureValue('id-orden', 'POST', '');

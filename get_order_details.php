@@ -49,6 +49,9 @@ try {
     Utils::logError("get_order_details.php: Obteniendo detalles para order_id = " . $order_id, 'INFO', 'get_order_details.php');
     $order_details = $wc_orders->getOrderDetails((int)$order_id);
     
+    // 8.1. Obtener notas del pedido
+    $order_notes = $wc_orders->getOrderNotes((int)$order_id);
+    
     if (empty($order_details)) {
         Utils::logError("get_order_details.php: Pedido no encontrado para ID = " . $order_id, 'ERROR', 'get_order_details.php');
         echo json_encode(['success' => false, 'message' => 'Pedido no encontrado']);
@@ -78,7 +81,8 @@ try {
         'shipping_cost' => $order_details['shipping_cost'] ?? '0',
         'total' => $order_details['total'] ?? '0',
         'has_invoice' => $order_details['has_invoice'] ?? false,
-        'items' => []
+        'items' => [],
+        'order_notes' => $order_notes
     ];
     
     // 10. Formatear productos si existen
