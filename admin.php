@@ -212,7 +212,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 <?php include("parts/header.php"); ?>
 <body style="padding-top: 70px">
 <div class="container">
-<?php include("parts/men.php"); ?><br />
+<?php include("parts/menu.php"); ?><br />
 <br />
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>

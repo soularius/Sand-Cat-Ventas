@@ -79,7 +79,7 @@ include("parts/header.php");
 
 <body>
     <div class="container">
-        <?php include("parts/menf.php"); ?>
+        <?php include("parts/menu.php"); ?>
         <div class="py-5"></div>
         <section class="">
             <div class="row justify-content-center">

@@ -30,7 +30,7 @@ $pes2 = '';
 
 <body class="order-summary-container">
     <div class="container-fluid">
-        <?php include("parts/menf.php"); ?>
+        <?php include("parts/menu.php"); ?>
 
         <input type="hidden" id="_order_id" name="_order_id" value="">
         

@@ -210,7 +210,7 @@ include("parts/header.php");
 ?>
 <body style="padding-top: 70px">
 <div class="container">
-<?php include("parts/men.php"); ?><br />
+<?php include("parts/menu.php"); ?><br />
 <br />
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-box me-2"></i>Productos WooCommerce</h2>

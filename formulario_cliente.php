@@ -112,7 +112,7 @@ include("parts/header.php");
 
 <body>
 <div class="container">
-<?php include("parts/menf.php"); ?>
+<?php include("parts/menu.php"); ?>
 <?php 
 // Configurar el paso actual para el wizard
 $current_step = 1; // Paso 1: Datos del Cliente

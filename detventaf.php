@@ -91,7 +91,7 @@ if(isset($_POST['id_ventas'])) {
 ?>
 <?php include("parts/header.php"); ?>
 <div class="container">
-<?php include("parts/men.php"); ?>
+<?php include("parts/menu.php"); ?>
 <section class=""><br />
 <br />
 <br />

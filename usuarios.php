@@ -107,7 +107,7 @@ $id_usuarios = $row_usuario['id_ingreso'] ?? 0;
 <?php include("parts/header.php"); ?>
 <body style="padding-top: 70px">
 <div class="container">
-<?php include("parts/men.php"); ?><br />
+<?php include("parts/menu.php"); ?><br />
 <br />
 
 <!-- Mostrar mensajes de éxito/error -->

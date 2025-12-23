@@ -41,7 +41,7 @@ $steps_config = [
     4 => [
         'label' => 'Resumen Final',
         'icon' => 'fas fa-check-circle',
-        'page' => 'resumen.php'
+        'page' => 'resumenu.php'
     ]
 ];
 

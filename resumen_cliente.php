@@ -150,7 +150,7 @@ include("parts/header.php");
 <style>
 </style>
 
-<?php include("parts/menf.php"); ?>
+<?php include("parts/menu.php"); ?>
 <?php
 // Configurar el paso actual para el wizard
 $current_step = 2; // Paso 2: Productos

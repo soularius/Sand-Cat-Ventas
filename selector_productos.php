@@ -33,7 +33,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
 
 <body class="product-selector-container">
     <div class="container-fluid">
-        <?php include("parts/menf.php"); ?>
+        <?php include("parts/menu.php"); ?>
 
         <?php
         // Configurar el paso actual para el wizard

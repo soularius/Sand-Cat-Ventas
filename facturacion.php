@@ -184,7 +184,7 @@ if (Utils::isPostRequest() && isset($_POST['ingfact'])) {
 <?php include("parts/header.php"); ?>
 <body>
 <div class="container">
-<?php include("parts/menf.php"); ?>
+<?php include("parts/menu.php"); ?>
 <section class=""><br />
 <br />
 <br />
