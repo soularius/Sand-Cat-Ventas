@@ -796,77 +796,7 @@ include("parts/header.php");
             new bootstrap.Modal(document.getElementById('imageModal')).show();
         }
 
-        // Validación y envío del formulario de configuración
-        document.getElementById('configForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // Prevenir envío normal del formulario
-
-            const keyField = document.getElementById('config_key');
-            const tipoField = document.getElementById('config_tipo');
-            const valueField = document.getElementById('config_value');
-            
-            const tipo = tipoField.value;
-            const valor = valueField.value;
-            const clave = keyField.value;
-
-            // Validación específica por tipo
-            if (tipo === 'NUMBER' && valor && !isNumeric(valor)) {
-                alert('El valor debe ser numérico para el tipo NUMBER.');
-                return false;
-            }
-
-            if (tipo === 'FILE') {
-                const fileValidation = isValidFile(valor);
-                if (!fileValidation.valid) {
-                    alert(fileValidation.message);
-                    return false;
-                }
-            }
-
-            // Temporalmente habilitar campos deshabilitados para que se envíen
-            const wasKeyDisabled = keyField.disabled;
-            const wasTipoDisabled = tipoField.disabled;
-            
-            if (wasKeyDisabled) keyField.disabled = false;
-            if (wasTipoDisabled) tipoField.disabled = false;
-
-            // Enviar formulario via AJAX
-            const formData = new FormData(this);
-            
-            // Restaurar estado deshabilitado
-            if (wasKeyDisabled) keyField.disabled = true;
-            if (wasTipoDisabled) tipoField.disabled = true;
-
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const successAlert = doc.querySelector('.alert-success');
-                const errorAlert = doc.querySelector('.alert-danger');
-
-                if (successAlert) {
-                    showAlert('success', successAlert.textContent.trim());
-                    const isEditMode = keyField.disabled;
-                    
-                    if (!isEditMode) {
-                        addConfigToTable(clave, tipo, valor);
-                    } else {
-                        updateConfigInTable(clave, tipo, valor);
-                    }
-                    resetFormToAddMode();
-                    updateConfigCount();
-                } else if (errorAlert) {
-                    showAlert('danger', errorAlert.textContent.trim());
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('danger', 'Error al procesar la solicitud.');
-            });
-        });
+        // El manejo del formulario se hace en la función handleSubmit más abajo
 
         // Función para validar archivo mejorada
         function isValidFile(value) {
@@ -1366,6 +1296,20 @@ include("parts/header.php");
             const clave = keyField.value;
             const tipo = tipoField.value;
             const valor = valueField.value;
+
+            // Validación específica por tipo
+            if (tipo === 'NUMBER' && valor && !isNumeric(valor)) {
+                alert('El valor debe ser numérico para el tipo NUMBER.');
+                return false;
+            }
+
+            if (tipo === 'FILE') {
+                const fileValidation = isValidFile(valor);
+                if (!fileValidation.valid) {
+                    alert(fileValidation.message);
+                    return false;
+                }
+            }
 
             // Temporalmente habilitar campos deshabilitados para que se envíen
             const wasKeyDisabled = keyField.disabled;
