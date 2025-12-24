@@ -3164,6 +3164,10 @@ html {
     transition: all 0.3s;
 }
 
+.alert {
+  z-index: 9999;
+}
+
 /* Si el usuario prefiere menos movimiento, se respeta */
 @media (prefers-reduced-motion: reduce){
   .wp-eye-icon{ animation: none; }

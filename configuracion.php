@@ -276,8 +276,8 @@ include("parts/header.php");
                                         <small class="form-text text-muted" id="valueHelp">Ingrese el valor de configuración</small>
                                     </div>
                                     <div class="col-md-2 d-flex align-items-center">
-                                        <button type="submit" class="btn btn-success btn-custom w-100">
-                                            <i class="fas fa-plus me-1"></i>Agregar
+                                        <button type="submit" class="btn btn-success btn-custom py-3 px-4">
+                                            <i class="fas fa-save me-1"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -535,11 +535,100 @@ include("parts/header.php");
     <script>
         // Función para editar configuración
         function editConfig(key, value, tipo = 'TEXT') {
-            document.getElementById('config_key').value = key;
-            document.getElementById('config_value').value = value;
-            document.getElementById('config_tipo').value = tipo;
+            const keyField = document.getElementById('config_key');
+            const valueField = document.getElementById('config_value');
+            const tipoField = document.getElementById('config_tipo');
+            const submitBtn = document.querySelector('button[type="submit"]');
+            
+            // Llenar los campos
+            keyField.value = key;
+            valueField.value = value;
+            tipoField.value = tipo;
+            
+            // Deshabilitar key y tipo durante la edición
+            keyField.disabled = true;
+            tipoField.disabled = true;
+            
+            // Agregar clases visuales para indicar campos deshabilitados
+            keyField.classList.add('bg-light', 'text-muted');
+            tipoField.classList.add('bg-light', 'text-muted');
+            
+            // Cambiar el texto del botón para indicar modo edición
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i>';
+                submitBtn.classList.remove('btn-success');
+                submitBtn.classList.add('btn-warning');
+            }
+            
+            // Agregar botón para cancelar edición
+            addCancelEditButton();
+            
             updateValueField();
-            document.getElementById('config_value').focus();
+            valueField.focus();
+        }
+
+        // Función para agregar botón de cancelar edición
+        function addCancelEditButton() {
+            const submitBtn = document.querySelector('button[type="submit"]');
+            const existingCancelBtn = document.getElementById('cancelEditBtn');
+            
+            // Si ya existe el botón, no agregarlo de nuevo
+            if (existingCancelBtn) {
+                return;
+            }
+            
+            // Crear botón de cancelar
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.id = 'cancelEditBtn';
+            cancelBtn.className = 'btn btn-secondary btn-custom ms-2 py-3 px-4 ';
+            cancelBtn.innerHTML = '<i class="fas fa-times"></i>';
+            cancelBtn.onclick = resetFormToAddMode;
+            
+            // Insertar después del botón de submit
+            if (submitBtn && submitBtn.parentNode) {
+                submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+            }
+        }
+
+        // Función para resetear el formulario al modo "agregar"
+        function resetFormToAddMode() {
+            const keyField = document.getElementById('config_key');
+            const valueField = document.getElementById('config_value');
+            const tipoField = document.getElementById('config_tipo');
+            const submitBtn = document.querySelector('button[type="submit"]');
+            const cancelBtn = document.getElementById('cancelEditBtn');
+            
+            // Habilitar campos key y tipo
+            keyField.disabled = false;
+            tipoField.disabled = false;
+            
+            // Remover clases visuales de campos deshabilitados
+            keyField.classList.remove('bg-light', 'text-muted');
+            tipoField.classList.remove('bg-light', 'text-muted');
+            
+            // Limpiar formulario
+            keyField.value = '';
+            valueField.value = '';
+            tipoField.value = 'TEXT';
+            
+            // Restaurar botón de submit al modo "agregar"
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>';
+                submitBtn.classList.remove('btn-warning');
+                submitBtn.classList.add('btn-success');
+            }
+            
+            // Remover botón de cancelar
+            if (cancelBtn) {
+                cancelBtn.remove();
+            }
+            
+            // Actualizar campo de valor
+            updateValueField();
+            
+            // Enfocar en el campo key
+            keyField.focus();
         }
 
         // Función para actualizar el campo de valor según el tipo
@@ -711,9 +800,13 @@ include("parts/header.php");
         document.getElementById('configForm').addEventListener('submit', function(e) {
             e.preventDefault(); // Prevenir envío normal del formulario
 
-            const tipo = document.getElementById('config_tipo').value;
-            const valor = document.getElementById('config_value').value;
-            const clave = document.getElementById('config_key').value;
+            const keyField = document.getElementById('config_key');
+            const tipoField = document.getElementById('config_tipo');
+            const valueField = document.getElementById('config_value');
+            
+            const tipo = tipoField.value;
+            const valor = valueField.value;
+            const clave = keyField.value;
 
             // Validación específica por tipo
             if (tipo === 'NUMBER' && valor && !isNumeric(valor)) {
@@ -729,52 +822,51 @@ include("parts/header.php");
                 }
             }
 
+            // Temporalmente habilitar campos deshabilitados para que se envíen
+            const wasKeyDisabled = keyField.disabled;
+            const wasTipoDisabled = tipoField.disabled;
+            
+            if (wasKeyDisabled) keyField.disabled = false;
+            if (wasTipoDisabled) tipoField.disabled = false;
+
             // Enviar formulario via AJAX
             const formData = new FormData(this);
+            
+            // Restaurar estado deshabilitado
+            if (wasKeyDisabled) keyField.disabled = true;
+            if (wasTipoDisabled) tipoField.disabled = true;
 
             fetch(window.location.href, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(html => {
-                    // Crear un documento temporal para parsear la respuesta
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const successAlert = doc.querySelector('.alert-success');
+                const errorAlert = doc.querySelector('.alert-danger');
 
-                    // Verificar si hay mensaje de éxito o error
-                    const successAlert = doc.querySelector('.alert-success');
-                    const errorAlert = doc.querySelector('.alert-danger');
-
-                    if (successAlert) {
-                        // Mostrar mensaje de éxito
-                        showAlert('success', successAlert.textContent.trim());
-
-                        // Agregar nueva fila a la tabla
+                if (successAlert) {
+                    showAlert('success', successAlert.textContent.trim());
+                    const isEditMode = keyField.disabled;
+                    
+                    if (!isEditMode) {
                         addConfigToTable(clave, tipo, valor);
-
-                        // Limpiar formulario
-                        this.reset();
-                        updateValueField(); // Resetear campo de valor
-
-                        // Actualizar contador
-                        updateConfigCount();
-
-                    } else if (errorAlert) {
-                        // Mostrar mensaje de error
-                        showAlert('danger', errorAlert.textContent.trim());
+                    } else {
+                        updateConfigInTable(clave, tipo, valor);
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('danger', 'Error al procesar la solicitud.');
-                });
+                    resetFormToAddMode();
+                    updateConfigCount();
+                } else if (errorAlert) {
+                    showAlert('danger', errorAlert.textContent.trim());
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Error al procesar la solicitud.');
+            });
         });
-
-        // Función para validar si es numérico
-        function isNumeric(value) {
-            return !isNaN(parseFloat(value)) && isFinite(value);
-        }
 
         // Función para validar archivo mejorada
         function isValidFile(value) {
@@ -1041,6 +1133,119 @@ include("parts/header.php");
             }, 2000);
         }
 
+        // Función para actualizar configuración existente en la tabla
+        function updateConfigInTable(clave, tipo, valor) {
+            const existingRow = document.querySelector(`tr[data-config-key="${clave}"]`);
+            if (!existingRow) {
+                console.error('No se encontró la fila para actualizar:', clave);
+                return;
+            }
+
+            // Determinar colores y iconos según el tipo
+            let badgeColor, iconType;
+            switch (tipo) {
+                case 'FILE':
+                    badgeColor = 'info';
+                    iconType = 'file';
+                    break;
+                case 'NUMBER':
+                    badgeColor = 'warning';
+                    iconType = 'hashtag';
+                    break;
+                default:
+                    badgeColor = 'secondary';
+                    iconType = 'font';
+            }
+
+            // Crear contenido de la celda de valor
+            let valorContent;
+            if (tipo === 'FILE') {
+                // Verificar si es una imagen
+                const fileExtension = valor.split('.').pop().toLowerCase();
+                const isImage = ['jpg', 'jpeg', 'png'].includes(fileExtension);
+                
+                if (isImage) {
+                    valorContent = `
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <img src="${valor}" 
+                                     alt="Preview" 
+                                     class="img-thumbnail" 
+                                     style="width: 60px; height: 60px; object-fit: cover; cursor: pointer;"
+                                     onclick="showImageModal('${valor}', '${clave}')">
+                            </div>
+                            <div>
+                                <div class="fw-bold text-info">
+                                    <i class="fas fa-image me-1"></i>
+                                    Imagen
+                                </div>
+                                <small class="text-muted text-truncate d-block" style="max-width: 200px;" title="${valor}">
+                                    ${valor.split('/').pop()}
+                                </small>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    valorContent = `
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-file me-2 text-info"></i>
+                            <span class="text-truncate" style="max-width: 250px;" title="${valor}">
+                                ${valor}
+                            </span>
+                        </div>
+                    `;
+                }
+            } else if (tipo === 'NUMBER') {
+                valorContent = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-hashtag me-2 text-warning"></i>
+                        <span class="font-monospace fw-bold">${valor}</span>
+                    </div>
+                `;
+            } else {
+                valorContent = `
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-font me-2 text-secondary"></i>
+                        <span>${valor}</span>
+                    </div>
+                `;
+            }
+
+            // Actualizar el contenido de la fila existente
+            existingRow.innerHTML = `
+                <td>
+                    <span class="bg-primary bg-custom text-white px-2 py-1 rounded">${clave}</span>
+                </td>
+                <td>
+                    <span class="badge bg-${badgeColor}">
+                        <i class="fas fa-${iconType} me-1"></i>
+                        ${tipo}
+                    </span>
+                </td>
+                <td>${valorContent}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-primary btn-custom py-2 px-3" 
+                                onclick="editConfig('${clave}', '${valor}', '${tipo}')"
+                                title="Editar configuración">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger btn-custom py-2 px-3" 
+                                onclick="deleteConfig('${clave}')"
+                                title="Eliminar configuración">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+
+            // Animar la fila actualizada
+            existingRow.style.backgroundColor = '#fff3cd';
+            setTimeout(() => {
+                existingRow.style.backgroundColor = '';
+            }, 2000);
+        }
+
         // Función para actualizar el contador de configuraciones
         function updateConfigCount() {
             const tableBody = document.getElementById('configTableBody');
@@ -1143,6 +1348,90 @@ include("parts/header.php");
                     // Limpiar variable global
                     configKeyToDelete = null;
                 });
+        }
+
+        // Función para manejar el envío del formulario
+        function handleSubmit(event) {
+            event.preventDefault();
+
+            // Obtener los campos del formulario
+            const keyField = document.getElementById('config_key');
+            const tipoField = document.getElementById('config_tipo');
+            const valueField = document.getElementById('config_value');
+
+            // Verificar si el campo clave está deshabilitado (modo edición)
+            const isEditMode = keyField.disabled;
+
+            // Capturar valores antes de cualquier manipulación
+            const clave = keyField.value;
+            const tipo = tipoField.value;
+            const valor = valueField.value;
+
+            // Temporalmente habilitar campos deshabilitados para que se envíen
+            const wasKeyDisabled = keyField.disabled;
+            const wasTipoDisabled = tipoField.disabled;
+            
+            if (wasKeyDisabled) keyField.disabled = false;
+            if (wasTipoDisabled) tipoField.disabled = false;
+
+            // Crear FormData para enviar
+            const formData = new FormData(event.target);
+
+            // Restaurar estado deshabilitado
+            if (wasKeyDisabled) keyField.disabled = true;
+            if (wasTipoDisabled) tipoField.disabled = true;
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(html => {
+                // Crear un documento temporal para parsear la respuesta
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // Verificar si hay mensaje de éxito o error
+                const successAlert = doc.querySelector('.alert-success');
+                const errorAlert = doc.querySelector('.alert-danger');
+
+                if (successAlert) {
+                    // Mostrar mensaje de éxito
+                    showAlert('success', successAlert.textContent.trim());
+
+                    // Usar los valores capturados anteriormente
+                    
+                    if (!isEditMode) {
+                        addConfigToTable(clave, tipo, valor);
+                    } else {
+                        // En modo edición, actualizar la fila existente en la tabla
+                        updateConfigInTable(clave, tipo, valor);
+                    }
+
+                    // Resetear formulario al modo "agregar"
+                    resetFormToAddMode();
+
+                    // Actualizar contador
+                    updateConfigCount();
+
+                } else if (errorAlert) {
+                    // Mostrar mensaje de error
+                    showAlert('danger', errorAlert.textContent.trim());
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Error al procesar la solicitud.');
+            });
+        }
+
+        // Agregar evento de envío al formulario
+        const form = document.getElementById('configForm');
+        form.addEventListener('submit', handleSubmit);
+
+        // Función para validar si es numérico
+        function isNumeric(value) {
+            return !isNaN(parseFloat(value)) && isFinite(value);
         }
 
         // Auto-dismiss alerts after 5 seconds
