@@ -319,7 +319,7 @@ include("parts/header.php");
             <strong>
               <a href="<?php echo ($_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU') . '/?p=' . ($producto['product_id'] ?? $producto['id_producto']); ?>" 
                  target="_blank" 
-                 class="text-decoration-none text-primary"
+                 class="text-decoration-none text-dark"
                  title="Ver en WooCommerce">
                 <?php echo $producto['title'] ?? $producto['nombre']; ?>
                 <i class="fas fa-external-link-alt ms-1 small"></i>
