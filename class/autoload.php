@@ -34,6 +34,10 @@ require_once(dirname(__DIR__) . '/mpdf_config.php');
 // Cargar clases del sistema
 require_once(__DIR__ . '/woocommerce_customer.php');
 
+
+// Cargar constantes del sistema
+require_once(__DIR__ . '/load_const.php');
+
 // Iniciar sesión si no está iniciada
 if (!isset($_SESSION)) {
     session_start();

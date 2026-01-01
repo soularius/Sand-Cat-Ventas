@@ -121,6 +121,9 @@ class DatabaseConfig {
             if ($result && mysqli_num_rows($result) > 0) {
                 $row = mysqli_fetch_assoc($result);
                 mysqli_close($connection);
+                if ($row['valor'] === null || $row['valor'] === '' || $row['valor'] === 'null') {
+                    return "";
+                }
                 return $row['valor'];
             }
             
@@ -131,6 +134,35 @@ class DatabaseConfig {
             Utils::logError("Error obteniendo configuración $clave: " . $e->getMessage(), 'ERROR', 'config.php');
             mysqli_close($connection);
             return $default;
+        }
+    }
+    
+    /**
+     * Validar si un valor de configuración existe
+     * @param string $clave - Clave de configuración
+     * @return bool - True si existe, False si no existe
+     */
+    public static function validateConfigValue($clave) {
+        $connection = self::getVentasConnection();
+        
+        try {
+            $clave = mysqli_real_escape_string($connection, $clave);
+            $query = "SELECT COUNT(*) as count FROM configuracion WHERE clave = '$clave'";
+            $result = mysqli_query($connection, $query);
+            
+            if ($result) {
+                $row = mysqli_fetch_assoc($result);
+                mysqli_close($connection);
+                return $row['count'] > 0;
+            }
+            
+            mysqli_close($connection);
+            return false;
+            
+        } catch (Exception $e) {
+            Utils::logError("Error validando configuración $clave: " . $e->getMessage(), 'ERROR', 'config.php');
+            mysqli_close($connection);
+            return false;
         }
     }
     
