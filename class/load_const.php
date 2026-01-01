@@ -20,7 +20,7 @@ define('SERIE_NUMERO_FACTURA', intval(DatabaseConfig::getConfigValue('SERIE_NUME
 define('TAX_RATE', intval(DatabaseConfig::getConfigValue('TAX_RATE', '0')));
 define('TELEFONO', DatabaseConfig::getConfigValue('TELEFONO', ''));
 define('TIMEZONE', DatabaseConfig::getConfigValue('TIMEZONE', 'America/Bogota'));
-define('URL_WOOCOMMERCE', DatabaseConfig::getConfigValue('URL_WOOCOMMERCE', 'http://localhost/MIAU/'));
-define('VENTAS_URL', DatabaseConfig::getConfigValue('VENTAS_URL', 'http://localhost/ventas/'));
+define('URL_WOOCOMMERCE', DatabaseConfig::getConfigValue('URL_WOOCOMMERCE', 'http://localhost/MIAU'));
+define('VENTAS_URL', DatabaseConfig::getConfigValue('VENTAS_URL', 'http://localhost/ventas'));
 define('WOOCOMMERCE_ORDER_PATH', DatabaseConfig::getConfigValue('WOOCOMMERCE_ORDER_PATH', '/mi-cuenta/ver-pedido/{id_pedido}/'));
 define('FAVICON', DatabaseConfig::getConfigValue('FAVICON', ''));

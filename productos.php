@@ -312,11 +312,11 @@ include("parts/header.php");
             </thead>
             <tbody id="donde">
               <?php foreach ($productos_woo as $producto): ?>
-                <tr data-product-id="<?php echo $producto['id_producto']; ?>" data-image-url="<?php echo htmlspecialchars($producto['image_url'] ?? 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg'); ?>">
+                <tr data-product-id="<?php echo $producto['id_producto']; ?>" data-image-url="<?php echo htmlspecialchars($producto['image_url'] ?? URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg'); ?>">
                   <td>
                     <div class="d-flex flex-column">
                       <strong>
-                        <a href="<?php echo ($_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU') . '/?p=' . ($producto['product_id'] ?? $producto['id_producto']); ?>"
+                        <a href="<?= (URL_WOOCOMMERCE ?? 'http://localhost/MIAU') . '/?p=' . ($producto['product_id'] ?? $producto['id_producto']); ?>"
                           target="_blank"
                           class="text-decoration-none text-dark"
                           title="Ver en WooCommerce">
@@ -354,7 +354,7 @@ include("parts/header.php");
                   </td>
                   <td class="text-center">
                     <div class="btn-group" role="group">
-                      <a href="<?php echo ($_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU') . '/?p=' . $producto['id_producto']; ?>"
+                      <a href="<?php echo (URL_WOOCOMMERCE ?? 'http://localhost/MIAU') . '/?p=' . $producto['id_producto']; ?>"
                         target="_blank"
                         class="btn btn-sm btn-danger btn-custom px-3"
                         title="Ver en WooCommerce">

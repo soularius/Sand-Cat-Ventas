@@ -137,7 +137,7 @@ try {
     $factura_formateada = str_pad($factura_num, 10, '0', STR_PAD_LEFT);
 
     // Generar URL para el QR del pedido de WooCommerce usando variables del .env
-    $woocommerce_base_url = $_ENV['WOOCOMMERCE_BASE_URL'] ?? 'http://localhost/MIAU';
+    $woocommerce_base_url = URL_WOOCOMMERCE ?? 'http://localhost/MIAU';
     $woocommerce_order_path = $_ENV['WOOCOMMERCE_ORDER_PATH'] ?? '/mi-cuenta/ver-pedido/{id_pedido}/';
     $woocommerce_url = $woocommerce_base_url . str_replace('{id_pedido}', $orden_id, $woocommerce_order_path);
 
@@ -224,7 +224,7 @@ try {
             $producto['total_producto'] = $producto['line_total'];
             
             // URL del producto en la tienda (mantener enlaces pero eliminar lógica de imágenes)
-            $producto['product_url'] = $_ENV['WOOCOMMERCE_BASE_URL'] . '/?p=' . $producto['product_id'];
+            $producto['product_url'] = URL_WOOCOMMERCE . '/?p=' . $producto['product_id'];
             
             $productos_array[] = $producto;
         }

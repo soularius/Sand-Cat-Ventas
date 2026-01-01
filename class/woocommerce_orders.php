@@ -1280,7 +1280,7 @@ class WooCommerceOrders
      */
     private function getImageUrl($thumbnail_id) {
         if (empty($thumbnail_id) || $thumbnail_id <= 0) {
-            return Utils::env('WOOCOMMERCE_BASE_URL') .'/wp-content/uploads/woocommerce-placeholder.webp';
+            return URL_WOOCOMMERCE .'/wp-content/uploads/woocommerce-placeholder.webp';
         }
         
         $thumbnail_id = intval($thumbnail_id);

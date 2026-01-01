@@ -15,7 +15,7 @@ Utils::logError("get_order_details.php: Iniciando procesamiento", 'INFO', 'get_o
 require_once('parts/login_handler.php');
 
 // 3. Verificar autenticación - pero no redirigir en AJAX
-if (!isLoggedIn()) {
+if (!Utils::isLoggedIn()) {
     echo json_encode(['success' => false, 'message' => 'No autenticado']);
     exit();
 }

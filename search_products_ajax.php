@@ -256,7 +256,7 @@ try {
         $image_url = getSimpleProductImage($image_product_id);
         
         // Construir permalink del producto (usar slug del padre para variaciones)
-        $base_url = env('WOOCOMMERCE_BASE_URL'); // URL base de WordPress
+        $base_url = URL_WOOCOMMERCE; // URL base de WordPress
         $permalink = $base_url . '/producto/' . $product['slug'] . '/';
         
         // Formatear precio

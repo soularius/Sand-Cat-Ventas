@@ -438,7 +438,7 @@ include("parts/header.php");
                             </button>
 
                             <!-- Botón Ver en WordPress Admin -->
-                            <button type="button" class="btn btn-sm btn-info btn-custom px-3" onclick="window.open('<?php echo Utils::env('WOOCOMMERCE_BASE_URL', 'http://localhost/MIAU'); ?>/wp-admin/post.php?post=<?php echo $row_pendientes['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
+                            <button type="button" class="btn btn-sm btn-info btn-custom px-3" onclick="window.open('<?= URL_WOOCOMMERCE ?>/wp-admin/post.php?post=<?php echo $row_pendientes['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
                               <i class="fab fa-wordpress"></i>
                             </button>
 
@@ -660,7 +660,7 @@ include("parts/header.php");
                             </button>
 
                             <!-- Botón Ver en WordPress Admin -->
-                            <button type="button" class="btn btn-sm btn-info btn-custom px-3 py-2" onclick="window.open('<?php echo Utils::env('WOOCOMMERCE_BASE_URL', 'http://localhost/MIAU'); ?>/wp-admin/post.php?post=<?php echo $row_pendientesf['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
+                            <button type="button" class="btn btn-sm btn-info btn-custom px-3 py-2" onclick="window.open('<?= URL_WOOCOMMERCE ?>/wp-admin/post.php?post=<?php echo $row_pendientesf['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
                               <i class="fab fa-wordpress"></i>
                             </button>
 
@@ -887,7 +887,7 @@ include("parts/header.php");
                             </button>
 
                             <!-- Botón Ver en WordPress Admin -->
-                            <button type="button" class="btn btn-sm btn-info btn-custom px-3" onclick="window.open('<?php echo Utils::env('WOOCOMMERCE_BASE_URL', 'http://localhost/MIAU'); ?>/wp-admin/post.php?post=<?php echo $row_todos['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
+                            <button type="button" class="btn btn-sm btn-info btn-custom px-3" onclick="window.open('<?= URL_WOOCOMMERCE ?>/wp-admin/post.php?post=<?php echo $row_todos['ID']; ?>&action=edit', '_blank')" title="Ver en WordPress Admin">
                               <i class="fab fa-wordpress"></i>
                             </button>
 
@@ -1134,7 +1134,7 @@ include("parts/header.php");
       }
 
       // ✅ Usa el ENV correcto. Si env() no existe en PHP puro, usa $_ENV o getenv.
-      const baseUrl = <?= json_encode($_ENV['VENTAS_URL'] ?? 'http://localhost/ventas'); ?>;
+      const baseUrl = <?= json_encode(VENTAS_URL); ?>;
 
       // ✅ Construye query correcto
       const url = `${baseUrl}/detalle_pedido.php?id-orden=${encodeURIComponent(orderId)}&common=true`;
