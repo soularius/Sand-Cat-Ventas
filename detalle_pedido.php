@@ -51,7 +51,7 @@ $variation_ids = [];
 foreach ($items as $it) {
     $pid = (int)($it['product_id'] ?? 0);
     $vid = (int)($it['variation_id'] ?? 0);
-    
+
     if ($pid > 0) $product_ids[] = $pid;
     if ($vid > 0) $variation_ids[] = $vid;
 }
@@ -60,17 +60,17 @@ foreach ($items as $it) {
 $products_map = [];
 if (!empty($product_ids) || !empty($variation_ids)) {
     $products_with_variations = $productsService->getProductsByIds($product_ids, $variation_ids);
-    
+
     // DEBUG: Ver qué productos se obtuvieron
-    Utils::logError("PRODUCTS DEBUG: Productos obtenidos: " . json_encode(array_map(function($p) { 
-        return ['id' => $p['id'], 'nombre' => $p['nombre'], 'image_url' => $p['image_url']]; 
+    Utils::logError("PRODUCTS DEBUG: Productos obtenidos: " . json_encode(array_map(function ($p) {
+        return ['id' => $p['id'], 'nombre' => $p['nombre'], 'image_url' => $p['image_url']];
     }, $products_with_variations)), 'DEBUG', 'detalle_pedido.php');
-    
+
     // Crear mapa indexado por ID único (el método ya evita duplicados)
     foreach ($products_with_variations as $prod) {
         $products_map[$prod['id']] = $prod;
     }
-    
+
     // DEBUG: Ver qué claves tiene el mapa
     Utils::logError("PRODUCTS DEBUG: Claves del products_map: " . json_encode(array_keys($products_map)), 'DEBUG', 'detalle_pedido.php');
 }
@@ -103,12 +103,12 @@ foreach ($items as $it) {
 
     // ✅ Imagen ya viene optimizada del método getProductsByIds
     $image_url = $p ? ($p['image_url'] ?? '') : '';
-    
+
     // Si no hay imagen del producto, usar placeholder directo
     if (empty($image_url)) {
-        $image_url = env('WOOCOMMERCE_BASE_URL') .'/wp-content/uploads/woocommerce-placeholder.webp';
+        $image_url = env('WOOCOMMERCE_BASE_URL') . '/wp-content/uploads/woocommerce-placeholder.webp';
     }
-    
+
     // Log mejorado para debugging
     Utils::logError("ORDER {$order_id} ITEM pid={$pid} vid={$vid} lookup_id={$lookup_id} image={$image_url}", 'DEBUG', 'detalle_pedido.php');
 
@@ -116,12 +116,12 @@ foreach ($items as $it) {
         'id' => $lookup_id,               // ID único (variación o producto)
         'product_id' => $pid,             // ID del producto padre
         'variation_id' => $vid > 0 ? $vid : null,  // ID de variación
-        
+
         'title' => $p ? ($p['parent_name'] ?? $p['nombre'] ?? ($it['nombre_producto'] ?? 'Producto')) : ($it['nombre_producto'] ?? 'Producto'),
         'parent_name' => $p ? ($p['parent_name'] ?? $p['nombre'] ?? ($it['nombre_producto'] ?? 'Producto')) : ($it['nombre_producto'] ?? 'Producto'),
         'variation_label' => $p ? ($p['variation_label'] ?? '') : '',
         'variation_attributes' => $p ? ($p['variation_attributes'] ?? null) : null,
-        
+
         'quantity' => $qty,
         'price' => $price,                // Precio real del pedido
         'regular_price' => $regular,
@@ -141,14 +141,14 @@ $serverOrderData = [
     '_cart_discount' => (string)($order['descuento'] ?? ''),
     '_payment_method_title' => (string)($order['titulo_metodo_pago'] ?? ''),
     'post_expcerpt' => '',
-    
+
     // ✅ Descuentos detallados desde múltiples fuentes
     'discounts_detail' => $order_discounts,
     'total_discount' => (float)$order_discounts['total_discount'],
     'cart_discount_amount' => (float)$order_discounts['cart_discount'],
     'coupons_used' => $order_discounts['coupons'],
     'fees_applied' => $order_discounts['fees'],
-    
+
     // ✅ Notas de la orden
     'order_notes' => $order_notes
 ];
@@ -189,12 +189,12 @@ include('parts/header.php');
 ?>
 
 <body class="order-summary-container">
-    <div class="container-fluid">
-        <?php include("parts/menu.php"); ?>
+    <?php include("parts/menu.php"); ?>
+    <div class="container-fluid mt-5">
 
         <input type="hidden" id="_order_id" name="_order_id" value="<?php echo htmlspecialchars((string)$order_id); ?>">
 
-        <?php if(empty($common)) include('parts/step_wizard.php'); ?>
+        <?php if (empty($common)) include('parts/step_wizard.php'); ?>
 
         <div class="row justify-content-center">
             <div class="col-md-10 text-center mb-4">
@@ -364,7 +364,7 @@ include('parts/header.php');
                         <i class="fas fa-paper-plane text-primary" style="font-size: 3rem;"></i>
                     </div>
                     <h6 class="mb-4">¿A dónde desea enviar la factura?</h6>
-                    
+
                     <!-- Opción 1: Enviar al cliente -->
                     <div class="row g-3">
                         <div class="col-12">
@@ -482,10 +482,10 @@ include('parts/header.php');
                 formData.append('email_destino', emailDestino);
 
                 return fetch('enviar_factura_email.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json());
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json());
             }
 
             // Función para mostrar resultado
@@ -525,7 +525,7 @@ include('parts/header.php');
                     `;
                     document.body.appendChild(successModal);
                     new bootstrap.Modal(document.getElementById('successModal')).show();
-                    
+
                     // Limpiar modal después de cerrarlo
                     document.getElementById('successModal').addEventListener('hidden.bs.modal', function() {
                         document.body.removeChild(successModal);
@@ -559,7 +559,7 @@ include('parts/header.php');
                     `;
                     document.body.appendChild(errorModal);
                     new bootstrap.Modal(document.getElementById('errorModal')).show();
-                    
+
                     // Limpiar modal después de cerrarlo
                     document.getElementById('errorModal').addEventListener('hidden.bs.modal', function() {
                         document.body.removeChild(errorModal);
@@ -575,7 +575,10 @@ include('parts/header.php');
                     const clienteEmail = window.serverCustomerData._billing_email;
 
                     if (!clienteEmail) {
-                        mostrarResultado({success: false, error: 'No se encontró email del cliente'}, '');
+                        mostrarResultado({
+                            success: false,
+                            error: 'No se encontró email del cliente'
+                        }, '');
                         return;
                     }
 
@@ -591,7 +594,10 @@ include('parts/header.php');
                         .catch(() => {
                             btn.innerHTML = originalText;
                             btn.disabled = false;
-                            mostrarResultado({success: false, error: 'Error de conexión'}, clienteEmail);
+                            mostrarResultado({
+                                success: false,
+                                error: 'Error de conexión'
+                            }, clienteEmail);
                         });
                 };
             }
@@ -620,7 +626,7 @@ include('parts/header.php');
             if (btnConfirmarCustom) {
                 btnConfirmarCustom.onclick = function() {
                     const customEmail = customEmailInput.value.trim();
-                    
+
                     if (!customEmail) {
                         customEmailInput.classList.add('is-invalid');
                         return;
@@ -655,7 +661,10 @@ include('parts/header.php');
                         .catch(() => {
                             btn.innerHTML = originalText;
                             btn.disabled = false;
-                            mostrarResultado({success: false, error: 'Error de conexión'}, customEmail);
+                            mostrarResultado({
+                                success: false,
+                                error: 'Error de conexión'
+                            }, customEmail);
                         });
                 };
             }
@@ -732,4 +741,5 @@ include('parts/header.php');
     </script>
     <script src="assets/js/resumen_pedido.js"></script>
 </body>
+
 </html>

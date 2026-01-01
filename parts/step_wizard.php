@@ -76,8 +76,6 @@ function getStepCircleContent($step_number, $current_step) {
     }
 }
 ?>
-
-<div class="wizard-container"></div>
 <section class="py-5">
     <div class="container">
         <!-- Progress Steps -->

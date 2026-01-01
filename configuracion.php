@@ -46,15 +46,15 @@ if (Utils::isPostRequest()) {
         case 'upload_file':
             // Manejar subida de archivos
             header('Content-Type: application/json');
-            
+
             if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
                 echo json_encode(['success' => false, 'error' => 'No se recibió ningún archivo o hubo un error en la subida.']);
                 exit;
             }
-            
+
             $file = $_FILES['file'];
             $upload_dir = 'assets/img/uploads/';
-            
+
             // Crear directorio si no existe
             if (!is_dir($upload_dir)) {
                 if (!mkdir($upload_dir, 0755, true)) {
@@ -62,31 +62,31 @@ if (Utils::isPostRequest()) {
                     exit;
                 }
             }
-            
+
             // Validar tipo de archivo y tamaño
             $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'txt', 'zip', 'rar'];
             $max_size = 5 * 1024 * 1024; // 5MB
-            
+
             $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            
+
             if (!in_array($file_extension, $allowed_extensions)) {
                 echo json_encode(['success' => false, 'error' => 'Tipo de archivo no permitido. Extensiones permitidas: ' . implode(', ', $allowed_extensions)]);
                 exit;
             }
-            
+
             if ($file['size'] > $max_size) {
                 echo json_encode(['success' => false, 'error' => 'El archivo es demasiado grande. Tamaño máximo: 5MB.']);
                 exit;
             }
-            
+
             // Generar nombre único para evitar conflictos
             $file_name = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file['name']);
             $file_path = $upload_dir . $file_name;
-            
+
             // Mover archivo al directorio de destino
             if (move_uploaded_file($file['tmp_name'], $file_path)) {
                 echo json_encode([
-                    'success' => true, 
+                    'success' => true,
                     'file_path' => $file_path,
                     'file_name' => $file['name']
                 ]);
@@ -94,7 +94,7 @@ if (Utils::isPostRequest()) {
                 echo json_encode(['success' => false, 'error' => 'Error al mover el archivo al directorio de destino.']);
             }
             exit;
-            
+
         case 'add_config':
             if (!empty($postData['config_key']) && !empty($postData['config_value'])) {
                 $key = Utils::sanitizeInput($postData['config_key']);
@@ -103,7 +103,7 @@ if (Utils::isPostRequest()) {
 
                 // Validación específica por tipo
                 $validation_passed = true;
-                
+
                 if ($tipo === 'NUMBER' && !is_numeric($value)) {
                     $error_message = "El valor debe ser numérico para el tipo NUMBER.";
                     $validation_passed = false;
@@ -142,7 +142,7 @@ if (Utils::isPostRequest()) {
                         }
                     }
                 }
-                
+
                 // Guardar configuración si pasó la validación
                 if ($validation_passed) {
                     if (DatabaseConfig::setConfigValue($key, $value, $tipo)) {
@@ -204,9 +204,8 @@ include("parts/header.php");
 ?>
 
 <body>
+    <?php include("parts/menu.php"); ?>
     <div class="container">
-        <?php include("parts/menu.php"); ?>
-        <div class="py-5"></div>
         <section class="">
             <div class="row justify-content-center">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -324,8 +323,8 @@ include("parts/header.php");
                                                         </td>
                                                         <td>
                                                             <span class="badge bg-custom bg-<?php
-                                                                                    echo $config['tipo'] === 'FILE' ? 'info' : ($config['tipo'] === 'NUMBER' ? 'warning' : 'secondary');
-                                                                                    ?>">
+                                                                                            echo $config['tipo'] === 'FILE' ? 'info' : ($config['tipo'] === 'NUMBER' ? 'warning' : 'secondary');
+                                                                                            ?>">
                                                                 <i class="fas fa-<?php
                                                                                     echo $config['tipo'] === 'FILE' ? 'file' : ($config['tipo'] === 'NUMBER' ? 'hashtag' : 'font');
                                                                                     ?> me-1"></i>
@@ -334,22 +333,22 @@ include("parts/header.php");
                                                         </td>
                                                         <td>
                                                             <?php if ($config['tipo'] === 'FILE'): ?>
-                                                                <?php 
+                                                                <?php
                                                                 // Verificar si es una imagen
                                                                 $file_path = $config['valor'];
                                                                 $file_extension = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
                                                                 $is_image = in_array($file_extension, ['jpg', 'jpeg', 'png']);
                                                                 ?>
-                                                                
+
                                                                 <?php if ($is_image && file_exists($file_path)): ?>
                                                                     <!-- Preview de imagen -->
                                                                     <div class="d-flex align-items-center">
                                                                         <div class="me-3">
-                                                                            <img src="<?php echo htmlspecialchars($file_path); ?>" 
-                                                                                 alt="Preview" 
-                                                                                 class="img-thumbnail" 
-                                                                                 style="width: 60px; height: 60px; object-fit: cover; cursor: pointer;"
-                                                                                 onclick="showImageModal('<?php echo htmlspecialchars($file_path); ?>', '<?php echo htmlspecialchars($config['clave']); ?>')">
+                                                                            <img src="<?php echo htmlspecialchars($file_path); ?>"
+                                                                                alt="Preview"
+                                                                                class="img-thumbnail"
+                                                                                style="width: 60px; height: 60px; object-fit: cover; cursor: pointer;"
+                                                                                onclick="showImageModal('<?php echo htmlspecialchars($file_path); ?>', '<?php echo htmlspecialchars($config['clave']); ?>')">
                                                                         </div>
                                                                         <div>
                                                                             <div class="fw-bold text-info">
@@ -539,30 +538,30 @@ include("parts/header.php");
             const valueField = document.getElementById('config_value');
             const tipoField = document.getElementById('config_tipo');
             const submitBtn = document.querySelector('button[type="submit"]');
-            
+
             // Llenar los campos
             keyField.value = key;
             valueField.value = value;
             tipoField.value = tipo;
-            
+
             // Deshabilitar key y tipo durante la edición
             keyField.disabled = true;
             tipoField.disabled = true;
-            
+
             // Agregar clases visuales para indicar campos deshabilitados
             keyField.classList.add('bg-light', 'text-muted');
             tipoField.classList.add('bg-light', 'text-muted');
-            
+
             // Cambiar el texto del botón para indicar modo edición
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-save"></i>';
                 submitBtn.classList.remove('btn-success');
                 submitBtn.classList.add('btn-warning');
             }
-            
+
             // Agregar botón para cancelar edición
             addCancelEditButton();
-            
+
             updateValueField();
             valueField.focus();
         }
@@ -571,12 +570,12 @@ include("parts/header.php");
         function addCancelEditButton() {
             const submitBtn = document.querySelector('button[type="submit"]');
             const existingCancelBtn = document.getElementById('cancelEditBtn');
-            
+
             // Si ya existe el botón, no agregarlo de nuevo
             if (existingCancelBtn) {
                 return;
             }
-            
+
             // Crear botón de cancelar
             const cancelBtn = document.createElement('button');
             cancelBtn.type = 'button';
@@ -584,7 +583,7 @@ include("parts/header.php");
             cancelBtn.className = 'btn btn-secondary btn-custom ms-2 py-3 px-4 ';
             cancelBtn.innerHTML = '<i class="fas fa-times"></i>';
             cancelBtn.onclick = resetFormToAddMode;
-            
+
             // Insertar después del botón de submit
             if (submitBtn && submitBtn.parentNode) {
                 submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
@@ -598,35 +597,35 @@ include("parts/header.php");
             const tipoField = document.getElementById('config_tipo');
             const submitBtn = document.querySelector('button[type="submit"]');
             const cancelBtn = document.getElementById('cancelEditBtn');
-            
+
             // Habilitar campos key y tipo
             keyField.disabled = false;
             tipoField.disabled = false;
-            
+
             // Remover clases visuales de campos deshabilitados
             keyField.classList.remove('bg-light', 'text-muted');
             tipoField.classList.remove('bg-light', 'text-muted');
-            
+
             // Limpiar formulario
             keyField.value = '';
             valueField.value = '';
             tipoField.value = 'TEXT';
-            
+
             // Restaurar botón de submit al modo "agregar"
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>';
                 submitBtn.classList.remove('btn-warning');
                 submitBtn.classList.add('btn-success');
             }
-            
+
             // Remover botón de cancelar
             if (cancelBtn) {
                 cancelBtn.remove();
             }
-            
+
             // Actualizar campo de valor
             updateValueField();
-            
+
             // Enfocar en el campo key
             keyField.focus();
         }
@@ -697,28 +696,28 @@ include("parts/header.php");
             valueField.disabled = true;
 
             fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Mostrar la ruta relativa del archivo subido
-                    valueField.value = data.file_path;
-                    showAlert('success', 'Archivo subido correctamente: ' + data.file_name);
-                } else {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Mostrar la ruta relativa del archivo subido
+                        valueField.value = data.file_path;
+                        showAlert('success', 'Archivo subido correctamente: ' + data.file_name);
+                    } else {
+                        valueField.value = originalValue;
+                        showAlert('danger', 'Error al subir archivo: ' + (data.error || 'Error desconocido'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
                     valueField.value = originalValue;
-                    showAlert('danger', 'Error al subir archivo: ' + (data.error || 'Error desconocido'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                valueField.value = originalValue;
-                showAlert('danger', 'Error al subir el archivo.');
-            })
-            .finally(() => {
-                valueField.disabled = false;
-            });
+                    showAlert('danger', 'Error al subir el archivo.');
+                })
+                .finally(() => {
+                    valueField.disabled = false;
+                });
         }
 
         // Función para mostrar/ocultar contraseña
@@ -977,7 +976,7 @@ include("parts/header.php");
                 // Verificar si es una imagen
                 const fileExtension = valor.split('.').pop().toLowerCase();
                 const isImage = ['jpg', 'jpeg', 'png'].includes(fileExtension);
-                
+
                 if (isImage) {
                     valorContent = `
                         <div class="d-flex align-items-center">
@@ -1093,7 +1092,7 @@ include("parts/header.php");
                 // Verificar si es una imagen
                 const fileExtension = valor.split('.').pop().toLowerCase();
                 const isImage = ['jpg', 'jpeg', 'png'].includes(fileExtension);
-                
+
                 if (isImage) {
                     valorContent = `
                         <div class="d-flex align-items-center">
@@ -1222,10 +1221,10 @@ include("parts/header.php");
         // Función para mostrar modal de confirmación de eliminación
         function deleteConfig(key) {
             configKeyToDelete = key;
-            
+
             // Asignar la clave directamente y simple
             document.getElementById('deleteConfigKey').textContent = key;
-            
+
             // Mostrar el modal
             const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
             modal.show();
@@ -1234,7 +1233,7 @@ include("parts/header.php");
         // Función para confirmar eliminación desde el modal
         function confirmDelete() {
             if (!configKeyToDelete) return;
-            
+
             // Crear FormData para eliminar
             const formData = new FormData();
             formData.append('action', 'delete_config');
@@ -1314,7 +1313,7 @@ include("parts/header.php");
             // Temporalmente habilitar campos deshabilitados para que se envíen
             const wasKeyDisabled = keyField.disabled;
             const wasTipoDisabled = tipoField.disabled;
-            
+
             if (wasKeyDisabled) keyField.disabled = false;
             if (wasTipoDisabled) tipoField.disabled = false;
 
@@ -1326,47 +1325,47 @@ include("parts/header.php");
             if (wasTipoDisabled) tipoField.disabled = true;
 
             fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.text())
-            .then(html => {
-                // Crear un documento temporal para parsear la respuesta
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(html => {
+                    // Crear un documento temporal para parsear la respuesta
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
 
-                // Verificar si hay mensaje de éxito o error
-                const successAlert = doc.querySelector('.alert-success');
-                const errorAlert = doc.querySelector('.alert-danger');
+                    // Verificar si hay mensaje de éxito o error
+                    const successAlert = doc.querySelector('.alert-success');
+                    const errorAlert = doc.querySelector('.alert-danger');
 
-                if (successAlert) {
-                    // Mostrar mensaje de éxito
-                    showAlert('success', successAlert.textContent.trim());
+                    if (successAlert) {
+                        // Mostrar mensaje de éxito
+                        showAlert('success', successAlert.textContent.trim());
 
-                    // Usar los valores capturados anteriormente
-                    
-                    if (!isEditMode) {
-                        addConfigToTable(clave, tipo, valor);
-                    } else {
-                        // En modo edición, actualizar la fila existente en la tabla
-                        updateConfigInTable(clave, tipo, valor);
+                        // Usar los valores capturados anteriormente
+
+                        if (!isEditMode) {
+                            addConfigToTable(clave, tipo, valor);
+                        } else {
+                            // En modo edición, actualizar la fila existente en la tabla
+                            updateConfigInTable(clave, tipo, valor);
+                        }
+
+                        // Resetear formulario al modo "agregar"
+                        resetFormToAddMode();
+
+                        // Actualizar contador
+                        updateConfigCount();
+
+                    } else if (errorAlert) {
+                        // Mostrar mensaje de error
+                        showAlert('danger', errorAlert.textContent.trim());
                     }
-
-                    // Resetear formulario al modo "agregar"
-                    resetFormToAddMode();
-
-                    // Actualizar contador
-                    updateConfigCount();
-
-                } else if (errorAlert) {
-                    // Mostrar mensaje de error
-                    showAlert('danger', errorAlert.textContent.trim());
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('danger', 'Error al procesar la solicitud.');
-            });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', 'Error al procesar la solicitud.');
+                });
         }
 
         // Agregar evento de envío al formulario

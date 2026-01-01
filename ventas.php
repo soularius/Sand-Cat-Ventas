@@ -144,11 +144,10 @@ $row_todos = $totalRows_todos > 0 ? $todos_data[0] : null;
 include("parts/header.php");
 ?>
 
-<body style="padding-top: 70px" class="product-selector-container">
-  <div class="container">
-    <?php include("parts/menu.php"); ?><br />
-    <br />
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<body class="product-selector-container">
+  <?php include("parts/menu.php"); ?>
+  <div class="container d-flex justify-content-center align-items-center flex-column mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 w-100">
       <h2><i class="fas fa-shopping-cart me-2"></i>Ventas WooCommerce</h2>
       <div class="d-flex gap-2">
         <button class="btn btn-secondary btn-custom" onclick="location.reload()">
@@ -158,7 +157,7 @@ include("parts/header.php");
     </div>
 
     <!-- Nav tabs modernos -->
-    <ul class="nav nav-pills nav-fill mb-4" id="orderTabs" role="tablist">
+    <ul class="nav nav-pills nav-fill mb-4 w-100" id="orderTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <a class="nav-link <?php echo $pes1; ?> d-flex align-items-center justify-content-center btn btn-danger btn-custom text-white <?php echo $pes1 === 'active' ? '' : 'opacity-50'; ?>"
           id="pendiente-tab"
@@ -210,7 +209,7 @@ include("parts/header.php");
     </ul>
 
     <!-- Información de resultados -->
-    <div class="alert alert-success d-flex justify-content-between align-items-center mb-4">
+    <div class="alert alert-success d-flex justify-content-between align-items-center mb-4 w-100 z-0">
       <div>
         <i class="fas fa-info-circle me-2"></i>
         Pendientes: <strong><?php echo $totalRows_pendientes; ?></strong>
@@ -250,7 +249,7 @@ include("parts/header.php");
             <h5 class="modal-title text-white" id="invoiceModalLabel">
               <i class="fas fa-file-invoice me-2"></i>Confirmar Facturación
             </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body text-center py-4">
             <div class="mb-4">
@@ -315,7 +314,7 @@ include("parts/header.php");
     </div>
 
     <!-- Tab content -->
-    <div class="tab-content" id="orderTabsContent">
+    <div class="tab-content w-100" id="orderTabsContent">
       <div class="tab-pane fade <?php echo $acti1; ?> <?php echo $acti1 === 'active' ? 'show' : ''; ?>"
         id="pendiente"
         role="tabpanel"

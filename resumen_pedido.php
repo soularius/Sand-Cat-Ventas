@@ -29,17 +29,15 @@ $pes2 = '';
 <?php include("parts/header.php"); ?>
 
 <body class="order-summary-container">
+    <?php include("parts/menu.php"); ?>
     <div class="container-fluid">
-        <?php include("parts/menu.php"); ?>
-
         <input type="hidden" id="_order_id" name="_order_id" value="">
-        
+
         <?php
-        // Configurar el paso actual para el wizard
         $current_step = 4; // Paso 4: Resumen del Pedido
         include('parts/step_wizard.php');
         ?>
-        
+
         <!-- Order Summary Header -->
         <div class="row justify-content-center">
             <div class="col-md-10 text-center mb-4">
@@ -49,7 +47,7 @@ $pes2 = '';
                 <p class="text-muted">Revisa todos los detalles antes de crear el pedido final</p>
             </div>
         </div>
-          
+
         <!-- Main Content -->
         <div class="container">
             <div class="row">
@@ -61,7 +59,7 @@ $pes2 = '';
                                 <i class="fas fa-user me-2"></i>Información del Cliente
                             </h5>
                         </div>
-                        
+
                         <div class="panel-body">
                             <div id="customer-info">
                                 <div class="info-loading">
@@ -71,7 +69,7 @@ $pes2 = '';
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Order Details Panel -->
                     <div class="summary-panel mt-4">
                         <div class="panel-header bg-warning bg-custom">
@@ -79,7 +77,7 @@ $pes2 = '';
                                 <i class="fas fa-info-circle me-2"></i>Detalles del Pedido
                             </h5>
                         </div>
-                        
+
                         <div class="panel-body">
                             <div id="order-details">
                                 <div class="info-loading">
@@ -108,7 +106,7 @@ $pes2 = '';
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Products Summary Panel -->
                 <div class="col-lg-8 col-md-12">
                     <div class="summary-panel">
@@ -120,7 +118,7 @@ $pes2 = '';
                                 <span class="badge text-white fs-4" id="products-count">0</span>
                             </div>
                         </div>
-                        
+
                         <div class="panel-body">
                             <div id="products-summary">
                                 <div class="info-loading">
@@ -130,7 +128,7 @@ $pes2 = '';
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Order Total Panel -->
                     <div class="summary-panel mt-4">
                         <div class="panel-header bg-primary bg-custom">
@@ -138,7 +136,7 @@ $pes2 = '';
                                 <i class="fas fa-calculator me-2"></i>Total del Pedido
                             </h5>
                         </div>
-                        
+
                         <div class="panel-body">
                             <div id="order-total">
                                 <div class="info-loading">
@@ -148,7 +146,7 @@ $pes2 = '';
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Action Buttons -->
                     <div class="action-buttons mt-4">
                         <div class="row">
@@ -168,7 +166,7 @@ $pes2 = '';
             </div>
         </div>
     </div>
-    
+
     <!-- Loading Modal -->
     <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
@@ -181,7 +179,7 @@ $pes2 = '';
             </div>
         </div>
     </div>
-    
+
     <!-- Success Modal -->
     <div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -214,4 +212,5 @@ $pes2 = '';
     <!-- Order Summary JavaScript -->
     <script src="assets/js/resumen_pedido.js"></script>
 </body>
+
 </html>

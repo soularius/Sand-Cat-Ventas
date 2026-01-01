@@ -146,6 +146,10 @@
   --btn-secundary-active-color: #fff !;
 }
 
+.body-height {
+  height: calc(100vh - 151px);
+}
+
 /* ===== PRODUCT SELECTOR STYLES ===== */
 .product-selector-container {
   background-color: #f8f9fa;
@@ -1490,7 +1494,6 @@ a.a-custom:hover {
 .product-selector-container {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   min-height: 100vh;
-  padding: 20px 0;
 }
 
 .product-header {

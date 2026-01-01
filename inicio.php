@@ -78,10 +78,9 @@ include("parts/header.php");
 </style>
 
 <body>
-    <div class="container">
-        <?php include("parts/menu.php"); ?>
-        <div class="py-5"></div>
-        <section class="">
+    <?php include("parts/menu.php"); ?>
+    <div class="container body-height d-flex justify-content-center align-items-center">
+        <section class="w-100">
             <div class="row justify-content-center">
                 <div class="col-md-6 text-center mb-5">
                     <h2 class="heading-section">Ventas Woocomerce</h2>
@@ -105,10 +104,7 @@ include("parts/header.php");
                     </div>
                 </div>
             </div>
-            <?php include("parts/foot.php"); ?>
         </section>
-
-
         <!-- Modal para Generar Pedido -->
         <div class="modal fade" id="myModal" tabindex="-1" aria-labelledby="myModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -178,275 +174,272 @@ include("parts/header.php");
                 </div>
             </div>
         </div>
+    </div>
+    <?php include("parts/foot.php"); ?>
+    <script>
+        // Validación de formulario Bootstrap 5
+        (function() {
+            'use strict';
+            window.addEventListener('load', function() {
+                var forms = document.getElementsByClassName('needs-validation');
+                var validation = Array.prototype.filter.call(forms, function(form) {
+                    form.addEventListener('submit', function(event) {
+                        if (form.checkValidity() === false) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        form.classList.add('was-validated');
+                    }, false);
+                });
+            }, false);
+        })();
 
-        <script>
-            // Validación de formulario Bootstrap 5
-            (function() {
-                'use strict';
-                window.addEventListener('load', function() {
-                    var forms = document.getElementsByClassName('needs-validation');
-                    var validation = Array.prototype.filter.call(forms, function(form) {
-                        form.addEventListener('submit', function(event) {
-                            if (form.checkValidity() === false) {
-                                event.preventDefault();
-                                event.stopPropagation();
-                            }
-                            form.classList.add('was-validated');
-                        }, false);
-                    });
-                }, false);
-            })();
+        // Búsqueda de cliente con botón
+        $(document).ready(function() {
+            const $btnSearch = $('#btn-search-customer');
+            const $btnContinue = $('#btn-continue');
+            const $billingId = $('#billing_id');
+            const $resultsDiv = $('#customer-search-results');
+            const $previewDiv = $('#customer-preview');
+            const $searchAlert = $('#search-alert');
+            const $customerFound = $('#customer_found');
+            const $customerData = $('#customer_data');
 
-            // Búsqueda de cliente con botón
-            $(document).ready(function() {
-                const $btnSearch = $('#btn-search-customer');
-                const $btnContinue = $('#btn-continue');
-                const $billingId = $('#billing_id');
-                const $resultsDiv = $('#customer-search-results');
-                const $previewDiv = $('#customer-preview');
-                const $searchAlert = $('#search-alert');
-                const $customerFound = $('#customer_found');
-                const $customerData = $('#customer_data');
+            // Habilitar/deshabilitar botón de búsqueda
+            $billingId.on('input', function() {
+                const documento = $(this).val().trim();
+                $btnSearch.prop('disabled', documento.length < 3);
 
-                // Habilitar/deshabilitar botón de búsqueda
-                $billingId.on('input', function() {
-                    const documento = $(this).val().trim();
-                    $btnSearch.prop('disabled', documento.length < 3);
-                    
-                    // Ocultar resultados y deshabilitar continuar si cambia el documento
-                    $resultsDiv.hide();
-                    $btnContinue.prop('disabled', true);
-                    $customerFound.val('false');
-                    $customerData.val('');
+                // Ocultar resultados y deshabilitar continuar si cambia el documento
+                $resultsDiv.hide();
+                $btnContinue.prop('disabled', true);
+                $customerFound.val('false');
+                $customerData.val('');
+            });
+
+            // Búsqueda al hacer clic en el botón
+            $btnSearch.on('click', function() {
+                const documento = $billingId.val().trim();
+
+                if (documento.length < 3) {
+                    alert('Por favor ingrese al menos 3 caracteres para buscar');
+                    return;
+                }
+
+                // LIMPIAR DATOS DE CLIENTE AL BUSCAR (localStorage y sesión)
+                if (typeof clearCustomerDataOnSearch === 'function') {
+                    clearCustomerDataOnSearch();
+                    console.log('Datos de cliente limpiados de localStorage');
+                }
+
+                // Limpiar datos de sesión PHP también
+                $.ajax({
+                    url: 'class/save_session_data.php',
+                    method: 'POST',
+                    data: {
+                        action: 'clear_customer',
+                        clear_type: 'customer_only'
+                    },
+                    success: function(response) {
+                        console.log('Datos de cliente limpiados de sesión PHP:', response);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error limpiando sesión PHP:', xhr.responseText);
+                    }
                 });
 
-                // Búsqueda al hacer clic en el botón
-                $btnSearch.on('click', function() {
-                    const documento = $billingId.val().trim();
-                    
-                    if (documento.length < 3) {
-                        alert('Por favor ingrese al menos 3 caracteres para buscar');
-                        return;
-                    }
+                // Mostrar indicador de búsqueda
+                $btnSearch.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Buscando...');
+                $previewDiv.html('<i class="fas fa-spinner fa-spin me-2"></i>Buscando cliente en WooCommerce...');
+                $searchAlert.removeClass('alert-success alert-warning alert-danger').addClass('alert-info');
+                $resultsDiv.show();
 
-                    // LIMPIAR DATOS DE CLIENTE AL BUSCAR (localStorage y sesión)
-                    if (typeof clearCustomerDataOnSearch === 'function') {
-                        clearCustomerDataOnSearch();
-                        console.log('Datos de cliente limpiados de localStorage');
-                    }
-                    
-                    // Limpiar datos de sesión PHP también
-                    $.ajax({
-                        url: 'class/save_session_data.php',
-                        method: 'POST',
-                        data: {
-                            action: 'clear_customer',
-                            clear_type: 'customer_only'
-                        },
-                        success: function(response) {
-                            console.log('Datos de cliente limpiados de sesión PHP:', response);
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Error limpiando sesión PHP:', xhr.responseText);
-                        }
-                    });
+                // Realizar búsqueda AJAX
+                $.ajax({
+                    url: 'class/search_customer.php',
+                    type: 'POST',
+                    data: {
+                        billing_id: documento,
+                        action: 'search_customer'
+                    },
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success && response.customer) {
+                            // Cliente encontrado - Guardar en sesión PHP
+                            $.ajax({
+                                url: 'class/save_session_data.php',
+                                method: 'POST',
+                                data: {
+                                    action: 'save_customer',
+                                    customer_data: JSON.stringify(response.customer),
+                                    billing_id: documento
+                                },
+                                success: function(sessionResponse) {
+                                    console.log('Datos del cliente guardados en sesión:', sessionResponse);
+                                },
+                                error: function(xhr, status, error) {
+                                    console.error('Error guardando en sesión PHP:', xhr.responseText);
+                                    // Continuar aunque falle el guardado en sesión
+                                }
+                            });
 
-                    // Mostrar indicador de búsqueda
-                    $btnSearch.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>Buscando...');
-                    $previewDiv.html('<i class="fas fa-spinner fa-spin me-2"></i>Buscando cliente en WooCommerce...');
-                    $searchAlert.removeClass('alert-success alert-warning alert-danger').addClass('alert-info');
-                    $resultsDiv.show();
-
-                    // Realizar búsqueda AJAX
-                    $.ajax({
-                        url: 'class/search_customer.php',
-                        type: 'POST',
-                        data: { 
-                            billing_id: documento,
-                            action: 'search_customer'
-                        },
-                        dataType: 'json',
-                        success: function(response) {
-                            if (response.success && response.customer) {
-                                // Cliente encontrado - Guardar en sesión PHP
-                                $.ajax({
-                                    url: 'class/save_session_data.php',
-                                    method: 'POST',
-                                    data: {
-                                        action: 'save_customer',
-                                        customer_data: JSON.stringify(response.customer),
-                                        billing_id: documento
-                                    },
-                                    success: function(sessionResponse) {
-                                        console.log('Datos del cliente guardados en sesión:', sessionResponse);
-                                    },
-                                    error: function(xhr, status, error) {
-                                        console.error('Error guardando en sesión PHP:', xhr.responseText);
-                                        // Continuar aunque falle el guardado en sesión
-                                    }
-                                });
-                                
-                                const customer = response.customer;
-                                $previewDiv.html(`
-                                    <div class="card border-0 shadow-sm">
-                                        <div class="card-header bg-cuertar bg-custom text-white d-flex align-items-center">
-                                            <i class="fas fa-user-check me-2"></i>
-                                            <strong>Cliente Encontrado</strong>
-                                        </div>
-                                        <div class="card-body">
-                                            <!-- Información Personal -->
-                                            <div class="row mb-3">
-                                                <div class="col-md-12">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-id-card text-muted me-2"></i>
-                                                        <span class="text-muted small">DNI:</span>
-                                                        <strong class="ms-2">${customer.dni || 'No registrado'}</strong>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-12">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-user text-muted me-2"></i>
-                                                        <span class="text-muted small">Nombre:</span>
-                                                        <strong class="ms-2">${customer.first_name} ${customer.last_name}</strong>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-12">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-envelope text-muted me-2"></i>
-                                                        <span class="text-muted small">Email:</span>
-                                                        <span class="ms-2 text-truncate">${customer.email || 'No registrado'}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-12">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-phone text-muted me-2"></i>
-                                                        <span class="text-muted small">Teléfono:</span>
-                                                        <strong class="ms-2">${customer.phone || 'No registrado'}</strong>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Ubicación -->
-                                            <div class="border-top pt-3">
-                                                <h6 class="text-muted mb-2 border-bottom pb-3">
-                                                    <i class="fas fa-map-marker-alt me-1"></i>Ubicación
-                                                </h6>
-                                                <div class="row">
-                                                    <div class="col-md-4">
-                                                        <small class="text-muted d-block">Departamento</small>
-                                                        <strong>${customer.state || 'No registrado'}</strong>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <small class="text-muted d-block">Ciudad</small>
-                                                        <strong>${customer.city || 'No registrada'}</strong>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <small class="text-muted d-block">Barrio</small>
-                                                        <strong>${customer.barrio || 'No registrado'}</strong>
-                                                    </div>
-                                                </div>
-                                                <div class="mt-2">
-                                                    <small class="text-muted d-block">Dirección</small>
-                                                    <span>${customer.address_1 || 'No registrada'}${customer.address_2 ? ' - ' + customer.address_2 : ''}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-footer bg-light text-center">
-                                            <small class="text-muted">
-                                                <i class="fas fa-info-circle me-1"></i>
-                                                Los datos se cargarán automáticamente en el formulario
-                                            </small>
-                                        </div>
-                                    </div>
-                                `);
-                                $searchAlert.removeClass('alert-info alert-warning alert-danger').addClass('alert-success');
-                                $btnContinue.prop('disabled', false).html('<i class="fas fa-arrow-right me-2"></i><span class="btn-text">Continuar con el Pedido</span>');
-                                $customerFound.val('true');
-                                $customerData.val(JSON.stringify(customer));
-                            } else {
-                                // Cliente no encontrado
-                                $previewDiv.html(`
-                                    <div class="d-flex align-items-center mb-3">
-                                        <i class="fas fa-user-plus text-warning me-2 fs-4"></i>
-                                        <strong class="text-warning">Cliente No Encontrado</strong>
-                                    </div>
-                                    <p class="mb-2">
-                                        No se encontró un cliente con el documento <strong>${documento}</strong> 
-                                        en la base de datos de WooCommerce.
-                                    </p>
-                                    <div class="alert alert-light border">
-                                        <i class="fas fa-plus-circle text-primary me-2"></i>
-                                        Se creará un nuevo registro de cliente con los datos que ingrese en el formulario.
-                                    </div>
-                                `);
-                                $searchAlert.removeClass('alert-info alert-success alert-danger').addClass('alert-warning');
-                                $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i><span class="btn-text">Crear Nuevo Cliente</span>');
-                                $customerFound.val('false');
-                                $customerData.val('');
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            // Error en la búsqueda
+                            const customer = response.customer;
                             $previewDiv.html(`
-                                <div class="d-flex align-items-center mb-3">
-                                    <i class="fas fa-exclamation-triangle text-danger me-2 fs-4"></i>
-                                    <strong class="text-danger">Error en la Búsqueda</strong>
-                                </div>
-                                <p class="mb-2">
-                                    No se pudo conectar con la base de datos de WooCommerce.
-                                </p>
-                                <div class="alert alert-light border">
-                                    <small class="text-muted">
-                                        Error técnico: ${error || 'Error desconocido'}
-                                    </small>
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-cuertar bg-custom text-white d-flex align-items-center">
+                                        <i class="fas fa-user-check me-2"></i>
+                                        <strong>Cliente Encontrado</strong>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Información Personal -->
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fas fa-id-card text-muted me-2"></i>
+                                                    <span class="text-muted small">DNI:</span>
+                                                    <strong class="ms-2">${customer.dni || 'No registrado'}</strong>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-12">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fas fa-user text-muted me-2"></i>
+                                                    <span class="text-muted small">Nombre:</span>
+                                                    <strong class="ms-2">${customer.first_name} ${customer.last_name}</strong>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-12">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fas fa-envelope text-muted me-2"></i>
+                                                    <span class="text-muted small">Email:</span>
+                                                    <span class="ms-2 text-truncate">${customer.email || 'No registrado'}</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-12">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fas fa-phone text-muted me-2"></i>
+                                                    <span class="text-muted small">Teléfono:</span>
+                                                    <strong class="ms-2">${customer.phone || 'No registrado'}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Ubicación -->
+                                        <div class="border-top pt-3">
+                                            <h6 class="text-muted mb-2 border-bottom pb-3">
+                                                <i class="fas fa-map-marker-alt me-1"></i>Ubicación
+                                            </h6>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <small class="text-muted d-block">Departamento</small>
+                                                    <strong>${customer.state || 'No registrado'}</strong>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <small class="text-muted d-block">Ciudad</small>
+                                                    <strong>${customer.city || 'No registrada'}</strong>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <small class="text-muted d-block">Barrio</small>
+                                                    <strong>${customer.barrio || 'No registrado'}</strong>
+                                                </div>
+                                            </div>
+                                            <div class="mt-2">
+                                                <small class="text-muted d-block">Dirección</small>
+                                                <span>${customer.address_1 || 'No registrada'}${customer.address_2 ? ' - ' + customer.address_2 : ''}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card-footer bg-light text-center">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Los datos se cargarán automáticamente en el formulario
+                                        </small>
+                                    </div>
                                 </div>
                             `);
-                            $searchAlert.removeClass('alert-info alert-success alert-warning').addClass('alert-danger');
+                            $searchAlert.removeClass('alert-info alert-warning alert-danger').addClass('alert-success');
+                            $btnContinue.prop('disabled', false).html('<i class="fas fa-arrow-right me-2"></i><span class="btn-text">Continuar con el Pedido</span>');
+                            $customerFound.val('true');
+                            $customerData.val(JSON.stringify(customer));
+                        } else {
+                            // Cliente no encontrado
+                            $previewDiv.html(`
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="fas fa-user-plus text-warning me-2 fs-4"></i>
+                                    <strong class="text-warning">Cliente No Encontrado</strong>
+                                </div>
+                                <p class="mb-2">
+                                    No se encontró un cliente con el documento <strong>${documento}</strong> 
+                                    en la base de datos de WooCommerce.
+                                </p>
+                                <div class="alert alert-light border">
+                                    <i class="fas fa-plus-circle text-primary me-2"></i>
+                                    Se creará un nuevo registro de cliente con los datos que ingrese en el formulario.
+                                </div>
+                            `);
+                            $searchAlert.removeClass('alert-info alert-success alert-danger').addClass('alert-warning');
                             $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i><span class="btn-text">Crear Nuevo Cliente</span>');
                             $customerFound.val('false');
                             $customerData.val('');
-                        },
-                        complete: function() {
-                            // Restaurar botón de búsqueda
-                            $btnSearch.prop('disabled', false).html('<i class="fas fa-search me-1"></i>Buscar');
                         }
-                    });
-                });
-
-                // Permitir búsqueda con Enter
-                $billingId.on('keypress', function(e) {
-                    if (e.which === 13 && !$btnSearch.prop('disabled')) {
-                        e.preventDefault();
-                        $btnSearch.click();
-                    }
-                });
-
-                // Efecto visual al hacer clic en continuar
-                $btnContinue.on('click', function(e) {
-                    if (!$(this).prop('disabled')) {
-                        // Limpiar localStorage al iniciar nuevo pedido usando función centralizada
-                        if (typeof window.cleanVentasLocalStorage === 'function') {
-                            window.cleanVentasLocalStorage('O');
-                        }
-                        
-                        // Cambiar a icono de check blanco y ocultar texto
-                        $(this).html('<i class="fas fa-check text-white"></i>');
-                        
-                        // Agregar clase para mantener el gradiente
-                        $(this).addClass('btn-processing');
-                        
-                        // Opcional: Pequeño delay para mostrar el efecto antes del submit
-                        setTimeout(() => {
-                            // El formulario se enviará automáticamente después del efecto
-                        }, 200);
+                    },
+                    error: function(xhr, status, error) {
+                        // Error en la búsqueda
+                        $previewDiv.html(`
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="fas fa-exclamation-triangle text-danger me-2 fs-4"></i>
+                                <strong class="text-danger">Error en la Búsqueda</strong>
+                            </div>
+                            <p class="mb-2">
+                                No se pudo conectar con la base de datos de WooCommerce.
+                            </p>
+                            <div class="alert alert-light border">
+                                <small class="text-muted">
+                                    Error técnico: ${error || 'Error desconocido'}
+                                </small>
+                            </div>
+                        `);
+                        $searchAlert.removeClass('alert-info alert-success alert-warning').addClass('alert-danger');
+                        $btnContinue.prop('disabled', false).html('<i class="fas fa-user-plus me-2"></i><span class="btn-text">Crear Nuevo Cliente</span>');
+                        $customerFound.val('false');
+                        $customerData.val('');
+                    },
+                    complete: function() {
+                        // Restaurar botón de búsqueda
+                        $btnSearch.prop('disabled', false).html('<i class="fas fa-search me-1"></i>Buscar');
                     }
                 });
             });
-        </script>
 
+            // Permitir búsqueda con Enter
+            $billingId.on('keypress', function(e) {
+                if (e.which === 13 && !$btnSearch.prop('disabled')) {
+                    e.preventDefault();
+                    $btnSearch.click();
+                }
+            });
 
-    </div>
+            // Efecto visual al hacer clic en continuar
+            $btnContinue.on('click', function(e) {
+                if (!$(this).prop('disabled')) {
+                    // Limpiar localStorage al iniciar nuevo pedido usando función centralizada
+                    if (typeof window.cleanVentasLocalStorage === 'function') {
+                        window.cleanVentasLocalStorage('O');
+                    }
 
+                    // Cambiar a icono de check blanco y ocultar texto
+                    $(this).html('<i class="fas fa-check text-white"></i>');
+
+                    // Agregar clase para mantener el gradiente
+                    $(this).addClass('btn-processing');
+
+                    // Opcional: Pequeño delay para mostrar el efecto antes del submit
+                    setTimeout(() => {
+                        // El formulario se enviará automáticamente después del efecto
+                    }, 200);
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

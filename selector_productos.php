@@ -32,15 +32,13 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
 <?php include("parts/header.php"); ?>
 
 <body class="product-selector-container">
+    <?php include("parts/menu.php"); ?>
     <div class="container-fluid">
-        <?php include("parts/menu.php"); ?>
-
         <?php
         // Configurar el paso actual para el wizard
         $current_step = 3; // Paso 3: Productos
         include('parts/step_wizard.php');
         ?>
-
         <!-- Product Header -->
         <div class="row justify-content-center">
             <div class="col-md-10 text-center mb-4">
@@ -87,7 +85,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                             </div>
 
                             <!-- Search Stats -->
-                            <div class="search-stats alert alert-success" id="searchStats" style="display: none;">
+                            <div class="search-stats alert alert-success z-0" id="searchStats" style="display: none;">
                                 <small class="text-muted">
                                     <i class="fas fa-info-circle me-1"></i>
                                     <span id="resultsCount">0</span> productos encontrados
@@ -136,7 +134,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         <div class="panel-header bg-primary bg-custom">
                             <h5 class="text-white d-flex align-items-center justify-content-between">
                                 <span>
-                                <i class="fas fa-shopping-cart me-2"></i>Carrito
+                                    <i class="fas fa-shopping-cart me-2"></i>Carrito
                                 </span>
                                 <span class="text-white ms-2 d-flex align-items-center" id="cart-counter" style="display: none;">0</span>
                             </h5>
@@ -676,7 +674,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     const prodImageUrl = btn.data('product-image-url');
 
                     const product = {
-                        id: prodId,                       // id del producto padre
+                        id: prodId, // id del producto padre
                         title: prodName,
                         price: prodPrice,
                         regular_price: prodRegularPrice,
@@ -688,9 +686,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         stock: 999,
 
                         // Variación (claves para que el carrito NO los mezcle)
-                        variation_id: variationId,                 // <- clave dura
-                        variation_label: variationLabel || '',     // <- visual
-                        variation_attributes: variationAttributes  // <- opcional
+                        variation_id: variationId, // <- clave dura
+                        variation_label: variationLabel || '', // <- visual
+                        variation_attributes: variationAttributes // <- opcional
                     };
 
                     // addProduct retorna la cart_key (product + variation)
