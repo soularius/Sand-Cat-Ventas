@@ -1,33 +1,19 @@
 <?php
-// 4. DESPUÉS: Cargar presentación
-include("parts/header.php");
-/* ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL); */
-
-
-// 3. Lógica de autenticación y procesamiento
-// Requerir autenticación - redirige a index.php si no está logueado
+require_once('class/autoload.php');
 requireLogin('index.php');
 
-// Obtener datos del usuario actual
-$colname_usuario = Utils::captureValue('MM_Username', 'SESSION', '');
-if ($colname_usuario) {
-    $colname_usuario = mysqli_real_escape_string($sandycat, $colname_usuario);
-}
+include("parts/header.php");
 
-$query_usuario = sprintf("SELECT * FROM ingreso WHERE elnombre = '$colname_usuario'");
-$usuario = mysqli_query($sandycat, $query_usuario) or die(mysqli_error($sandycat));
-$row_usuario = mysqli_fetch_assoc($usuario);
-$totalRows_usuario = mysqli_num_rows($usuario);
+// Obtener datos del usuario actual usando función centralizada
+$row_usuario = getCurrentUserFromDB();
+if (!$row_usuario) {
+    // Si no se pueden obtener los datos del usuario, redirigir al login
+    Header("Location: index.php");
+    exit();
+}
 
 $ellogin = $row_usuario['elnombre'] ?? '';
 $id_usuarios = $row_usuario['id_ingreso'] ?? 0;
-
-// Crear variable compatible para el menú
-if (!isset($row_usuario['nombre']) && isset($row_usuario['elnombre'])) {
-    $row_usuario['nombre'] = $row_usuario['elnombre'];
-}
 $hoy = date("Y-m-d");
 
 

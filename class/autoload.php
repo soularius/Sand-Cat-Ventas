@@ -3,7 +3,6 @@
  * Autoloader del sistema
  * Carga todas las clases y configuraciones básicas
  */
-
 // Cargar la clase de utilidades primero
 require_once(__DIR__ . '/tools.php');
 
@@ -33,10 +32,8 @@ require_once(dirname(__DIR__) . '/class/load_const.php');
 
 
 require_once(dirname(__DIR__) . '/class/tools.php');
-
 // 2. Incluir el sistema de login dinámico
 require_once(dirname(__DIR__) . '/parts/login_handler.php');
-
 // Cargar configuración de mPDF
 require_once(dirname(__DIR__) . '/mpdf_config.php');
 

@@ -12,9 +12,9 @@ if (basename($_SERVER['PHP_SELF']) === 'constants.php') {
 
 include("class/autoload.php");
 
-// 1. Lógica de autenticación y procesamiento
-// Requerir autenticación - redirige a index.php si no está logueado
-requireLogin('index.php');
+// 1. Definición de constantes del sistema
+// NOTA: Este archivo se carga globalmente desde autoload.php
+// No debe requerir autenticación automáticamente
 
 // Información del Sistema
 define('SYSTEM_NAME', 'Sand&Cat Ventas');

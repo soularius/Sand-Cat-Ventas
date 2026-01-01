@@ -2,12 +2,9 @@
 // 1. Cargar autoloader del sistema
 require_once('class/autoload.php');
 
-// 2. Incluir el manejador de login común
-require_once('parts/login_handler.php');
-
 // 3. Lógica de autenticación y procesamiento
 // Si ya está logueado, redirigir a inicio.php
-if (isLoggedIn()) {
+if (Utils::isLoggedIn()) {
     Header("Location: inicio.php");
     exit();
 }

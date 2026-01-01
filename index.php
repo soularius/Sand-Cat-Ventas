@@ -7,15 +7,16 @@ require_once('parts/login_handler.php');
 
 // 3. Lógica de autenticación y procesamiento
 // Si ya está logueado, redirigir a inicio.php
-if (isLoggedIn()) {
+if (Utils::isLoggedIn()) {
     Header("Location: inicio.php");
     exit();
 }
 
 // Procesar login con redirección dinámica
+// IMPORTANTE: Esto debe ejecutarse ANTES de cualquier output
 processLogin("inicio.php");
 
-// 4. DESPUÉS: Cargar presentación
+// 4. SOLO DESPUÉS de completar toda la lógica: Cargar presentación
 include("parts/header.php");
 ?>
 
