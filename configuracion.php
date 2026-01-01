@@ -205,7 +205,7 @@ include("parts/header.php");
 
 <body>
     <?php include("parts/menu.php"); ?>
-    <div class="container">
+    <div class="container mt-5">
         <section class="">
             <div class="row justify-content-center">
                 <div class="d-flex justify-content-between align-items-center mb-4">
