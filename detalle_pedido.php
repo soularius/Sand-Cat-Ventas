@@ -425,7 +425,7 @@ include('parts/header.php');
         </div>
     </div>
 
-    <?php include("parts/foot.php"); ?>
+    <?php include("parts/footer.php"); ?>
     <script>
         window.serverOrderData = <?php echo json_encode($serverOrderData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
         window.serverCustomerData = <?php echo json_encode($serverCustomerData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;

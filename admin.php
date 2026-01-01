@@ -690,7 +690,7 @@ if (isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
     });
   </script>
 
-  <?php include("parts/foot.php"); ?>
+  <?php include("parts/footer.php"); ?>
 
 </body>
 

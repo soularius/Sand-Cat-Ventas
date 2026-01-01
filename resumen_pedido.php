@@ -208,7 +208,7 @@ $pes2 = '';
         </div>
     </div>
 
-    <?php include("parts/foot.php"); ?>
+    <?php include("parts/footer.php"); ?>
     <!-- Order Summary JavaScript -->
     <script src="assets/js/resumen_pedido.js"></script>
 </body>

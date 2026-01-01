@@ -170,7 +170,7 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
             </div>
         </div>
     </div>
-    <?php include("parts/foot.php"); ?>
+    <?php include("parts/footer.php"); ?>
     <script>
         // Validación de formulario Bootstrap 5
         (function() {

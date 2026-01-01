@@ -327,7 +327,7 @@ return false;
 	        </div>
 			  </div>
 	        </div>
-	<?php include("parts/foot.php"); ?>
+	<?php include("parts/footer.php"); ?>
 </section>
   </div>
     

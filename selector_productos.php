@@ -184,7 +184,7 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
         </div>
         </section>
     </div>
-    <?php include("parts/foot.php"); ?>
+    <?php include("parts/footer.php"); ?>
 
     <!-- Modal para agregar producto -->
     <div class="modal fade product-modal" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">

@@ -147,7 +147,7 @@ if(isset($_POST['iniciando']) && $_POST['iniciando'] = "si") {
 	        </div>
   </div>
   </div>
-	<?php include("parts/foot.php"); ?>
+	<?php include("parts/footer.php"); ?>
 </section>
   </div>
     

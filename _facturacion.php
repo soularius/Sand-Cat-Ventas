@@ -23,7 +23,7 @@ include("parts/header.php");
 // Mostrar formulario de login con estilo clásico y texto personalizado
 renderLoginForm(isset($_GET['error']), "Facturación Woocommerce", "classic"); 
 ?>
-<?php include("parts/foot.php"); ?>
+<?php include("parts/footer.php"); ?>
 
 </body>
 </html>

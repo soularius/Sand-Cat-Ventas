@@ -356,7 +356,7 @@ $id_usuarios = $row_usuario['id_ingreso'] ?? 0;
             <?php endif; ?>
         </div>
     </div>
-    <?php include("parts/foot.php"); ?>
+    <?php include("parts/footer.php"); ?>
 
 
     <!-- Modal Ver Usuario -->

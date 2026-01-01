@@ -24,7 +24,7 @@ include("parts/header.php");
 // Mostrar formulario de login con detección automática de errores
 renderLoginForm(isset($_GET['error'])); 
 ?>
-<?php include("parts/foot.php"); ?>
+<?php include("parts/footer.php"); ?>
 </body>
 </html>
 

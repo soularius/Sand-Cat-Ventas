@@ -182,7 +182,7 @@ if(isset($_POST['id_ventas']) && isset($_POST['id_articulos']) && isset($_POST['
 	        </div>
   </div>
   </div>
-	<?php include("parts/foot.php"); ?>
+	<?php include("parts/footer.php"); ?>
 </section>
   </div>
     

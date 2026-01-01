@@ -1387,4 +1387,4 @@ include("parts/header.php");
         }, 5000);
     </script>
 
-    <?php include("parts/foot.php"); ?>
+    <?php include("parts/footer.php"); ?>

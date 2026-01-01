@@ -429,7 +429,7 @@ include("parts/header.php");
         });
     </script>
 
-    <?php include("parts/foot.php"); ?>
+    <?php include("parts/footer.php"); ?>
 </body>
 
 </html>

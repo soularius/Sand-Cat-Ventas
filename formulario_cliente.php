@@ -426,7 +426,7 @@ include("parts/header.php");
         </form>
     </div>
     </section>
-    <?php include("parts/foot.php"); ?>
+    <?php include("parts/footer.php"); ?>
 
     <script>
         // Funciones para formato de moneda
