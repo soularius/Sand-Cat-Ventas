@@ -326,6 +326,8 @@ class ProductCart {
 
             subtotalRegular += subtotalReg;
             totalDiscount += itemDiscount;
+
+            console.log(item.image_url);
             
             const escapedTitle = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
             const escapedPermalink = (item.permalink || '#').replace(/'/g, "\\'").replace(/"/g, '\\"');
@@ -337,6 +339,12 @@ class ProductCart {
             html += `
                 <div class="cart-item" data-cart-key="${item.cart_key}">
                     <div class="item-info">
+                        <div class="position-relative overflow-hidden">
+                            <img src="${item.image_url || 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg'}" 
+                                 alt="${item.title}" 
+                                 class="img-fluid rounded card-img-top" 
+                                 style="height: 220px; object-fit: cover; transition: transform 0.3s ease;">
+                        </div>
                         <h6 class="product-title-clickable"
                             onclick="viewProductDetails('${item.product_id || ''}', '${escapedTitle}', '${escapedPermalink}')"
                             title="Click para ver detalles del producto"

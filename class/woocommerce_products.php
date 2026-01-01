@@ -756,14 +756,14 @@ class WooCommerceProducts {
         
         $result = mysqli_query($this->wp_connection, $query);
         if (!$result || mysqli_num_rows($result) == 0) {
-            return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+            return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
         }
         
         $row = mysqli_fetch_assoc($result);
         $thumbnail_id = $row['thumbnail_id'];
         
         if (!$thumbnail_id) {
-            return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+            return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
         }
         
         // Obtener URL de la imagen
@@ -779,7 +779,7 @@ class WooCommerceProducts {
             return $image_row['guid'];
         }
         
-        return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+        return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
     }
 
     
@@ -820,7 +820,7 @@ class WooCommerceProducts {
             // Retornar placeholders para todos los productos
             $images = [];
             foreach ($product_ids as $product_id) {
-                $images[$product_id] = 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+                $images[$product_id] = 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
             }
             return $images;
         }
@@ -849,7 +849,7 @@ class WooCommerceProducts {
             if (isset($thumbnail_map[$product_id]) && isset($image_urls[$thumbnail_map[$product_id]])) {
                 $product_images[$product_id] = $image_urls[$thumbnail_map[$product_id]];
             } else {
-                $product_images[$product_id] = 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+                $product_images[$product_id] = 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
             }
         }
         

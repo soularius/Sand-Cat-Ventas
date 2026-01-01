@@ -1298,7 +1298,7 @@ class WooCommerceOrders
         
         $result = mysqli_query($this->wp_connection, $query);
         if (!$result || mysqli_num_rows($result) == 0) {
-            return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+            return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
         }
         
         $row = mysqli_fetch_assoc($result);
@@ -1320,7 +1320,7 @@ class WooCommerceOrders
             }
         }
         
-        return 'https://via.placeholder.com/200x200?text=Sin+Imagen';
+        return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
     }
 
     /**
