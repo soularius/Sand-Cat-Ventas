@@ -312,7 +312,7 @@ include("parts/header.php");
             </thead>
             <tbody id="donde">
               <?php foreach ($productos_woo as $producto): ?>
-                <tr data-product-id="<?php echo $producto['id_producto']; ?>">
+                <tr data-product-id="<?php echo $producto['id_producto']; ?>" data-image-url="<?php echo htmlspecialchars($producto['image_url'] ?? 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg'); ?>">
                   <td>
                     <div class="d-flex flex-column">
                       <strong>
@@ -686,6 +686,9 @@ include("parts/header.php");
             const estadoText = estadoBadge ? estadoBadge.textContent.trim().toLowerCase() : '';
             const available = estadoText.includes('disponible');
 
+            // Extraer image_url desde el data attribute
+            const imageUrl = row.getAttribute('data-image-url') || 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+
             return {
               id: productId,
               product_id: productId,
@@ -699,7 +702,7 @@ include("parts/header.php");
               variation_id: null,
               variation_label: variacion,
               variation_attributes: null,
-              image_url: '', // No hay imagen en esta vista
+              image_url: imageUrl,
               permalink: nombreLink ? nombreLink.href : '#'
             };
           } catch (error) {

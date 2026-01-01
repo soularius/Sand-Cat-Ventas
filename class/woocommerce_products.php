@@ -156,7 +156,18 @@ class WooCommerceProducts {
                 CASE 
                     WHEN p.post_type = 'product_variation' THEN p.post_parent
                     ELSE p.ID 
-                END as product_id
+                END as product_id,
+                -- ✅ Imagen con fallback: variación -> padre
+                COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id, 0) AS image_id,
+                -- ✅ URL base del sitio
+                opt.base_url AS siteurl,
+                -- ✅ image_url: si hay _wp_attached_file armamos URL; si no, fallback guid
+                CASE
+                    WHEN COALESCE(att_file.file_path, '') <> '' THEN
+                        CONCAT(opt.base_url, '/wp-content/uploads/', att_file.file_path)
+                    ELSE
+                        COALESCE(att.guid, '')
+                END AS image_url
             FROM miau_posts p
             LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
             LEFT JOIN miau_postmeta pm_parent_sku ON p.post_parent = pm_parent_sku.post_id AND pm_parent_sku.meta_key = '_sku' AND p.post_type = 'product_variation'
@@ -171,6 +182,54 @@ class WooCommerceProducts {
             LEFT JOIN miau_postmeta pm_width ON p.ID = pm_width.post_id AND pm_width.meta_key = '_width'
             LEFT JOIN miau_postmeta pm_height ON p.ID = pm_height.post_id AND pm_height.meta_key = '_height'
             LEFT JOIN miau_postmeta pm_manage_stock ON p.ID = pm_manage_stock.post_id AND pm_manage_stock.meta_key = '_manage_stock'
+            
+            -- ✅ base_url desde options (siteurl/home)
+            CROSS JOIN (
+                SELECT TRIM(TRAILING '/' FROM COALESCE(
+                    MAX(CASE WHEN option_name = 'siteurl' THEN option_value END),
+                    MAX(CASE WHEN option_name = 'home'    THEN option_value END),
+                    ''
+                )) AS base_url
+                FROM miau_options
+                WHERE option_name IN ('siteurl', 'home')
+            ) opt
+
+            -- ✅ thumb_id de la variación (agrupado para evitar duplicados)
+            LEFT JOIN (
+                SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
+                FROM miau_postmeta
+                WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
+                GROUP BY post_id
+            ) thumb_var
+                ON thumb_var.post_id = p.ID
+               AND p.post_type = 'product_variation'
+
+            -- ✅ thumb_id del padre (o del mismo post si no es variación)
+            LEFT JOIN (
+                SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
+                FROM miau_postmeta
+                WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
+                GROUP BY post_id
+            ) thumb_prod
+                ON thumb_prod.post_id = CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.post_parent
+                    ELSE p.ID
+                END
+
+            -- ✅ _wp_attached_file del attachment final
+            LEFT JOIN (
+                SELECT post_id, MAX(meta_value) AS file_path
+                FROM miau_postmeta
+                WHERE meta_key = '_wp_attached_file' AND meta_value <> ''
+                GROUP BY post_id
+            ) att_file
+                ON att_file.post_id = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
+
+            -- ✅ guid del attachment (fallback)
+            LEFT JOIN miau_posts att
+                ON att.ID = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
+               AND att.post_type = 'attachment'
+            
             $category_condition
             WHERE p.post_status IN ('publish', 'private')
             AND (
@@ -221,8 +280,15 @@ class WooCommerceProducts {
             $row['product_id'] = intval($row['product_id']);
             $row['es_variacion'] = ($row['post_type'] === 'product_variation');
             
+            // ✅ Procesar image_url con fallback a placeholder
+            $image_url = $row['image_url'] ?? '';
+            if (empty($image_url)) {
+                $image_url = 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+            }
+            $row['image_url'] = $image_url;
+            
             // Debug: mostrar datos de cada producto
-            Utils::logError("Product processed - ID: " . $row['id_producto'] . ", Type: " . $row['post_type'] . ", Name: " . $row['nombre'] . ", Is_variation: " . ($row['es_variacion'] ? 'YES' : 'NO'));
+            Utils::logError("Product processed - ID: " . $row['id_producto'] . ", Type: " . $row['post_type'] . ", Name: " . $row['nombre'] . ", Is_variation: " . ($row['es_variacion'] ? 'YES' : 'NO') . ", Image: " . $image_url);
             
             // Si es variación, obtener atributos y label
             if ($row['es_variacion'] && $row['variation_id']) {
@@ -332,7 +398,19 @@ class WooCommerceProducts {
                 CASE 
                     WHEN p.post_type = 'product_variation' THEN p.post_parent
                     ELSE p.ID 
-                END as product_id
+                END as product_id,
+                
+                -- ✅ Imagen con fallback: variación -> padre
+                COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id, 0) AS image_id,
+                -- ✅ URL base del sitio
+                opt.base_url AS siteurl,
+                -- ✅ image_url: si hay _wp_attached_file armamos URL; si no, fallback guid
+                CASE
+                    WHEN COALESCE(att_file.file_path, '') <> '' THEN
+                        CONCAT(opt.base_url, '/wp-content/uploads/', att_file.file_path)
+                    ELSE
+                        COALESCE(att.guid, '')
+                END AS image_url
                 
             FROM miau_posts p
             LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
@@ -342,7 +420,54 @@ class WooCommerceProducts {
             LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
             LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
             LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'";
+            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            
+            -- ✅ base_url desde options (siteurl/home)
+            CROSS JOIN (
+                SELECT TRIM(TRAILING '/' FROM COALESCE(
+                    MAX(CASE WHEN option_name = 'siteurl' THEN option_value END),
+                    MAX(CASE WHEN option_name = 'home'    THEN option_value END),
+                    ''
+                )) AS base_url
+                FROM miau_options
+                WHERE option_name IN ('siteurl', 'home')
+            ) opt
+
+            -- ✅ thumb_id de la variación (agrupado para evitar duplicados)
+            LEFT JOIN (
+                SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
+                FROM miau_postmeta
+                WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
+                GROUP BY post_id
+            ) thumb_var
+                ON thumb_var.post_id = p.ID
+               AND p.post_type = 'product_variation'
+
+            -- ✅ thumb_id del padre (o del mismo post si no es variación)
+            LEFT JOIN (
+                SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
+                FROM miau_postmeta
+                WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
+                GROUP BY post_id
+            ) thumb_prod
+                ON thumb_prod.post_id = CASE 
+                    WHEN p.post_type = 'product_variation' THEN p.post_parent
+                    ELSE p.ID
+                END
+
+            -- ✅ _wp_attached_file del attachment final
+            LEFT JOIN (
+                SELECT post_id, MAX(meta_value) AS file_path
+                FROM miau_postmeta
+                WHERE meta_key = '_wp_attached_file' AND meta_value <> ''
+                GROUP BY post_id
+            ) att_file
+                ON att_file.post_id = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
+
+            -- ✅ guid del attachment (fallback)
+            LEFT JOIN miau_posts att
+                ON att.ID = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
+               AND att.post_type = 'attachment'";
         
         // Agregar JOIN para categorías si es necesario - CORREGIDO para incluir variaciones
         if (!empty($category_id)) {
@@ -427,6 +552,12 @@ class WooCommerceProducts {
             // Debug: mostrar datos de cada producto en búsqueda
             Utils::logError("Search Product processed - ID: " . $row['id_producto'] . ", Type: " . $row['post_type'] . ", Name: " . $row['nombre'] . ", Variation_ID: " . ($row['variation_id'] ?? 'null'));
             
+            // ✅ Procesar image_url con fallback a placeholder
+            $image_url = $row['image_url'] ?? '';
+            if (empty($image_url)) {
+                $image_url = 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+            }
+            
             $products[] = [
                 // IDs principales
                 'id' => (int)$row['id_producto'],                    // ID único (variación o producto)
@@ -456,6 +587,10 @@ class WooCommerceProducts {
                 'estado_stock' => $row['estado_stock'] ?? 'outofstock',
                 'is_available' => ($row['estado_stock'] === 'instock'),
                 'en_stock' => ($row['estado_stock'] === 'instock'), // Para compatibilidad
+                
+                // ✅ Imagen
+                'image_url' => $image_url,
+                'permalink' => '', // Se puede agregar lógica específica si se necesita
                 
                 // Otros
                 'sku' => $row['sku'] ?? '',

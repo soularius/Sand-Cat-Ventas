@@ -326,8 +326,6 @@ class ProductCart {
 
             subtotalRegular += subtotalReg;
             totalDiscount += itemDiscount;
-
-            console.log(item.image_url);
             
             const escapedTitle = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '\\"');
             const escapedPermalink = (item.permalink || '#').replace(/'/g, "\\'").replace(/"/g, '\\"');
