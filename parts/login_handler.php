@@ -42,7 +42,15 @@ function processLogin($success_redirect = "inicio.php", $error_redirect = null)
 
     $loginUsername = mysqli_real_escape_string($sandycat, $loginData['usuario']);
     $password = mysqli_real_escape_string($sandycat, $loginData['clave']);
-    $LoginRS_query = "SELECT * FROM ingreso WHERE elnombre ='$loginUsername' AND lapass='$password'";
+    
+    // Obtener la clave de encriptación AES desde .env
+    $aes_key = Utils::env('AES_ENCRYPT', 's4nd1c47_9455**');
+    
+    // Log para debugging de AES encryption
+    Utils::logError("Intentando login con AES_ENCRYPT para usuario: $loginUsername", 'INFO', 'login_handler.php');
+    
+    // Query usando AES_ENCRYPT para comparar la contraseña
+    $LoginRS_query = "SELECT * FROM ingreso WHERE elnombre ='$loginUsername' AND lapass = AES_ENCRYPT('$password', '$aes_key')";
 
     $userok = "";
 
@@ -57,7 +65,8 @@ function processLogin($success_redirect = "inicio.php", $error_redirect = null)
         $sandycat->close();
 
         if (!empty($loginUsername) && !empty($password)) {
-            if ($loginUsername == $userok && $password == $passok) {
+            // Con AES_ENCRYPT, si encontramos un registro significa que la contraseña es correcta
+            if (!empty($userok)) {
                 $_SESSION["logueado"] = TRUE;
                 $_SESSION['MM_Username'] = $userok;
                 
