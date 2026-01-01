@@ -28,6 +28,15 @@ $miau = DatabaseConfig::getWordPressConnection();
 // Cargar constantes del sistema (está en la carpeta padre)
 require_once(dirname(__DIR__) . '/constants.php');
 
+// Cargar constantes del sistema
+require_once(dirname(__DIR__) . '/class/load_const.php');
+
+
+require_once(dirname(__DIR__) . '/class/tools.php');
+
+// 2. Incluir el sistema de login dinámico
+require_once(dirname(__DIR__) . '/parts/login_handler.php');
+
 // Cargar configuración de mPDF
 require_once(dirname(__DIR__) . '/mpdf_config.php');
 
@@ -35,28 +44,9 @@ require_once(dirname(__DIR__) . '/mpdf_config.php');
 require_once(__DIR__ . '/woocommerce_customer.php');
 
 
-// Cargar constantes del sistema
-require_once(__DIR__ . '/load_const.php');
 
 // Iniciar sesión si no está iniciada
 if (!isset($_SESSION)) {
     session_start();
-}
-
-// Funciones de compatibilidad para código legacy
-function isLoggedIn() {
-    return Utils::isLoggedIn();
-}
-
-function getCurrentUser() {
-    return Utils::getCurrentUser();
-}
-
-function env($key, $default = null) {
-    return Utils::env($key, $default);
-}
-
-function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) {
-    return Utils::isAuthorized($strUsers, $strGroups, $UserName, $UserGroup);
 }
 ?>

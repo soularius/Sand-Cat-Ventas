@@ -20,7 +20,7 @@ $clear_cart_cache = !$is_logged_in;
     <div class="row">
       <div class="col-md-6">
         <div class="footer-copyright text-center py-3">© <?php echo date('Y'); ?> Copyright:
-          <a class="a-custom" href="https://sandycat.com.co/" target="_blank">Sand&Cat</a>
+          <a class="a-custom" href="<?= URL_WOOCOMMERCE ?>" target="_blank">Sand&Cat</a>
         </div>
       </div>
       <div class="col-md-6">

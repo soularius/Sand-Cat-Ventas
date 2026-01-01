@@ -1,13 +1,10 @@
 <?php
+// 4. DESPUÉS: Cargar presentación
+include("parts/header.php");
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL); */
 
-// 1. Cargar autoloader del sistema
-require_once('class/autoload.php');
-
-// 2. Incluir el sistema de login dinámico
-require_once('parts/login_handler.php');
 
 // 3. Lógica de autenticación y procesamiento
 // Requerir autenticación - redirige a index.php si no está logueado
@@ -71,8 +68,6 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
     } while ($row_vcancel = mysqli_fetch_assoc($vcancel));
 }
 
-// 4. DESPUÉS: Cargar presentación
-include("parts/header.php");
 ?>
 <style>
 </style>

@@ -100,7 +100,7 @@ function processLogin($success_redirect = "inicio.php", $error_redirect = null)
  */
 function requireLogin($login_page = "index.php", $return_url = null)
 {
-    if (!isLoggedIn()) {
+    if (!Utils::isLoggedIn()) {
         if ($return_url === null) {
             $return_url = $_SERVER['REQUEST_URI'];
         }
@@ -179,7 +179,7 @@ function renderLoginForm($show_error = false, $button_text = "Ingresar al Sistem
                 <div class="row justify-content-center">
                     <div class="col-md-7 col-lg-5">
                         <div class="login-wrap p-4 p-md-5 justify-content-center">
-                            <img src="https://sandycat.com.co/wp-content/uploads/2019/09/Logo-sandycat-200px-01.png" class="img-fluid" alt="SAND&CAT" />
+                            <img src="<?= LOGO_FACTURA ?>" class="img-fluid" alt="SAND&CAT" />
                             <h3 class="text-center mb-4"></h3>
                             <form action="<?php echo basename($_SERVER['PHP_SELF']); ?>" class="login-form" method="post">
                                 <?php if (isset($_GET['return'])): ?>
@@ -217,7 +217,7 @@ function renderLoginForm($show_error = false, $button_text = "Ingresar al Sistem
                 <div class="row justify-content-center">
                     <div class="col-12 d-flex justify-content-center">
                         <div class="login-card">
-                            <img src="https://sandycat.com.co/wp-content/uploads/2019/09/Logo-sandycat-200px-01.png"
+                            <img src="<?= LOGO_FACTURA ?>"
                                 class="brand-logo" alt="SAND&CAT" />
 
                             <h2 class="login-title">Bienvenido</h2>

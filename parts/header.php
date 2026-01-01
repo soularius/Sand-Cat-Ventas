@@ -1,3 +1,7 @@
+<?php
+require_once __DIR__ . '/../class/autoload.php';
+?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,7 +11,7 @@
     <title>Sand&Cat - Sistema de Ventas</title>
     
     <!-- Favicon -->
-    <link rel="shortcut icon" href="https://sandycat.com.co/wp-content/uploads/2020/05/favicon.jpg" type="image/x-icon" />
+    <link rel="shortcut icon" href="<?= FAVICON ?>" type="image/x-icon" />
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">

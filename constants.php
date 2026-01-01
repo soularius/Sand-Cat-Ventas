@@ -4,13 +4,25 @@
  * Definiciones de constantes utilizadas en todo el proyecto
  */
 
+// Prevenir acceso directo - redirigir a inicio.php
+if (basename($_SERVER['PHP_SELF']) === 'constants.php') {
+    header('Location: inicio.php');
+    exit();
+}
+
+include("class/autoload.php");
+
+// 1. Lógica de autenticación y procesamiento
+// Requerir autenticación - redirige a index.php si no está logueado
+requireLogin('index.php');
+
 // Información del Sistema
 define('SYSTEM_NAME', 'Sand&Cat Ventas');
 define('SYSTEM_VERSION', '2.0.0');
 define('SYSTEM_AUTHOR', 'Sand&Cat Team');
 
 // URLs del Sistema
-define('BASE_URL', env('BASE_URL', 'http://localhost/ventas/'));
+define('BASE_URL', Utils::env('BASE_URL', 'http://localhost/ventas/'));
 define('ASSETS_URL', BASE_URL . 'assets/');
 define('UPLOADS_URL', BASE_URL . 'uploads/');
 
@@ -64,8 +76,8 @@ define('MAX_LOGIN_ATTEMPTS', 5);
 define('LOGIN_LOCKOUT_TIME', 900); // 15 minutos
 
 // Configuración de Email
-define('EMAIL_FROM_NAME', env('EMAIL_FROM_NAME', 'Sand&Cat Ventas'));
-define('EMAIL_FROM_ADDRESS', env('EMAIL_FROM_ADDRESS', 'noreply@sandycat.com.co'));
+define('EMAIL_FROM_NAME', Utils::env('EMAIL_FROM_NAME', 'Sand&Cat Ventas'));
+define('EMAIL_FROM_ADDRESS', Utils::env('EMAIL_FROM_ADDRESS', 'noreply@sandycat.com.co'));
 
 // Configuración de Moneda
 define('CURRENCY_SYMBOL', '$');
@@ -85,8 +97,8 @@ define('LOG_LEVEL_INFO', 'INFO');
 define('LOG_LEVEL_DEBUG', 'DEBUG');
 
 // Configuración de Cache
-define('CACHE_ENABLED', env('CACHE_ENABLED', false));
-define('CACHE_LIFETIME', env('CACHE_LIFETIME', 3600));
+define('CACHE_ENABLED', Utils::env('CACHE_ENABLED', false));
+define('CACHE_LIFETIME', Utils::env('CACHE_LIFETIME', 3600));
 
 // URLs de Redirección
 define('LOGIN_SUCCESS_URL', 'admin.php');
@@ -95,7 +107,7 @@ define('LOGOUT_URL', 'index.php?logout=1');
 define('ACCESS_DENIED_URL', 'index.php?access=denied');
 
 // Configuración de WordPress/WooCommerce
-define('WP_TABLE_PREFIX', env('WP_TABLE_PREFIX', 'miau_'));
+define('WP_TABLE_PREFIX', Utils::env('WP_TABLE_PREFIX', 'miau_'));
 define('WP_POST_TYPE_ORDER', 'shop_order');
 define('WP_POST_TYPE_PRODUCT', 'product');
 define('WP_POST_TYPE_VARIATION', 'product_variation');
@@ -133,13 +145,13 @@ define('TOOLS_FILE', ROOT_PATH . 'tools.php');
 define('CONSTANTS_FILE', ROOT_PATH . 'constants.php');
 
 // Configuración de Debug
-define('DEBUG_ENABLED', env('DEBUG_MODE', false));
+define('DEBUG_ENABLED', Utils::env('DEBUG_MODE', false));
 define('DEBUG_SHOW_ERRORS', DEBUG_ENABLED);
 define('DEBUG_LOG_QUERIES', DEBUG_ENABLED);
 
 // Información de Contacto
-define('SUPPORT_EMAIL', env('SUPPORT_EMAIL', 'soporte@sandycat.com.co'));
-define('SUPPORT_PHONE', env('SUPPORT_PHONE', '+57 300 123 4567'));
-define('COMPANY_NAME', env('COMPANY_NAME', 'Sand&Cat'));
-define('COMPANY_ADDRESS', env('COMPANY_ADDRESS', 'Bogotá, Colombia'));
+define('SUPPORT_EMAIL', Utils::env('SUPPORT_EMAIL', 'soporte@sandycat.com.co'));
+define('SUPPORT_PHONE', Utils::env('SUPPORT_PHONE', '+57 300 123 4567'));
+define('COMPANY_NAME', Utils::env('COMPANY_NAME', 'Sand&Cat'));
+define('COMPANY_ADDRESS', Utils::env('COMPANY_ADDRESS', 'Bogotá, Colombia'));
 ?>

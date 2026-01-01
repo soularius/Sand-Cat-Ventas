@@ -21,7 +21,7 @@ $active_menu = isset($menu_items[$current_page]) ? $menu_items[$current_page] : 
 
 <nav class="navbar navbar-expand-lg navbar-dark shadow-sm bg-menu">
   <div class="container-fluid">
-    <a class="navbar-brand d-flex align-items-center" href="http://localhost/ventas/" title="Ir al inicio">
+    <a class="navbar-brand d-flex align-items-center" href="<?= VENTAS_URL; ?>" title="Ir al inicio">
       <img src="assets/img/logo-white.png" 
            class="img-fluid me-2" alt="SAND&CAT" style="height: 45px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));" />
     </a>
@@ -80,7 +80,7 @@ $active_menu = isset($menu_items[$current_page]) ? $menu_items[$current_page] : 
             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Mi Perfil</a></li>
             <li><a class="dropdown-item" href="configuracion.php"><i class="fas fa-cog me-2"></i>Configuración</a></li>
             <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-danger" href="http://localhost/ventas/?logout=login3Et" title="Cerrar sesión">
+            <li><a class="dropdown-item text-danger" href="<?= VENTAS_URL; ?>?logout=login3Et" title="Cerrar sesión">
               <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
             </a></li>
           </ul>

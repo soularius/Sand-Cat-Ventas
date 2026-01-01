@@ -336,37 +336,39 @@ class ProductCart {
 
             html += `
                 <div class="cart-item" data-cart-key="${item.cart_key}">
-                    <div class="item-info">
-                        <div class="position-relative overflow-hidden">
+                    <div class="item-info d-flex">
+                        <div class="position-relative overflow-hidden" style="margin-right: 10px;">
                             <img src="${item.image_url || 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg'}" 
                                  alt="${item.title}" 
                                  class="img-fluid rounded card-img-top" 
-                                 style="height: 220px; object-fit: cover; transition: transform 0.3s ease;">
+                                 style="height: 80px; object-fit: cover; transition: transform 0.3s ease;">
                         </div>
-                        <h6 class="product-title-clickable"
-                            onclick="viewProductDetails('${item.product_id || ''}', '${escapedTitle}', '${escapedPermalink}')"
-                            title="Click para ver detalles del producto"
-                            style="cursor: pointer; color: var(--primary-color); text-decoration: underline;">
-                            ${item.title}
-                        </h6>
+                        <div class="box-item-content">
+                            <h6 class="product-title-clickable"
+                                onclick="viewProductDetails('${item.product_id || ''}', '${escapedTitle}', '${escapedPermalink}')"
+                                title="Click para ver detalles del producto"
+                                style="cursor: pointer; color: var(--primary-color); text-decoration: underline;">
+                                ${item.title}
+                            </h6>
 
-                        ${variationLine}
+                            ${variationLine}
 
-                        <small class="text-muted text-uppercase fw-bold">SKU: ${item.sku || 'N/A'}</small>
+                            <small class="text-muted text-uppercase fw-bold">SKU: ${item.sku || 'N/A'}</small>
 
-                        <div class="d-flex align-items-center justify-content-between position-relative">
-                            ${hasDiscount ? `
-                                <div class="d-flex align-items-center justify-content-between box-prices">
-                                    <div>
-                                        <span class="sale-price text-danger fw-bold">$${finalUnitPrice.toLocaleString('es-CO')}</span>
-                                        <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${regularPrice.toLocaleString('es-CO')}</span>
+                            <div class="d-flex align-items-center justify-content-between position-relative">
+                                ${hasDiscount ? `
+                                    <div class="d-flex align-items-center justify-content-between box-prices">
+                                        <div>
+                                            <span class="sale-price text-danger fw-bold">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                            <span class="regular-price text-muted text-decoration-line-through ms-2 small">$${regularPrice.toLocaleString('es-CO')}</span>
+                                        </div>
+                                        <span class="badge bg-danger rounded-pill position-absolute badge-OFF">Oferta</span>
                                     </div>
-                                    <span class="badge bg-danger rounded-pill position-absolute badge-OFF">Oferta</span>
-                                </div>
-                                <div class="text-success small mt-1">Ahorra $${(regularPrice - salePrice).toLocaleString('es-CO')}</div>
-                            ` : ` 
-                                <span class="current-price text-primary fw-bold">$${finalUnitPrice.toLocaleString('es-CO')}</span>
-                            `}
+                                    <div class="text-success small mt-1">Ahorra $${(regularPrice - salePrice).toLocaleString('es-CO')}</div>
+                                ` : ` 
+                                    <span class="current-price text-primary fw-bold">$${finalUnitPrice.toLocaleString('es-CO')}</span>
+                                `}
+                            </div>
                         </div>
                     </div>
 

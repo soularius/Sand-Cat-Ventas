@@ -16,7 +16,7 @@
  *   Debes crear también en miau_wc_orders para que aparezca en listados HPOS.
  */
 
-require_once('config.php');
+require_once('autoload.php');
 require_once('woocommerce_customer.php');
 
 class WooCommerceOrders
@@ -1280,7 +1280,7 @@ class WooCommerceOrders
      */
     private function getImageUrl($thumbnail_id) {
         if (empty($thumbnail_id) || $thumbnail_id <= 0) {
-            return env('WOOCOMMERCE_BASE_URL') .'/wp-content/uploads/woocommerce-placeholder.webp';
+            return Utils::env('WOOCOMMERCE_BASE_URL') .'/wp-content/uploads/woocommerce-placeholder.webp';
         }
         
         $thumbnail_id = intval($thumbnail_id);
