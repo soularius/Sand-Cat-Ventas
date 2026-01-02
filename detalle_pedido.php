@@ -712,8 +712,8 @@ include('parts/header.php');
 
                     notesHtml += `
                         <div class="order-note-item mb-3 p-3 border rounded">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <div class="note-header">
+                            <div class="d-flex justify-content-between align-items-start mb-2 flex-column">
+                                <div class="note-header d-flex justify-content-between w-100 mb-2">
                                     <span class="badge ${noteTypeClass}">
                                         <i class="${noteTypeIcon} me-1"></i>${noteTypeLabel}
                                     </span>
@@ -721,7 +721,7 @@ include('parts/header.php');
                                         <i class="fas fa-clock me-1"></i>${note.formatted_date}
                                     </small>
                                 </div>
-                                <small class="text-muted">por ${note.author}</small>
+                                <small class="text-muted">creado por ${note.author}</small>
                             </div>
                             <div class="note-content">
                                 <p class="mb-0">${note.content.replace(/\n/g, '<br>')}</p>
