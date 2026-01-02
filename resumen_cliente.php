@@ -345,7 +345,7 @@ include("parts/header.php");
 
 
     <!-- Sistema de Persistencia de Formularios -->
-    <script src="assets/js/form-persistence.js"></script>
+    <script src="assets/js/form_persistence.js"></script>
 
     <script>
         // Hidratación selectiva desde localStorage

@@ -619,7 +619,7 @@ include("parts/header.php");
     </script>
 
     <!-- Sistema de Persistencia de Formularios -->
-    <script src="assets/js/form-persistence.js"></script>
+    <script src="assets/js/form_persistence.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -649,10 +649,10 @@ include("parts/header.php");
         });
 
         /**
-         * Función para mostrar notificación usando form-persistence.js
+         * Función para mostrar notificación usando form_persistence.js
          */
         function showSessionDataNotification(dni) {
-            // Usar la función de form-persistence.js si está disponible
+            // Usar la función de form_persistence.js si está disponible
             if (window.formPersistenceInstance && typeof window.formPersistenceInstance.showRestoreNotification === 'function') {
                 window.formPersistenceInstance.showRestoreNotification(dni);
             } else {
