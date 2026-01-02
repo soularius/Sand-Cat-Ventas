@@ -608,14 +608,14 @@ include("parts/header.php");
             const button = productRow.querySelector('.btn-success');
             if (button) {
               const originalHTML = button.innerHTML;
-              button.innerHTML = '<i class="fas fa-check"></i> Agregado';
+              button.innerHTML = '<i class="fas fa-check"></i>';
               button.classList.remove('btn-success');
-              button.classList.add('btn-info');
+              button.classList.add('btn-primary');
 
               // Restaurar el botón después de 2 segundos
               setTimeout(() => {
                 button.innerHTML = originalHTML;
-                button.classList.remove('btn-info');
+                button.classList.remove('btn-primary');
                 button.classList.add('btn-success');
               }, 2000);
             }
