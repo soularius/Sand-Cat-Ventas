@@ -38,7 +38,7 @@ function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup) {
 
 
 
-$MM_restrictGoTo = "http://localhost/ventas";
+$MM_restrictGoTo = VENTAS_URL;
 
 
 if (!((isset($_SESSION['MM_Username'])))) { 
@@ -77,7 +77,7 @@ $ellogin = $row_usuario['documento'];
   </SCRIPT>
         <?php } else  {?>
         <SCRIPT LANGUAGE="JavaScript">
-  location.href='http://localhost/ventas';
+  location.href="<?= VENTAS_URL ?>";
   </SCRIPT>
         <?php }  ?>
 <body>

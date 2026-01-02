@@ -4,6 +4,9 @@
  * Elimina duplicación de código entre generar_pdf.php, fact.php y enviar_factura_email.php
  */
 
+require_once('mpdf_config.php');
+require_once('class/email_template.php');
+
 /**
  * Convierte código de departamento a nombre completo
  * @param string $codigo Código del departamento (ej: "SAN", "ANT")
@@ -78,104 +81,7 @@ function generarHTMLFactura($datos) {
     $dni = $datos['dni'] ?? '';
     $comentarios = $datos['comentarios'] ?? '';
 
-    // Generar HTML base
-    $cuerpo = '
-    <html>
-    <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    </head>
-    <title>Factura POS '.$datos['factura_num'].'</title>
-    <link rel="shortcut icon" href="http://localhost/ventas/assets/img/logo.png" type="image/x-icon" />
-    <style>
-    @page { 
-      sheet-size: 80mm 297mm; 
-      size: auto;
-    }
-    .precio-tachado {
-      text-decoration: line-through;
-      color: #777777;
-      font-size: 1rem;
-    }
-    .precio-descuento {
-      color: #141414;
-      font-size: 1rem;
-    }
-    .sku-text {
-      font-size: 1rem;
-      color: #8b8b8b;
-      font-weight: 400;
-    }
-    </style>
-    <body>
-    <table border="0"; style="table-layout: fixed; width: 180">
-      <tr align: "center">
-        <td colspan="4" style="text-align: center"><img src="http://localhost/ventas/assets/img/logo.png" width="130"></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";><strong>SAND Y CAT HUGO ALEJANDRO LOPEZ</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";><strong>NIT</strong> 79690971</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";>www.sandycat.com.co</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";><strong>Teléfono</strong> 6016378243</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center"><strong>Dirección</strong> Cra. 61 No. 78-25</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center";><strong>RECIBO DE VENTA</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center">'.$fecha.'</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center"><strong>Serie y número: </strong> '.$factura_formateada.'</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin; text-align: center";><strong>Orden #'.$orden_id.'</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Cliente: </strong>'.strtoupper($nombre1).' '.strtoupper($nombre2).'</td>
-      </tr>';
-
-    // Agregar método de pago arriba con los datos del cliente
-    if (!empty($metodo)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Método de Pago: </strong>'.$metodo.'</td>
-      </tr>';
-    }
-
-    // Agregar DNI del cliente
-    if (!empty($dni)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4"><strong>DNI:</strong> '.$dni.'</td>
-      </tr>';
-    }
-    
-    // Agregar documento si existe (para fact.php - compatibilidad)
-    if (!empty($documento)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4"><strong>Documento:</strong> '.$documento.'</td>
-      </tr>';
-    }
-
-    $cuerpo .= '
-      <tr>
-        <td colspan="4"><strong>Teléfono:</strong> '.$celular.'</td>
-      </tr>
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Email:</strong> '.$correo.'</td>
-      </tr>';
-
-    // Agregar dirección completa del cliente
+    // Construir dirección completa
     $direccion_completa = '';
     if (!empty($direccion_1)) {
         $direccion_completa = $direccion_1;
@@ -183,23 +89,8 @@ function generarHTMLFactura($datos) {
             $direccion_completa .= ', ' . $direccion_2;
         }
     }
-    
-    if (!empty($direccion_completa)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Dirección:</strong> '.$direccion_completa.'</td>
-      </tr>';
-    }
 
-    // Agregar barrio si existe
-    if (!empty($barrio)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Barrio:</strong> '.$barrio.'</td>
-      </tr>';
-    }
-
-    // Agregar ciudad, departamento y país
+    // Construir ubicación
     $ubicacion = '';
     if (!empty($ciudad)) {
         $ubicacion = $ciudad;
@@ -216,196 +107,35 @@ function generarHTMLFactura($datos) {
             $ubicacion .= ', ' . $pais_nombre;
         }
     }
-    
-    if (!empty($ubicacion)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Ubicación:</strong> '.$ubicacion.'</td>
-      </tr>';
-    }
 
-    // Agregar dirección si existe (para fact.php - compatibilidad)
-    if (!empty($direccion)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180">Dirección: '.$direccion.'</td>
-      </tr>';
-    }
+    // Preparar datos para el template
+    $template_data = [
+        'factura_num' => $datos['factura_num'],
+        'fecha' => $fecha,
+        'factura_formateada' => $factura_formateada,
+        'orden_id' => $orden_id,
+        'nombre1' => $nombre1,
+        'nombre2' => $nombre2,
+        'celular' => $celular,
+        'correo' => $correo,
+        'productos' => $productos,
+        'vtotal' => $vtotal,
+        'woocommerce_url' => $woocommerce_url,
+        'metodo' => $metodo,
+        'dni' => $dni,
+        'documento' => $documento,
+        'direccion_completa' => $direccion_completa,
+        'barrio' => $barrio,
+        'ubicacion' => $ubicacion,
+        'direccion' => $direccion,
+        'observaciones' => $observaciones,
+        'comentarios' => $comentarios,
+        'envio' => $envio,
+        'descuento' => $descuento
+    ];
 
-    // Agregar observaciones si existen (para fact.php)
-    if (!empty($observaciones)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>'.$observaciones.'</strong></td>
-      </tr>';
-    }
-
-    // Agregar comentarios si existen
-    if (!empty($comentarios)) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Observaciones:</strong> '.htmlspecialchars($comentarios).'</td>
-      </tr>';
-    }
-
-    $cuerpo .= '
-      <tr>
-        <td colspan="4" style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin;"></td>
-      </tr>
-      <tr>
-        <td style="text-align: center"><strong>Cant.</strong></td>
-        <td><strong>Descripción</strong></td>
-        <td style="text-align: center"><strong>V Un.</strong></td>
-        <td style="text-align: center"><strong>TOTAL</strong></td>
-      </tr>';
-
-    // Agregar productos
-    if ($productos && (is_array($productos) || mysqli_num_rows($productos) > 0)) {
-        // Si es un resultado de MySQL
-        if (is_resource($productos) || (is_object($productos) && get_class($productos) === 'mysqli_result')) {
-            while ($row_productos = mysqli_fetch_assoc($productos)) {
-                $nomprod = $row_productos['order_item_name'];
-                $cant = (int)$row_productos['product_qty'];
-                $line_total = (float)$row_productos['line_total'];
-                $line_subtotal = (float)$row_productos['line_subtotal'];
-                $regular_price = (float)$row_productos['regular_price'];
-                $sale_price = (float)$row_productos['sale_price'];
-                $sku = $row_productos['product_sku'] ?? '';
-                
-                // Truncar nombre del producto para evitar desbordamientos
-                #$nomprod_truncado = truncarTexto($nomprod, 35);
-                $nomprod_truncado = $nomprod;
-                $descripcion_completa = "";
-
-                // Agregar SKU si existe
-                if (!empty($sku)) {
-                    $descripcion_completa .= '<span class="sku-text">SKU: '.$sku.'<br></span>';
-                }
-                $descripcion_completa .= $nomprod_truncado;
-                
-                // Calcular precio unitario correctamente
-                $vunit = $cant > 0 ? $line_total / $cant : 0;
-                
-                // Detectar si hay descuento
-                $hay_descuento = false;
-                $precio_original = 0;
-                $precio_con_descuento = $vunit;
-                
-                // Si hay diferencia entre subtotal y total, hay descuento
-                if ($line_subtotal > $line_total && $line_subtotal > 0) {
-                    $hay_descuento = true;
-                    $precio_original = $cant > 0 ? $line_subtotal / $cant : 0;
-                    $precio_con_descuento = $vunit;
-                }
-                // O si hay precio regular y precio de oferta diferentes
-                else if ($regular_price > 0 && $sale_price > 0 && $regular_price > $sale_price) {
-                    $hay_descuento = true;
-                    $precio_original = $regular_price;
-                    $precio_con_descuento = $sale_price;
-                }
-                
-                // Generar HTML del precio unitario
-                $precio_html = '';
-                if ($hay_descuento) {
-                    $precio_html = '<span class="precio-tachado">'.number_format($precio_original).'</span><br>';
-                    $precio_html .= '<span class="precio-descuento">'.number_format($precio_con_descuento).'</span>';
-                } else {
-                    $precio_html = '<br>'.number_format($vunit);
-                }
-                
-                $cuerpo .= '
-                  <tr>
-                    <td style="text-align: center; vertical-align: top"><br>'.$cant.'</td>
-                    <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$descripcion_completa.'</td>
-                    <td style="text-align: right; vertical-align: top">'.$precio_html.'</td>
-                    <td style="text-align: right; vertical-align: top"><br>'.number_format($line_total).'</td>
-                  </tr>';
-            }
-        }
-        // Si es un array (para enviar_factura_email.php)
-        else if (is_array($productos)) {
-            foreach ($productos as $producto) {
-                $precio_unitario = $producto['total_producto'] / $producto['cantidad'];
-                
-                // Truncar nombre del producto para evitar desbordamientos
-                #$nomprod_truncado = truncarTexto($producto['nombre_producto'], 35);
-                $nomprod_truncado = $producto['nombre_producto'];
-                $descripcion_completa = "";
-
-                // Agregar SKU si existe (ARRIBA del nombre, igual que MySQL)
-                if (!empty($producto['sku'])) {
-                    $descripcion_completa .= '<span class="sku-text">SKU: '.htmlspecialchars($producto['sku']).'<br></span>';
-                }
-                $descripcion_completa .= htmlspecialchars($nomprod_truncado);
-                
-                $cuerpo .= '
-      <tr>
-        <td style="text-align: center; vertical-align: top"><br>'.$producto['cantidad'].'</td>
-        <td style="word-wrap: break-word; width: 180; vertical-align: top">'.$descripcion_completa.'</td>
-        <td style="text-align: right; vertical-align: top"><br>'.number_format($precio_unitario).'</td>
-        <td style="text-align: right; vertical-align: top"><br>'.number_format($producto['total_producto']).'</td>
-      </tr>';
-            }
-        }
-    } else {
-        // Si no hay productos específicos, mostrar la orden completa
-        $cuerpo .= '
-      <tr>
-        <td style="text-align: center; vertical-align: top">1</td>
-        <td style="word-wrap: break-word; width: 180; vertical-align: top">Orden WooCommerce #'.$orden_id.'</td>
-        <td style="text-align: right; vertical-align: top">'.number_format($vtotal).'</td>
-        <td style="text-align: right; vertical-align: top">'.number_format($vtotal).'</td>
-      </tr>';
-    }
-
-    // Agregar domicilio si existe (para fact.php)
-    if ($envio > 0) {
-        $cuerpo .= '
-      <tr>
-        <td style="text-align: center; vertical-align: top">1</td>
-        <td style="word-wrap: break-word; width: 180; vertical-align: top">Domicilio</td>
-        <td style="text-align: right; vertical-align: top">'.number_format($envio).'</td>
-        <td style="text-align: right; vertical-align: top">'.number_format($envio).'</td>
-      </tr>';
-    }
-
-    // Agregar descuento si existe (para fact.php)
-    if ($descuento > 0) {
-        $cuerpo .= '
-      <tr>
-        <td colspan="3" style="text-align: right; vertical-align: right;word-wrap: break-word; width: 120"><span class="precio-descuento">Descuento:</span></td>
-        <td style="text-align: right"><span class="precio-descuento">-'.number_format($descuento).'</span></td>
-      </tr>';
-    }
-
-    $cuerpo .= '
-      <tr>
-        <td colspan="4" align: "center"; style="border-bottom-style:solid; border-bottom-color:#000; border-bottom:thin;"></td>
-      </tr>
-      <tr> 
-        <td colspan="3" style="text-align: right; vertical-align: right;word-wrap: break-word; width: 120"><strong>TOTAL:</strong></td>
-        <td style="text-align: right"><strong>'.number_format($vtotal).'</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center"><br><strong>No existen devoluciones</strong></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center"><barcode code="'.$factura_formateada.'" type="C39" size="0.6" height="1.0" /><br><small>'.$factura_formateada.'</small></td>
-      </tr>
-      <tr>
-        <td colspan="4" style="text-align: center; padding-top: 5mm;">
-          <div style="text-align: center;">
-            <barcode code="'.$woocommerce_url.'" type="QR" class="barcode" size="0.8" error="M" />
-            <br>
-            <br>
-            <p style=""><small>Escanea para ver el pedido</small></p>
-          </div>
-        </td>
-      </tr>
-    </table>
-    </body></html>';
-
-    return $cuerpo;
+    // Usar el sistema de templates
+    return EmailTemplate::processPDFTemplate($template_data);
 }
 
 /**

@@ -10,8 +10,7 @@ requireLogin('facturacion.php');
 
 // Verificar que sea una petición POST
 if (!Utils::isPostRequest()) {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+    header('Location: inicio.php');
     exit;
 }
 
