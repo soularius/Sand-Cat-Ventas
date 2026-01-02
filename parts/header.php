@@ -85,4 +85,9 @@
             return wizard || legacy;
         };
     </script>
+    
+    <!-- Make PHP constants available to JavaScript globally -->
+    <script>
+        const URL_WOOCOMMERCE = '<?php echo URL_WOOCOMMERCE; ?>';
+    </script>
 </head>

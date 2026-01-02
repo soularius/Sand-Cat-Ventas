@@ -78,10 +78,6 @@ $clear_cart_cache = !$is_logged_in;
 </div>
 
 <!-- Carrito de Compras JavaScript -->
-<script>
-// Make PHP constants available to JavaScript
-const URL_WOOCOMMERCE = '<?php echo URL_WOOCOMMERCE; ?>';
-</script>
 <script src="assets/js/carrito_compras.js"></script>
 
 <script>
@@ -96,27 +92,28 @@ function updateFloatingCartButton() {
     
     const totalItems = cart.getTotalItems();
     
+    // SIEMPRE mostrar el botón flotante (incluso cuando esté vacío)
+    floatingBtn.style.display = 'block';
+    
     if (totalItems > 0) {
-        // Mostrar botón flotante
-        floatingBtn.style.display = 'block';
+        // Carrito con productos
         floatingBtn.classList.add('has-items');
         
-        // Actualizar badge
+        // Mostrar badge con número de productos
         cartBadge.textContent = totalItems;
         cartBadge.style.display = 'block';
         
-        // Mostrar botones en modal
+        // Mostrar botones de acción en modal
         if (clearBtn) clearBtn.style.display = 'inline-block';
         if (proceedBtn) proceedBtn.style.display = 'inline-block';
     } else {
-        // Ocultar botón flotante
-        floatingBtn.style.display = 'none';
+        // Carrito vacío pero botón visible
         floatingBtn.classList.remove('has-items');
         
-        // Ocultar badge
+        // Ocultar badge cuando esté vacío
         cartBadge.style.display = 'none';
         
-        // Ocultar botones en modal
+        // Ocultar botones de acción cuando esté vacío
         if (clearBtn) clearBtn.style.display = 'none';
         if (proceedBtn) proceedBtn.style.display = 'none';
     }
