@@ -1526,7 +1526,7 @@ class WooCommerceOrders
         
         $result = mysqli_query($this->wp_connection, $query);
         if (!$result || mysqli_num_rows($result) == 0) {
-            return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+            return URL_WOOCOMMERCE .'/wp-content/themes/petio/images/placeholder.jpg';
         }
         
         $row = mysqli_fetch_assoc($result);
@@ -1543,12 +1543,12 @@ class WooCommerceOrders
             $metadata = @unserialize($row['attachment_metadata']);
             if (is_array($metadata) && isset($metadata['file'])) {
                 // Construir URL basada en la estructura de WordPress
-                $upload_dir = 'http://localhost/MIAU/wp-content/uploads/';
+                $upload_dir = URL_WOOCOMMERCE .'/wp-content/uploads/';
                 return $upload_dir . $metadata['file'];
             }
         }
         
-        return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+        return URL_WOOCOMMERCE .'/wp-content/themes/petio/images/placeholder.jpg';
     }
 
     /**

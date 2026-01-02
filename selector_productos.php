@@ -268,6 +268,10 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
         </div>
     </div>
 
+    <script>
+        // Make PHP constants available to JavaScript
+        const URL_WOOCOMMERCE = '<?php echo URL_WOOCOMMERCE; ?>';
+    </script>
     <script src="assets/js/carrito_compras.js"></script>
 
     <script>

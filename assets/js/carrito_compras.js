@@ -338,7 +338,7 @@ class ProductCart {
                 <div class="cart-item" data-cart-key="${item.cart_key}">
                     <div class="item-info d-flex">
                         <div class="position-relative overflow-hidden" style="margin-right: 10px;">
-                            <img src="${item.image_url || 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg'}" 
+                            <img src="${item.image_url || URL_WOOCOMMERCE + '/wp-content/themes/petio/images/placeholder.jpg'}" 
                                  alt="${item.title}" 
                                  class="img-fluid rounded card-img-top" 
                                  style="height: 80px; object-fit: cover; transition: transform 0.3s ease;">
@@ -516,7 +516,7 @@ $(document).ready(function(){
             
             $.ajax({
                 type: 'POST',
-                url: 'search.php',
+                url: 'search_orders_ajax.php',
                 data: dataString,
                 dataType: 'json',
                 beforeSend: function(){

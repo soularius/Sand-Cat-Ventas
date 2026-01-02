@@ -88,8 +88,8 @@ try {
     $factura_formateada = str_pad($factura_num, 10, '0', STR_PAD_LEFT);
 
     // Generar URL para el QR del pedido de WooCommerce usando variables del .env
-    $woocommerce_base_url = URL_WOOCOMMERCE ?? 'http://localhost/MIAU';
-    $woocommerce_order_path = WOOCOMMERCE_ORDER_PATH ?? '/mi-cuenta/ver-pedido/{id_pedido}/';
+    $woocommerce_base_url = URL_WOOCOMMERCE;
+    $woocommerce_order_path = WOOCOMMERCE_ORDER_PATH;
     $woocommerce_url = $woocommerce_base_url . str_replace('{id_pedido}', $orden_id, $woocommerce_order_path);
 
     // Obtener productos de la orden usando el método centralizado

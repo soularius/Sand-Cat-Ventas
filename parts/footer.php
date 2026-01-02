@@ -78,6 +78,10 @@ $clear_cart_cache = !$is_logged_in;
 </div>
 
 <!-- Carrito de Compras JavaScript -->
+<script>
+// Make PHP constants available to JavaScript
+const URL_WOOCOMMERCE = '<?php echo URL_WOOCOMMERCE; ?>';
+</script>
 <script src="assets/js/carrito_compras.js"></script>
 
 <script>

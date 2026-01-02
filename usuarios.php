@@ -149,7 +149,7 @@ $id_usuarios = $row_usuario['id_ingreso'] ?? 0;
                 </div>
 
                 <!-- Información de resultados (estilo ventas.php) -->
-                <div class="alert alert-success d-flex justify-content-between align-items-center mb-4">
+                <div class="alert alert-success d-flex justify-content-between align-items-center mb-4 z-0">
                     <div>
                         <i class="fas fa-info-circle me-2"></i>
                         Total usuarios: <strong><?php echo $totalUsers; ?></strong>

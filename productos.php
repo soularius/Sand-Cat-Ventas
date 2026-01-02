@@ -354,7 +354,7 @@ include("parts/header.php");
                   </td>
                   <td class="text-center">
                     <div class="btn-group" role="group">
-                      <a href="<?php echo (URL_WOOCOMMERCE ?? 'http://localhost/MIAU') . '/?p=' . $producto['id_producto']; ?>"
+                      <a href="<?php echo URL_WOOCOMMERCE . '/?p=' . $producto['id_producto']; ?>"
                         target="_blank"
                         class="btn btn-sm btn-danger btn-custom px-3"
                         title="Ver en WooCommerce">
@@ -538,6 +538,10 @@ include("parts/header.php");
       </div>
 
       <!-- Carrito de Compras JavaScript -->
+      <script>
+        // Make PHP constants available to JavaScript
+        const URL_WOOCOMMERCE = '<?php echo URL_WOOCOMMERCE; ?>';
+      </script>
       <script src="assets/js/carrito_compras.js"></script>
 
       <script>

@@ -283,7 +283,7 @@ class WooCommerceProducts {
             // ✅ Procesar image_url con fallback a placeholder
             $image_url = $row['image_url'] ?? '';
             if (empty($image_url)) {
-                $image_url = 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+                $image_url = URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
             }
             $row['image_url'] = $image_url;
             
@@ -555,7 +555,7 @@ class WooCommerceProducts {
             // ✅ Procesar image_url con fallback a placeholder
             $image_url = $row['image_url'] ?? '';
             if (empty($image_url)) {
-                $image_url = 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+                $image_url = URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
             }
             
             $products[] = [
@@ -891,14 +891,14 @@ class WooCommerceProducts {
         
         $result = mysqli_query($this->wp_connection, $query);
         if (!$result || mysqli_num_rows($result) == 0) {
-            return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+            return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
         }
         
         $row = mysqli_fetch_assoc($result);
         $thumbnail_id = $row['thumbnail_id'];
         
         if (!$thumbnail_id) {
-            return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+            return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
         }
         
         // Obtener URL de la imagen
@@ -914,7 +914,7 @@ class WooCommerceProducts {
             return $image_row['guid'];
         }
         
-        return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+        return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
     }
 
     
@@ -955,7 +955,7 @@ class WooCommerceProducts {
             // Retornar placeholders para todos los productos
             $images = [];
             foreach ($product_ids as $product_id) {
-                $images[$product_id] = 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+                $images[$product_id] = URL_WOOCOMMERCE .'/wp-content/themes/petio/images/placeholder.jpg';
             }
             return $images;
         }
@@ -984,7 +984,7 @@ class WooCommerceProducts {
             if (isset($thumbnail_map[$product_id]) && isset($image_urls[$thumbnail_map[$product_id]])) {
                 $product_images[$product_id] = $image_urls[$thumbnail_map[$product_id]];
             } else {
-                $product_images[$product_id] = 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+                $product_images[$product_id] = URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
             }
         }
         

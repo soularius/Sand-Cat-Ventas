@@ -92,9 +92,9 @@ function searchProducts($search) {
             // Si no hay SKU, mostrar --
             if (empty($product['sku'])) {
                 $product['sku'] = '--';
-                Utils::logError("Producto sin SKU: ID={$product['id']}, mostrando '--'", 'INFO', 'search.php');
+                Utils::logError("Producto sin SKU: ID={$product['id']}, mostrando '--'", 'INFO', 'search_orders_ajax.php');
             } else {
-                Utils::logError("Producto con SKU: ID={$product['id']}, SKU={$product['sku']}", 'INFO', 'search.php');
+                Utils::logError("Producto con SKU: ID={$product['id']}, SKU={$product['sku']}", 'INFO', 'search_orders_ajax.php');
             }
             
             // Determinar disponibilidad
@@ -111,7 +111,7 @@ function searchProducts($search) {
 try {
     $products = searchProducts($search);
     
-    Utils::logError("Búsqueda de productos: '$search' - " . count($products) . " resultados", 'INFO', 'search.php');
+    Utils::logError("Búsqueda de productos: '$search' - " . count($products) . " resultados", 'INFO', 'search_orders_ajax.php');
     
     echo json_encode([
         'success' => true,
@@ -122,7 +122,7 @@ try {
     ]);
     
 } catch (Exception $e) {
-    Utils::logError("Error en búsqueda de productos: " . $e->getMessage(), 'ERROR', 'search.php');
+    Utils::logError("Error en búsqueda de productos: " . $e->getMessage(), 'ERROR', 'search_orders_ajax.php');
     
     echo json_encode([
         'success' => false,
