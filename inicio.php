@@ -424,6 +424,3 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
 </body>
 
 </html>
-<?php
-mysqli_free_result($usuario);
-?>
