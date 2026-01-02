@@ -1,0 +1,30 @@
+{
+    "name": "sandcat/invoice-generator",
+    "description": "WordPress plugin para generar facturas PDF usando mPDF",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Sand y Cat Team",
+            "email": "dev@sandycat.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "mpdf/mpdf": "^8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SandCat\\InvoiceGenerator\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
