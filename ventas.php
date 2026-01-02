@@ -1356,7 +1356,7 @@ include("parts/header.php");
             `;
           } else {
             priceHtml = `
-              <div class="text-end">
+              <div class="text-start">
                 ${quantity > 1 ? `<div class="small text-muted">$${unitPrice.toLocaleString('es-CO')} c/u</div>` : ''}
                 <strong>$${lineTotal.toLocaleString('es-CO')}</strong>
               </div>

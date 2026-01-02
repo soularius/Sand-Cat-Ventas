@@ -20,9 +20,6 @@ require_once(__DIR__ . '/config.php');
 $sandycat = DatabaseConfig::getVentasConnection();
 $miau = DatabaseConfig::getWordPressConnection();
 
-// Cargar constantes del sistema (está en la carpeta padre)
-require_once(dirname(__DIR__) . '/constants.php');
-
 // Cargar constantes del sistema
 require_once(dirname(__DIR__) . '/class/load_const.php');
 

@@ -129,18 +129,18 @@ try {
 
     // Configuración del servidor
     $mail->isSMTP();
-    $mail->Host = $_ENV['MAIL_HOST'] ?? 'smtp.gmail.com';
+    $mail->Host = MAIL_HOST;
     $mail->SMTPAuth = true;
-    $mail->Username = $_ENV['MAIL_USERNAME'] ?? '';
-    $mail->Password = $_ENV['MAIL_PASSWORD'] ?? '';
-    $mail->SMTPSecure = $_ENV['MAIL_ENCRYPTION'] ?? PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port = $_ENV['MAIL_PORT'] ?? 587;
+    $mail->Username = MAIL_USERNAME;
+    $mail->Password = MAIL_PASSWORD;
+    $mail->SMTPSecure = MAIL_ENCRYPTION;
+    $mail->Port = MAIL_PORT;
     $mail->CharSet = 'UTF-8';
 
     // Remitente
     $mail->setFrom(
-        $_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@sandycat.com.co',
-        $_ENV['MAIL_FROM_NAME'] ?? 'Sand Y Cat - Sistema de Ventas'
+        MAIL_FROM_ADDRESS,
+        MAIL_FROM_NAME
     );
 
     // Destinatario
