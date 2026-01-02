@@ -1084,40 +1084,64 @@ include("parts/header.php");
       input.name = 'id-orden';
       input.value = orderId;
 
-      form.appendChild(input);
-      document.body.appendChild(form);
-      form.submit();
-    }
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+  }
 
-    // Función para cerrar el modal
-    function closeOrderModal() {
+  // Función para cerrar el modal
+  function closeOrderModal() {
+    $('#orderDetailsModal').modal('hide');
+  }
+
+  // Función para mostrar alertas de error
+  function showErrorAlert(message, container = 'body') {
+    const alertHtml = `
+      <div class="alert alert-danger alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; max-width: 400px;" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Error:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    
+    // Agregar la alerta al contenedor especificado
+    $(container).append(alertHtml);
+    
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+      $('.alert-danger').fadeOut(500, function() {
+        $(this).remove();
+      });
+    }, 5000);
+  }
+
+  // Función para editar pedido desde el modal de detalles
+  function editOrderFromModal() {
+    // Obtener el ID del pedido del modal actual
+    const orderId = document.getElementById('modal-order-id').textContent;
+
+    if (orderId) {
+      // Cerrar el modal de detalles primero
       $('#orderDetailsModal').modal('hide');
+
+      // Llamar a la función de edición existente
+      setTimeout(() => {
+        editOrder(orderId);
+      }, 300); // Pequeño delay para que se cierre el modal anterior
+    } else {
+      console.error('No se pudo obtener el ID del pedido para editar');
+      showErrorAlert('No se pudo obtener el ID del pedido para editar');
     }
+  }
 
-    // Función para editar pedido desde el modal de detalles
-    function editOrderFromModal() {
-      // Obtener el ID del pedido del modal actual
-      const orderId = document.getElementById('modal-order-id').textContent;
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btn-view-detail');
 
-      if (orderId) {
-        // Cerrar el modal de detalles primero
-        $('#orderDetailsModal').modal('hide');
+    if (!btn) return;
 
-        // Llamar a la función de edición existente
-        setTimeout(() => {
-          editOrder(orderId);
-        }, 300); // Pequeño delay para que se cierre el modal anterior
-      } else {
-        console.error('No se pudo obtener el ID del pedido para editar');
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('btn-view-detail');
-
-      if (!btn) return;
-
-      btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault(); // evita que agregue #
+      openOrderDetail(); // abre la url real
         e.preventDefault(); // ✅ evita que agregue #
         openOrderDetail(); // ✅ abre la url real
       });
@@ -1308,8 +1332,9 @@ include("parts/header.php");
 
       // Procesar estado de facturación
       const hasInvoice = orderData.has_invoice === true || orderData.has_invoice === 1 || orderData.has_invoice === '1' || orderData.has_invoice === 'true';
+      const invoiceNumber = orderData.invoice_number || '';
       const invoiceBadge = hasInvoice ?
-        '<span class="badge bg-success bg-custom"><i class="fas fa-check"></i> Facturado</span>' :
+        `<span class="badge bg-success bg-custom"><i class="fas fa-check"></i> Facturado${invoiceNumber ? ' #<span id="number-facturado">' + invoiceNumber : ''}</span></span>` :
         '<span class="badge bg-warning bg-custom"><i class="fas fa-clock"></i> Pendiente</span>';
 
       console.log('Final Status:', status);
@@ -1339,9 +1364,9 @@ include("parts/header.php");
           let priceHtml = '';
           if (hasDiscount) {
             priceHtml = `
-              <div class="d-flex align-items-center justify-content-end">
-                <div class="text-end">
-                  <div class="d-flex align-items-center justify-content-end">
+              <div class="d-flex align-items-center justify-content-start">
+                <div class="text-start">
+                  <div class="d-flex align-items-center justify-content-start">
                     <span class="text-danger fw-bold me-2">$${salePrice.toLocaleString('es-CO')}</span>
                     <span class="text-muted text-decoration-line-through small">$${regularPrice.toLocaleString('es-CO')}</span>
                   </div>
@@ -1350,7 +1375,7 @@ include("parts/header.php");
                   </div>
                 </div>
               </div>
-              <div class="text-end mt-1">
+              <div class="text-start mt-1">
                 <strong>Total: $${lineTotal.toLocaleString('es-CO')}</strong>
               </div>
             `;
@@ -1549,35 +1574,30 @@ include("parts/header.php");
       });
     }
 
-    // Función para imprimir detalles del pedido
+    // Función para imprimir factura PDF del pedido
     function printOrderDetails() {
-      const printContent = $('#order-details-content').html();
-      const orderId = $('#modal-order-id').text();
+      
+      const orderId = document.getElementById('modal-order-id').textContent;
+      const facturaNum = document.getElementById('number-facturado').textContent;
+      
+      if (!orderId || !facturaNum) {
+        showErrorAlert('No se puede generar la factura. Faltan datos del pedido.');
+        return;
+      }
 
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <html>
-            <head>
-                <title>Detalles del Pedido #${orderId}</title>
-                <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-                <style>
-                    @media print {
-                        .no-print { display: none; }
-                        body { font-size: 12px; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container-fluid">
-                    <h3 class="text-center mb-4">Detalles del Pedido #${orderId}</h3>
-                    ${printContent}
-                </div>
-            </body>
-        </html>
-    `);
-
-      printWindow.document.close();
-      printWindow.print();
+      // Generar PDF y abrir para imprimir
+      const url = `generar_pdf.php?orden=${encodeURIComponent(orderId)}&factura=${encodeURIComponent(facturaNum)}&print=1`;
+      const printWindow = window.open(url, '_blank');
+      
+      if (!printWindow) {
+        showErrorAlert('Por favor, permite las ventanas emergentes para imprimir la factura.');
+        return;
+      }
+      
+      // Imprimir automáticamente cuando se cargue el PDF
+      printWindow.onload = function() {
+        printWindow.print();
+      };
     }
   </script>
 

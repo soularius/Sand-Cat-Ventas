@@ -60,6 +60,25 @@ try {
     
     Utils::logError("get_order_details.php: Detalles obtenidos exitosamente", 'INFO', 'get_order_details.php');
     
+    // 8.2. Obtener número de factura si existe
+    $invoice_number = '';
+    if ($order_details['has_invoice']) {
+        try {
+            $ventas_connection = DatabaseConfig::getVentasConnection();
+            $query_factura = "SELECT factura FROM facturas WHERE id_order = '$order_id' AND estado = 'a' LIMIT 1";
+            $result_factura = mysqli_query($ventas_connection, $query_factura);
+            
+            if ($result_factura && mysqli_num_rows($result_factura) > 0) {
+                $row_factura = mysqli_fetch_assoc($result_factura);
+                $invoice_number = $row_factura['factura'] ?? '';
+                mysqli_free_result($result_factura);
+            }
+            mysqli_close($ventas_connection);
+        } catch (Exception $e) {
+            Utils::logError("Error obteniendo número de factura: " . $e->getMessage(), 'ERROR', 'get_order_details.php');
+        }
+    }
+
     // 9. Formatear datos para el frontend con valores por defecto
     $formatted_data = [
         'ID' => $order_details['ID'] ?? $order_id,
@@ -81,6 +100,7 @@ try {
         'shipping_cost' => $order_details['shipping_cost'] ?? '0',
         'total' => $order_details['total'] ?? '0',
         'has_invoice' => $order_details['has_invoice'] ?? false,
+        'invoice_number' => $invoice_number,
         'items' => [],
         'order_notes' => $order_notes
     ];
