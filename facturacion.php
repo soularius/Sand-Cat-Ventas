@@ -132,9 +132,8 @@ if (Utils::isPostRequest() && isset($_POST['ingfact'])) {
                     $invoice_number = $result['invoice_number'];
                     Utils::logError("Pedido #$order_id completado exitosamente con factura #$invoice_number por usuario: $ellogin", 'INFO', 'facturacion.php');
 
-                    // Redirigir a ventas.php con mensaje de éxito
-                    $_SESSION['factura_success'] = "Factura #$invoice_number generada exitosamente";
-                    Header("Location: ventas.php");
+                    // Redirigir directamente al detalle del pedido
+                    Header("Location: detalle_pedido.php?id-orden=$order_id&common=true");
                     exit();
                 } else {
                     $error_details = $result['error'] ?? 'Error desconocido';

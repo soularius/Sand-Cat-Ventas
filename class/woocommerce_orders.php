@@ -2178,22 +2178,24 @@ class WooCommerceOrders
                 throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
             }
             
-            // 2.1. Agregar nota al pedido sobre el cambio de estado
-            $status_names = [
-                'wc-pending' => 'Pendiente',
-                'wc-processing' => 'Procesando',
-                'wc-on-hold' => 'En espera',
-                'wc-completed' => 'Completado',
-                'wc-cancelled' => 'Cancelado',
-                'wc-refunded' => 'Reembolsado',
-                'wc-failed' => 'Fallido'
-            ];
-            
-            $current_status_name = $status_names[$current_status] ?? $current_status;
-            $note_content = "Estado del pedido cambiado de '$current_status_name' a 'Completado'. Factura #$invoice_number generada en sistema de ventas.";
-            
-            // Usar el método existente para agregar la nota
-            $this->addOrderNote($order_id, $note_content, 'customer', 0);
+            // 2.1. Agregar nota al pedido sobre el cambio de estado (solo si cambió)
+            if ($current_status !== 'wc-completed') {
+                $status_names = [
+                    'wc-pending' => 'Pendiente',
+                    'wc-processing' => 'Procesando',
+                    'wc-on-hold' => 'En espera',
+                    'wc-completed' => 'Completado',
+                    'wc-cancelled' => 'Cancelado',
+                    'wc-refunded' => 'Reembolsado',
+                    'wc-failed' => 'Fallido'
+                ];
+                
+                $current_status_name = $status_names[$current_status] ?? $current_status;
+                $note_content = "Estado del pedido cambiado de '$current_status_name' a 'Completado'. Factura #$invoice_number generada en sistema de ventas.";
+                
+                // Usar el método existente para agregar la nota
+                $this->addOrderNote($order_id, $note_content, 'customer', 0);
+            }
             
             // 3. Actualizar estadísticas de WooCommerce
             $query_stats = "UPDATE miau_wc_order_stats SET status = 'wc-completed' WHERE order_id = '$order_id'";
