@@ -135,6 +135,11 @@ class WooCommerceProducts {
                 p.post_excerpt as descripcion_corta,
                 p.post_status as estado,
                 p.post_date as fecha_creacion,
+                -- Slug para construir permalink (usar slug del padre para variaciones)
+                CASE 
+                    WHEN p.post_type = 'product_variation' THEN COALESCE(parent.post_name, p.post_name)
+                    ELSE p.post_name 
+                END as slug,
                 COALESCE(pm_price.meta_value, '0') as precio,
                 COALESCE(pm_regular_price.meta_value, '0') as precio_regular,
                 COALESCE(pm_sale_price.meta_value, '') as precio_oferta,
@@ -558,6 +563,11 @@ class WooCommerceProducts {
                 $image_url = URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
             }
             
+            // ✅ Construir permalink del producto (usar slug del padre para variaciones)
+            $base_url = URL_WOOCOMMERCE; // URL base de WordPress
+            $slug = $row['slug'] ?? '';
+            $permalink = !empty($slug) ? $base_url . '/producto/' . $slug . '/' : '#';
+            
             $products[] = [
                 // IDs principales
                 'id' => (int)$row['id_producto'],                    // ID único (variación o producto)
@@ -588,9 +598,9 @@ class WooCommerceProducts {
                 'is_available' => ($row['estado_stock'] === 'instock'),
                 'en_stock' => ($row['estado_stock'] === 'instock'), // Para compatibilidad
                 
-                // ✅ Imagen
+                // ✅ Imagen y enlace
                 'image_url' => $image_url,
-                'permalink' => '', // Se puede agregar lógica específica si se necesita
+                'permalink' => $permalink,
                 
                 // Otros
                 'sku' => $row['sku'] ?? '',

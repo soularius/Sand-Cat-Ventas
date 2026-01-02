@@ -316,7 +316,7 @@ include("parts/header.php");
                   <td>
                     <div class="d-flex flex-column">
                       <strong>
-                        <a href="<?= URL_WOOCOMMERCE . '/?p=' . ($producto['product_id'] ?? $producto['id_producto']); ?>"
+                        <a href="<?= URL_WOOCOMMERCE . '/?p=' . ($producto['producto_padre_id'] == "0" ? $producto['id_producto'] : $producto['producto_padre_id']); ?>"
                           target="_blank"
                           class="text-decoration-none text-dark"
                           title="Ver en WooCommerce">
@@ -354,7 +354,7 @@ include("parts/header.php");
                   </td>
                   <td class="text-center">
                     <div class="btn-group" role="group">
-                      <a href="<?php echo URL_WOOCOMMERCE . '/?p=' . $producto['id_producto']; ?>"
+                      <a href="<?php echo URL_WOOCOMMERCE . '/?p=' . ($producto['producto_padre_id'] == "0" ? $producto['id_producto'] : $producto['producto_padre_id']); ?>"
                         target="_blank"
                         class="btn btn-sm btn-danger btn-custom px-3"
                         title="Ver en WooCommerce">

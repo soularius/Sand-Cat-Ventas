@@ -109,8 +109,19 @@ foreach ($items as $it) {
         $image_url = URL_WOOCOMMERCE . '/wp-content/uploads/woocommerce-placeholder.webp';
     }
 
+    // ✅ Construir permalink del producto
+    $permalink = '';
+    if ($p && !empty($p['permalink'])) {
+        // Si el producto ya tiene permalink, usarlo
+        $permalink = $p['permalink'];
+    } else {
+        // Construir permalink básico usando product_id
+        $base_url = URL_WOOCOMMERCE;
+        $permalink = $base_url . '/?p=' . $pid;
+    }
+
     // Log mejorado para debugging
-    Utils::logError("ORDER {$order_id} ITEM pid={$pid} vid={$vid} lookup_id={$lookup_id} image={$image_url}", 'DEBUG', 'detalle_pedido.php');
+    Utils::logError("ORDER {$order_id} ITEM pid={$pid} vid={$vid} lookup_id={$lookup_id} image={$image_url} permalink={$permalink}", 'DEBUG', 'detalle_pedido.php');
 
     $products_payload[] = [
         'id' => $lookup_id,               // ID único (variación o producto)
@@ -128,6 +139,7 @@ foreach ($items as $it) {
         'sale_price' => ($sale > 0 && $sale < $regular) ? $sale : null,
         'sku' => $p ? ($p['sku'] ?? '') : '',
         'image_url' => $image_url,        // URL de imagen construida correctamente
+        'permalink' => $permalink,        // URL del producto para compartir
         'line_total' => $line_total
     ];
 }

@@ -168,7 +168,20 @@ class OrderSummary {
             const imageUrl = product.image_url || '';
 
             const safeTitle = (product.title || '').toString().replace(/'/g, "\\'").replace(/\"/g, '\\"');
-            const safePermalink = (product.permalink || '#').toString().replace(/'/g, "\\'").replace(/\"/g, '\\"');
+            
+            // Construir permalink si no existe
+            let permalink = product.permalink || '';
+            if (!permalink || permalink === '#') {
+                // Usar product_id para construir permalink básico
+                const productId = product.product_id || product.id;
+                if (productId) {
+                    permalink = `${window.location.protocol}//${window.location.host}/MIAU/?p=${productId}`;
+                } else {
+                    permalink = '#';
+                }
+            }
+            
+            const safePermalink = permalink.toString().replace(/'/g, "\\'").replace(/\"/g, '\\"');
 
             html += `
                 <div class="col-md-6 col-lg-4 mb-6 column">
@@ -677,9 +690,8 @@ function shareProductLink(productUrl, productTitle) {
     try {
         if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(productUrl || '').then(() => {
-                if (window.orderSummary && typeof window.orderSummary.showNotification === 'function') {
-                    window.orderSummary.showNotification('Enlace copiado al portapapeles', 'success');
-                }
+                // Mostrar notificación de éxito
+                showToastNotification('Enlace copiado al portapapeles', 'success');
             }).catch(() => {
                 prompt('Copia el enlace:', productUrl || '');
             });
@@ -690,6 +702,32 @@ function shareProductLink(productUrl, productTitle) {
     } catch (e) {
         prompt('Copia el enlace:', productUrl || '');
     }
+}
+
+// Función independiente para mostrar notificaciones toast
+function showToastNotification(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);';
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 150);
+        }
+    }, 3000);
 }
 
 // Instancia global
