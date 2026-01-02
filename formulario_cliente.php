@@ -472,6 +472,10 @@ include("parts/header.php");
 
         // Manejo de departamentos y ciudades de Colombia
         $(document).ready(function() {
+            // Variables de control para evitar ejecuciones múltiples
+            let cityLoadingInProgress = false;
+            let initialLoadCompleted = false;
+
             // Inicializar formato de moneda al cargar la página
             const shippingInput = document.getElementById('_order_shipping');
             if (shippingInput && shippingInput.value) {
@@ -480,6 +484,12 @@ include("parts/header.php");
 
             // Cuando cambia el departamento, cargar las ciudades
             $('#_shipping_state').on('change', function() {
+                // Evitar ejecuciones múltiples
+                if (cityLoadingInProgress) {
+                    console.log('Carga de ciudades ya en progreso, saltando...');
+                    return;
+                }
+                cityLoadingInProgress = true;
                 const departamento = $(this).find('option:selected').data('code');
                 const citySelect = $('#_shipping_city');
 
@@ -515,33 +525,41 @@ include("parts/header.php");
                             if (response.success && response.data) {
                                 let cityFound = false;
 
+                                // Usar la ciudad objetivo si está definida, sino la actual
+                                const targetCity = window.targetCityToRestore || currentCity;
+                                console.log('Ciudad objetivo a restaurar:', targetCity);
+
                                 response.data.forEach(function(ciudad) {
-                                    const isSelected = (currentCity &&
-                                        (ciudad.name.toLowerCase() === currentCity.toLowerCase() ||
-                                            ciudad.name.toUpperCase() === currentCity.toUpperCase()));
+                                    const isSelected = (targetCity &&
+                                        (ciudad.name.toLowerCase() === targetCity.toLowerCase() ||
+                                            ciudad.name.toUpperCase() === targetCity.toUpperCase()));
 
                                     if (isSelected) {
                                         cityFound = true;
                                         citySelect.append(`<option value="${ciudad.name}" selected>${ciudad.name}</option>`);
+                                        console.log('✅ Ciudad restaurada desde opciones:', ciudad.name);
                                     } else {
                                         citySelect.append(`<option value="${ciudad.name}">${ciudad.name}</option>`);
                                     }
                                 });
 
-                                // Si no se encontró la ciudad en las opciones, pero hay una ciudad preseleccionada
-                                // (por ejemplo, desde datos del cliente), agregarla como opción
-                                if (!cityFound && currentCity && currentCity !== '') {
-                                    citySelect.append(`<option value="${currentCity}" selected>${currentCity}</option>`);
-                                    console.log('Ciudad del cliente agregada:', currentCity);
+                                // Si no se encontró la ciudad en las opciones, pero hay una ciudad objetivo
+                                // (por ejemplo, desde datos del cliente o persistencia), agregarla como opción
+                                if (!cityFound && targetCity && targetCity !== '') {
+                                    citySelect.append(`<option value="${targetCity}" selected>${targetCity}</option>`);
+                                    console.log('✅ Ciudad objetivo agregada como opción:', targetCity);
+                                    cityFound = true;
                                 }
+
+                                // Limpiar la ciudad objetivo después de usarla
+                                window.targetCityToRestore = null;
 
                             } else {
                                 citySelect.append('<option value="">No se encontraron ciudades</option>');
                             }
 
                             citySelect.prop('disabled', false);
-
-                            // Trigger change event para que la persistencia guarde el valor
+                            cityLoadingInProgress = false;
                             if (citySelect.val()) {
                                 citySelect.trigger('change');
                             }
@@ -549,31 +567,15 @@ include("parts/header.php");
                         error: function() {
                             citySelect.html('<option value="">Error cargando ciudades</option>');
                             citySelect.prop('disabled', false);
+                            cityLoadingInProgress = false;
                         }
                     });
                 } else {
                     citySelect.html('<option value="">Primero seleccione un departamento</option>');
                     citySelect.prop('disabled', false);
+                    cityLoadingInProgress = false; // Resetear flag
                 }
             });
-
-            // Función para cargar ciudades con ciudad preseleccionada
-            function loadCitiesWithPreselection() {
-                const departamento = $('#_shipping_state').val();
-                const ciudadPreseleccionada = $('#_shipping_city option:selected').val();
-
-                console.log('Función loadCitiesWithPreselection:', {
-                    departamento: departamento,
-                    ciudadPreseleccionada: ciudadPreseleccionada
-                });
-
-                if (departamento && ciudadPreseleccionada) {
-                    console.log('Cargando ciudades con preselección:', ciudadPreseleccionada);
-                    $('#_shipping_state').trigger('change');
-                } else if (departamento) {
-                    $('#_shipping_state').trigger('change');
-                }
-            }
 
             // Función para inicializar datos del cliente
             function initializeClientData() {
@@ -608,13 +610,30 @@ include("parts/header.php");
             // Inicializar datos del cliente primero
             initializeClientData();
 
-            // Si ya hay un departamento seleccionado al cargar la página, cargar sus ciudades
-            if ($('#_shipping_state').val()) {
-                // Usar setTimeout para asegurar que el DOM esté completamente cargado
-                setTimeout(function() {
-                    loadCitiesWithPreselection();
-                }, 200);
-            }
+            // Carga inicial única: solo al final después de que la persistencia termine
+            setTimeout(function() {
+                if (!initialLoadCompleted && $('#_shipping_state').val()) {
+                    console.log('Carga inicial única de ciudades');
+                    
+                    // Verificar si hay ciudad guardada en persistencia para usar como objetivo
+                    try {
+                        const savedData = localStorage.getItem('ventas_wizard_form_data');
+                        if (savedData) {
+                            const formData = JSON.parse(savedData);
+                            const savedCity = formData._shipping_city;
+                            if (savedCity) {
+                                console.log('Ciudad de persistencia para carga inicial:', savedCity);
+                                window.targetCityToRestore = savedCity;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Error leyendo persistencia en carga inicial:', e);
+                    }
+                    
+                    initialLoadCompleted = true;
+                    $('#_shipping_state').trigger('change');
+                }
+            }, 800); // Delay mayor para asegurar que la persistencia termine
         });
     </script>
 
