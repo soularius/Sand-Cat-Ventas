@@ -170,7 +170,7 @@ $id_usuarios = $row_usuario['id_ingreso'] ?? 0;
 
                 <div class="table-responsive">
                     <table class="table table-hover table-striped">
-                        <thead class="thead-dark">
+                        <thead class="table-dark">
                             <tr>
                                 <th><i class="fa fa-user"></i> Usuario</th>
                                 <th><i class="fa fa-envelope"></i> Email</th>

@@ -183,9 +183,9 @@ if (Utils::isPostRequest() && isset($_POST['ingfact'])) {
 <?php include("parts/header.php"); ?>
 <body>
     <?php include("parts/menu.php"); ?>
-    <div class="container">
+    <div class="container mt-5">
         <section class="">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-5">
                 <h2><i class="fas fa-file-invoice me-2"></i>Facturación de Pedido</h2>
                 <div class="d-flex gap-2">
                     <a href="ventas.php" class="btn btn-secondary btn-custom">
