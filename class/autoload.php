@@ -12,10 +12,6 @@ if (file_exists($envPath)) {
     Utils::loadEnv($envPath);
 }
 
-// Configurar zona horaria si está definida
-if (Utils::env('TIMEZONE')) {
-    date_default_timezone_set(Utils::env('TIMEZONE'));
-}
 
 // Cargar configuración de base de datos
 require_once(__DIR__ . '/config.php');
@@ -39,8 +35,12 @@ require_once(dirname(__DIR__) . '/mpdf_config.php');
 
 // Cargar clases del sistema
 require_once(__DIR__ . '/woocommerce_customer.php');
+require_once(__DIR__ . '/woocommerce_orders.php');
 
-
+// Configurar zona horaria si está definida
+if (TIMEZONE) {
+    date_default_timezone_set(TIMEZONE);
+}
 
 // Iniciar sesión si no está iniciada
 if (!isset($_SESSION)) {

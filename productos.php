@@ -15,7 +15,7 @@ require_once('class/woocommerce_products.php');
 $MM_authorizedUsers = "a,v";
 $MM_donotCheckaccess = "false";
 
-$MM_restrictGoTo = "http://localhost/ventas";
+$MM_restrictGoTo = VENTAS_URL;
 
 
 if (!((isset($_SESSION['MM_Username'])))) {
@@ -316,7 +316,7 @@ include("parts/header.php");
                   <td>
                     <div class="d-flex flex-column">
                       <strong>
-                        <a href="<?= (URL_WOOCOMMERCE ?? 'http://localhost/MIAU') . '/?p=' . ($producto['product_id'] ?? $producto['id_producto']); ?>"
+                        <a href="<?= URL_WOOCOMMERCE . '/?p=' . ($producto['product_id'] ?? $producto['id_producto']); ?>"
                           target="_blank"
                           class="text-decoration-none text-dark"
                           title="Ver en WooCommerce">
@@ -687,7 +687,7 @@ include("parts/header.php");
             const available = estadoText.includes('disponible');
 
             // Extraer image_url desde el data attribute
-            const imageUrl = row.getAttribute('data-image-url') || 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+            const imageUrl = row.getAttribute('data-image-url') || '<?= URL_WOOCOMMERCE ?>/wp-content/themes/petio/images/placeholder.jpg';
 
             return {
               id: productId,

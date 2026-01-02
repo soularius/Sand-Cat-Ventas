@@ -22,7 +22,7 @@ define('SYSTEM_VERSION', '2.0.0');
 define('SYSTEM_AUTHOR', 'Sand&Cat Team');
 
 // URLs del Sistema
-define('BASE_URL', Utils::env('BASE_URL', 'http://localhost/ventas/'));
+define('BASE_URL', Utils::env('BASE_URL'));
 define('ASSETS_URL', BASE_URL . 'assets/');
 define('UPLOADS_URL', BASE_URL . 'uploads/');
 

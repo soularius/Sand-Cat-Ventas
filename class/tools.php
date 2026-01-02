@@ -231,7 +231,7 @@ class Utils {
      * Función para debug (solo en modo desarrollo)
      */
     public static function debug($data, $die = false) {
-        if (self::env('DEBUG_MODE', false)) {
+        if (DEBUG_MODE) {
             echo '<pre>';
             print_r($data);
             echo '</pre>';

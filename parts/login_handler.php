@@ -44,7 +44,7 @@ function processLogin($success_redirect = "inicio.php", $error_redirect = null)
     $password = mysqli_real_escape_string($sandycat, $loginData['clave']);
     
     // Obtener la clave de encriptación AES desde .env
-    $aes_key = Utils::env('AES_ENCRYPT', 's4nd1c47_9455**');
+    $aes_key = Utils::env('AES_ENCRYPT');
     
     // Log para debugging de AES encryption
     Utils::logError("Intentando login con AES_ENCRYPT para usuario: $loginUsername", 'INFO', 'login_handler.php');

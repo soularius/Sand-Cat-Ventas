@@ -214,14 +214,14 @@ try {
         $result = mysqli_query($miau, $query);
         
         if (!$result || mysqli_num_rows($result) == 0) {
-            return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+            return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
         }
         
         $row = mysqli_fetch_assoc($result);
         $thumbnail_id = $row['thumbnail_id'];
         
         if (!$thumbnail_id) {
-            return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+            return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
         }
         
         $image_query = "SELECT guid FROM miau_posts WHERE ID = $thumbnail_id AND post_type = 'attachment'";
@@ -231,7 +231,7 @@ try {
             return $image_row['guid'];
         }
         
-        return 'http://localhost/MIAU/wp-content/themes/petio/images/placeholder.jpg';
+        return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
     }
     
     // Procesar productos para el frontend

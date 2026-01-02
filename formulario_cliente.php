@@ -425,7 +425,6 @@ include("parts/header.php");
             </div>
         </form>
     </div>
-    </section>
     <?php include("parts/footer.php"); ?>
 
     <script>
@@ -661,8 +660,6 @@ include("parts/header.php");
             }
         }
     </script>
-
-    </div>
 </body>
 
 </html>

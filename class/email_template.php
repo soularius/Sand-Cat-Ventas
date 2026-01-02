@@ -92,7 +92,7 @@ class EmailTemplate
             // Si es un array de productos
             else if (is_array($productos)) {
                 foreach ($productos as $producto) {
-                    $nomprod = $producto['nombre'] ?? $producto['order_item_name'] ?? '';
+                    $nomprod = $producto['nombre_producto'] ?? $producto['order_item_name'] ?? $producto['nombre'] ?? '';
                     $cant = (int)($producto['cantidad'] ?? $producto['product_qty'] ?? 0);
                     $line_total = (float)($producto['total'] ?? $producto['line_total'] ?? 0);
                     $line_subtotal = (float)($producto['subtotal'] ?? $producto['line_subtotal'] ?? 0);
@@ -282,7 +282,6 @@ class EmailTemplate
             '{{barrio_section}}' => $barrio_section,
             '{{ubicacion_section}}' => $ubicacion_section,
             '{{direccion_section}}' => $direccion_section,
-            '{{observaciones_section}}' => $observaciones_section,
             '{{comentarios_section}}' => $comentarios_section,
             '{{envio_section}}' => $envio_section,
             '{{descuento_section}}' => $descuento_section,

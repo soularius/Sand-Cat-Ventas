@@ -150,10 +150,16 @@ class WooCommerceOrders
 
                 /* SKU: variación si existe, si no producto */
                 COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') AS sku,
+                COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') AS product_sku,
 
                 /* IDs para obtener imagen y link del producto */
                 CAST(IM.product_id AS UNSIGNED) AS product_id,
-                CAST(IM.variation_id AS UNSIGNED) AS variation_id
+                CAST(IM.variation_id AS UNSIGNED) AS variation_id,
+
+                /* Precios actuales del catálogo para comparación */
+                COALESCE(CAST(NULLIF(PM_regular.regular_price, '') AS DECIMAL(18,2)), 0) AS catalog_regular_price,
+                COALESCE(CAST(NULLIF(PM_sale.sale_price, '') AS DECIMAL(18,2)), 0) AS catalog_sale_price,
+                COALESCE(CAST(NULLIF(PM_price.price, '') AS DECIMAL(18,2)), 0) AS catalog_effective_price
 
             FROM miau_woocommerce_order_items I
 
@@ -187,6 +193,46 @@ class WooCommerceOrders
             ) PM_sku_var
                 ON PM_sku_var.post_id = CAST(IM.variation_id AS UNSIGNED)
 
+            /* Precios de catálogo usando subconsultas para evitar duplicados */
+            LEFT JOIN (
+                SELECT post_id, meta_value as regular_price
+                FROM miau_postmeta 
+                WHERE meta_key = '_regular_price'
+            ) PM_regular
+                ON PM_regular.post_id = CAST(
+                    CASE
+                        WHEN IM.variation_id IS NOT NULL AND IM.variation_id <> '' AND IM.variation_id <> '0'
+                        THEN IM.variation_id
+                        ELSE IM.product_id
+                    END AS UNSIGNED
+                )
+
+            LEFT JOIN (
+                SELECT post_id, meta_value as sale_price
+                FROM miau_postmeta 
+                WHERE meta_key = '_sale_price'
+            ) PM_sale
+                ON PM_sale.post_id = CAST(
+                    CASE
+                        WHEN IM.variation_id IS NOT NULL AND IM.variation_id <> '' AND IM.variation_id <> '0'
+                        THEN IM.variation_id
+                        ELSE IM.product_id
+                    END AS UNSIGNED
+                )
+
+            LEFT JOIN (
+                SELECT post_id, meta_value as price
+                FROM miau_postmeta 
+                WHERE meta_key = '_price'
+            ) PM_price
+                ON PM_price.post_id = CAST(
+                    CASE
+                        WHEN IM.variation_id IS NOT NULL AND IM.variation_id <> '' AND IM.variation_id <> '0'
+                        THEN IM.variation_id
+                        ELSE IM.product_id
+                    END AS UNSIGNED
+                )
+
             WHERE
                 I.order_id = ? 
                 AND I.order_item_type = 'line_item'
@@ -204,8 +250,9 @@ class WooCommerceOrders
         $productos_array = [];
         if ($result && mysqli_num_rows($result) > 0) {
             while ($producto = mysqli_fetch_assoc($result)) {
-                // Calcular total_producto para compatibilidad
+                // Agregar aliases para compatibilidad con generar_pdf.php
                 $producto['total_producto'] = $producto['line_total'];
+                $producto['product_qty'] = $producto['cantidad'];
                 
                 // URL del producto en la tienda
                 $producto['product_url'] = URL_WOOCOMMERCE . '/?p=' . $producto['product_id'];
@@ -2887,6 +2934,85 @@ class WooCommerceOrders
         } catch (Exception $e) {
             Utils::logError("Error agregando nota de orden: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return false;
+        }
+    }
+
+    /**
+     * Obtener datos completos de una orden para generación de PDF
+     * Usa el enfoque legacy (postmeta) para máxima compatibilidad
+     * @param int $orden_id - ID de la orden
+     * @return array|null - Datos completos de la orden o null si no existe
+     */
+    public function getOrderDataForPdf(int $orden_id): ?array
+    {
+        try {
+            $query_orden = "
+                SELECT 
+                    p.ID as order_id,
+                    p.post_date as fecha_orden,
+                    p.post_status as estado,
+                    COALESCE(pm_total.meta_value, 0) as total,
+                    COALESCE(pm_email.meta_value, '') as email_cliente,
+                    COALESCE(pm_fname.meta_value, '') as nombre_cliente,
+                    COALESCE(pm_lname.meta_value, '') as apellido_cliente,
+                    COALESCE(pm_phone.meta_value, '') as telefono_cliente,
+                    COALESCE(pm_method.meta_value, '') as titulo_metodo_pago,
+                    COALESCE(pm_address1.meta_value, '') as direccion_1,
+                    COALESCE(pm_address2.meta_value, '') as direccion_2,
+                    COALESCE(pm_city.meta_value, '') as ciudad,
+                    COALESCE(pm_state.meta_value, '') as departamento,
+                    COALESCE(pm_country.meta_value, '') as pais,
+                    COALESCE(pm_barrio.meta_value, '') as barrio,
+                    COALESCE(pm_dni.meta_value, '') as dni,
+                    COALESCE(pm_shipping.meta_value, '0') as envio,
+                    COALESCE(pm_discount.meta_value, '0') as descuento,
+                    COALESCE(p.post_excerpt, '') as comentarios_excerpt,
+                    COALESCE(GROUP_CONCAT(c.comment_content SEPARATOR '\n'), '') as comentarios_notas
+                FROM miau_posts p
+                LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
+                LEFT JOIN miau_postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
+                LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
+                LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
+                LEFT JOIN miau_postmeta pm_phone ON p.ID = pm_phone.post_id AND pm_phone.meta_key = '_billing_phone'
+                LEFT JOIN miau_postmeta pm_method ON p.ID = pm_method.post_id AND pm_method.meta_key = '_payment_method_title'
+                LEFT JOIN miau_postmeta pm_address1 ON p.ID = pm_address1.post_id AND pm_address1.meta_key = '_billing_address_1'
+                LEFT JOIN miau_postmeta pm_address2 ON p.ID = pm_address2.post_id AND pm_address2.meta_key = '_billing_address_2'
+                LEFT JOIN miau_postmeta pm_city ON p.ID = pm_city.post_id AND pm_city.meta_key = '_billing_city'
+                LEFT JOIN miau_postmeta pm_state ON p.ID = pm_state.post_id AND pm_state.meta_key = '_billing_state'
+                LEFT JOIN miau_postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
+                LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_neighborhood'
+                LEFT JOIN miau_postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_dni'
+                LEFT JOIN miau_postmeta pm_shipping ON p.ID = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
+                LEFT JOIN miau_postmeta pm_discount ON p.ID = pm_discount.post_id AND pm_discount.meta_key = '_cart_discount'
+                LEFT JOIN miau_comments c ON p.ID = c.comment_post_ID 
+                    AND c.comment_type IN ('order_note', 'order_note_private') 
+                    AND c.comment_approved = '1'
+                WHERE p.ID = ? AND p.post_type = 'shop_order'
+                GROUP BY p.ID
+            ";
+
+            $stmt = mysqli_prepare($this->wp_connection, $query_orden);
+            if (!$stmt) {
+                throw new Exception("Error preparando consulta: " . mysqli_error($this->wp_connection));
+            }
+
+            mysqli_stmt_bind_param($stmt, "i", $orden_id);
+            mysqli_stmt_execute($stmt);
+            $result = mysqli_stmt_get_result($stmt);
+            $orden = mysqli_fetch_assoc($result);
+            mysqli_stmt_close($stmt);
+
+            if (!$orden) {
+                Utils::logError("Orden no encontrada para PDF: {$orden_id}", 'WARNING', 'WooCommerceOrders');
+                return null;
+            }
+
+            Utils::logError("Datos de orden cargados para PDF - Order ID: {$orden_id}", 'INFO', 'WooCommerceOrders');
+            return $orden;
+
+        } catch (Exception $e) {
+            Utils::logError("Error obteniendo datos de orden para PDF: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
+            return null;
         }
     }
 

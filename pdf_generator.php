@@ -72,7 +72,6 @@ function generarHTMLFactura($datos) {
     $envio = $datos['envio'] ?? 0;
     $descuento = $datos['descuento'] ?? 0;
     $metodo = $datos['metodo'] ?? '';
-    
     // Nuevos campos de dirección
     $direccion_1 = $datos['direccion_1'] ?? '';
     $direccion_2 = $datos['direccion_2'] ?? '';
