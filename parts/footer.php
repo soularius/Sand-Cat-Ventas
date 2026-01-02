@@ -69,7 +69,7 @@ $clear_cart_cache = !$is_logged_in;
                 <button type="button" class="btn btn-danger btn-custom" onclick="cart.clearCart()" id="clear-cart-btn" style="display: none;">
                     <i class="fas fa-trash me-1"></i>Limpiar Carrito
                 </button>
-                <button type="button" class="btn btn-success btn-custom" onclick="proceedToSummary()" id="proceed-btn" style="display: none;">
+                <button type="button" class="btn btn-success btn-custom" onclick="proceedToInicio()" id="proceed-btn" style="display: none;">
                     <i class="fas fa-arrow-right me-1"></i>Continuar con Pedido
                 </button>
             </div>
@@ -119,8 +119,8 @@ function updateFloatingCartButton() {
     }
 }
 
-// Función para proceder al resumen
-function proceedToSummary() {
+// Función para proceder a inicio
+function proceedToInicio() {
     const items = cart.getCartItems();
     
     if (items.length === 0) {
@@ -137,24 +137,8 @@ function proceedToSummary() {
         return;
     }
     
-    // Redirigir a inicio.php si no estamos ahí
-    if (window.location.pathname.indexOf('inicio.php') === -1) {
-        window.location.href = 'inicio.php';
-        return;
-    }
-    
-    // Si ya estamos en selector_productos.php, usar la función existente
-    if (typeof proceedToSummary !== 'undefined') {
-        proceedToSummary();
-    } else {
-        cart.showNotification('Funcionalidad de continuar será implementada próximamente', 'info');
-    }
-    
-    // Cerrar modal
-    const cartModal = bootstrap.Modal.getInstance(document.getElementById('cartModal'));
-    if (cartModal) {
-        cartModal.hide();
-    }
+    // Si no estamos en inicio.php, redirigir allí con parámetro para abrir modal
+    window.location.href = 'inicio.php?openModal=true';
 }
 
 // Inicializar carrito flotante cuando el DOM esté listo

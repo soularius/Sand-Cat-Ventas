@@ -175,6 +175,23 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
             }, false);
         })();
 
+        // Verificar si debe abrir modal automáticamente
+        $(document).ready(function() {
+            // Verificar parámetro URL para abrir modal automáticamente
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openModal') === 'true') {
+                // Esperar un poco para asegurar que Bootstrap esté listo
+                setTimeout(function() {
+                    const modal = new bootstrap.Modal(document.getElementById('myModal'));
+                    modal.show();
+                    
+                    // Limpiar la URL sin recargar la página
+                    const newUrl = window.location.pathname;
+                    window.history.replaceState({}, document.title, newUrl);
+                }, 300);
+            }
+        });
+
         // Búsqueda de cliente con botón
         $(document).ready(function() {
             const $btnSearch = $('#btn-search-customer');
