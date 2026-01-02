@@ -2491,11 +2491,10 @@ class WooCommerceOrders
             $ids_string = implode(',', $facturas_ids);
             
             // Consulta para contar total de registros usando HPOS (miau_wc_orders)
+            // CORREGIDO: Eliminar filtro de fecha restrictivo para mostrar todas las órdenes facturadas
             $count_query = "SELECT COUNT(*) as total
             FROM miau_wc_orders o
             WHERE o.id IN ($ids_string) 
-            AND o.date_created_gmt >= '$date_from' 
-            AND o.date_created_gmt <= '$date_to'
             AND o.type = 'shop_order'";
             
             $count_result = mysqli_query($this->wp_connection, $count_query);
@@ -2505,6 +2504,7 @@ class WooCommerceOrders
             }
             
             // Consulta principal usando HPOS (miau_wc_orders) con JOINs optimizados
+            // CORREGIDO: Eliminar filtro de fecha restrictivo para mostrar todas las órdenes facturadas
             $query = "SELECT 
                 o.id as ID,
                 o.date_created_gmt as post_date,
@@ -2515,8 +2515,6 @@ class WooCommerceOrders
             FROM miau_wc_orders o
             LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
             WHERE o.id IN ($ids_string) 
-            AND o.date_created_gmt >= '$date_from' 
-            AND o.date_created_gmt <= '$date_to'
             AND o.type = 'shop_order'
             ORDER BY o.id DESC
             LIMIT $per_page OFFSET $offset";

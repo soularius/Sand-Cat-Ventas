@@ -67,7 +67,6 @@ if (isset($_GET['tab'])) {
 }
 // 6. Configurar fechas para filtros
 $hoy = date("Y-m-d");
-$inifact = date("Y-m-d", strtotime('+1 day', strtotime($hoy)));
 if (isset($diasfin)) {
   $dias = $diasfin;
   $finfact = date("Y-m-d", strtotime('-' . $dias . ' day', strtotime($hoy)));
@@ -75,6 +74,7 @@ if (isset($diasfin)) {
   $dias = 30;
   $finfact = date("Y-m-d", strtotime('-30 day', strtotime($hoy)));
 }
+$inifact = date("Y-m-d", strtotime('+1 day', strtotime($hoy)));
 
 // 6.1. Configurar parámetros de paginación
 $page_pendientes = isset($_GET['page_pendientes']) ? max(1, (int)$_GET['page_pendientes']) : 1;
