@@ -2164,11 +2164,36 @@ class WooCommerceOrders
             // Iniciar transacción en WordPress para las actualizaciones de WooCommerce
             mysqli_autocommit($this->wp_connection, false);
             
+            // Obtener estado actual del pedido antes de cambiarlo
+            $query_current_status = "SELECT post_status FROM miau_posts WHERE ID = '$order_id'";
+            $result_status = mysqli_query($this->wp_connection, $query_current_status);
+            $current_status = 'wc-processing'; // Default
+            if ($result_status && $row = mysqli_fetch_assoc($result_status)) {
+                $current_status = $row['post_status'];
+            }
+            
             // 2. Actualizar estado del pedido a completado
             $query_post = "UPDATE miau_posts SET post_status = 'wc-completed' WHERE ID = '$order_id'";
             if (!mysqli_query($this->wp_connection, $query_post)) {
                 throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
             }
+            
+            // 2.1. Agregar nota al pedido sobre el cambio de estado
+            $status_names = [
+                'wc-pending' => 'Pendiente',
+                'wc-processing' => 'Procesando',
+                'wc-on-hold' => 'En espera',
+                'wc-completed' => 'Completado',
+                'wc-cancelled' => 'Cancelado',
+                'wc-refunded' => 'Reembolsado',
+                'wc-failed' => 'Fallido'
+            ];
+            
+            $current_status_name = $status_names[$current_status] ?? $current_status;
+            $note_content = "Estado del pedido cambiado de '$current_status_name' a 'Completado'. Factura #$invoice_number generada en sistema de ventas.";
+            
+            // Usar el método existente para agregar la nota
+            $this->addOrderNote($order_id, $note_content, 'customer', 0);
             
             // 3. Actualizar estadísticas de WooCommerce
             $query_stats = "UPDATE miau_wc_order_stats SET status = 'wc-completed' WHERE order_id = '$order_id'";
