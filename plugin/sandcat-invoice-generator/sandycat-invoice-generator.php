@@ -1258,10 +1258,11 @@ class SandCatInvoiceGenerator {
      * AJAX handler para servir PDF directamente (temporal)
      */
     public function ajax_stream_invoice_pdf() {
-        $this->logger->info('AJAX stream_invoice_pdf called', array('post_data' => $_POST));
+        $this->logger->info('AJAX stream_invoice_pdf called', array('post_data' => $_POST, 'get_data' => $_GET));
         
-        // Verificar nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'sandcat_invoice_nonce')) {
+        // Verificar nonce (solo para peticiones POST, GET puede venir sin nonce)
+        $nonce = isset($_POST['nonce']) ? $_POST['nonce'] : (isset($_GET['nonce']) ? $_GET['nonce'] : '');
+        if ($nonce && !wp_verify_nonce($nonce, 'sandcat_invoice_nonce')) {
             $this->logger->error('Nonce verification failed in stream PDF');
             wp_die(__('Error de seguridad', 'sandcat-invoice'));
         }
@@ -1272,7 +1273,7 @@ class SandCatInvoiceGenerator {
             wp_die(__('Permisos insuficientes', 'sandcat-invoice'));
         }
         
-        $order_id = intval($_POST['order_id']);
+        $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : (isset($_GET['order_id']) ? intval($_GET['order_id']) : 0);
         
         try {
             // Verificar si existe factura
