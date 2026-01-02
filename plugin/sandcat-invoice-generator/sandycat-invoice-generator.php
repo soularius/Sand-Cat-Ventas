@@ -500,16 +500,21 @@ class SandCatInvoiceGenerator {
         }
         
         try {
-            // Configuración de mPDF para formato POS (80mm)
+            // Configuración de mPDF igual que mpdf_config.php
             $mpdf = new \Mpdf\Mpdf([
                 'mode' => 'utf-8',
-                'format' => [80, 297], // 80mm ancho, 297mm alto (A4 altura)
+                'format' => [80, 297], // 80mm x 297mm (formato ticket)
+                'default_font_size' => 8,
                 'margin_left' => 2,
-                'margin_right' => 2,
-                'margin_top' => 2,
-                'margin_bottom' => 2,
-                'default_font' => 'Arial',
-                'default_font_size' => 8
+                'margin_right' => 1,
+                'margin_top' => 1,
+                'margin_bottom' => 1,
+                'margin_header' => 0,
+                'margin_footer' => 0,
+                'orientation' => 'P',
+                // Habilitar soporte para códigos QR y de barras
+                'enableBarcodes' => true,
+                'debug' => false
             ]);
             
             // Generar HTML usando template
@@ -827,31 +832,33 @@ class SandCatInvoiceGenerator {
     }
     
     /**
-     * Sección envío
+     * Obtener sección de envío (igual que EmailTemplate::processPDFTemplate)
      */
     private function get_envio_section($total_envio) {
-        if ($total_envio <= 0) {
-            return '';
+        if ($total_envio > 0) {
+            return '<tr>
+                <td style="text-align: center; vertical-align: top"><br>1</td>
+                <td style="vertical-align: top"><br>Domicilio</td>
+                <td style="text-align: right; vertical-align: top"><br>' . number_format($total_envio) . '</td>
+                <td style="text-align: right; vertical-align: top"><br>' . number_format($total_envio) . '</td>
+            </tr>';
         }
-        
-        return '<tr>
-            <td colspan="3" style="text-align: right; vertical-align: right; word-wrap: break-word; width: 120"><strong>Domicilio:</strong></td>
-            <td style="text-align: right"><strong>$' . number_format($total_envio, 0, ',', '.') . '</strong></td>
-        </tr>';
+        return '';
     }
     
     /**
-     * Sección descuento
+     * Obtener sección de descuento (igual que EmailTemplate::processPDFTemplate)
      */
     private function get_descuento_section($total_descuento) {
-        if ($total_descuento <= 0) {
-            return '';
+        if ($total_descuento > 0) {
+            return '<tr>
+                <td style="text-align: center; vertical-align: top"><br>1</td>
+                <td style="vertical-align: top"><br>Descuento</td>
+                <td style="text-align: right; vertical-align: top"><br>-' . number_format($total_descuento) . '</td>
+                <td style="text-align: right; vertical-align: top"><br>-' . number_format($total_descuento) . '</td>
+            </tr>';
         }
-        
-        return '<tr>
-            <td colspan="3" style="text-align: right; vertical-align: right; word-wrap: break-word; width: 120; color: #dc3545;"><strong>Descuento:</strong></td>
-            <td style="text-align: right; color: #dc3545;"><strong>-$' . number_format($total_descuento, 0, ',', '.') . '</strong></td>
-        </tr>';
+        return '';
     }
     
     /**
