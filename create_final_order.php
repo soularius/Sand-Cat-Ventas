@@ -91,23 +91,24 @@ try {
                 }
 
                 if ($createdFactura === '') {
-                    // Siguiente consecutivo
-                    $numSql = "SELECT COUNT(id_facturas) AS numero FROM facturas";
-                    $numRes = mysqli_query($sandycat, $numSql);
-                    $numRow = $numRes ? mysqli_fetch_assoc($numRes) : null;
-                    $nextFactura = (int)($numRow['numero'] ?? 0) + 1;
-                    if ($numRes) {
-                        mysqli_free_result($numRes);
+                    // Obtener siguiente número de factura usando SERIE_NUMERO_FACTURA
+                    $nextFactura = Utils::getNextInvoiceNumber();
+                    
+                    // Verificar que el número no exista (por seguridad)
+                    if (Utils::invoiceNumberExists($nextFactura)) {
+                        Utils::logError("Número de factura $nextFactura ya existe, generando nuevo número", 'WARNING', 'create_final_order.php');
+                        $nextFactura = Utils::getNextInvoiceNumber();
                     }
 
                     $insSql = "INSERT INTO facturas (id_order, factura, estado) VALUES (?, ?, 'a')";
                     $stmtIns = mysqli_prepare($sandycat, $insSql);
                     if ($stmtIns) {
-                        $facturaStr = (string)$nextFactura;
-                        mysqli_stmt_bind_param($stmtIns, 'is', $orderId, $facturaStr);
+                        mysqli_stmt_bind_param($stmtIns, 'is', $orderId, $nextFactura);
                         mysqli_stmt_execute($stmtIns);
                         mysqli_stmt_close($stmtIns);
-                        $createdFactura = $facturaStr;
+                        $createdFactura = $nextFactura;
+                        
+                        Utils::logError("Factura #$nextFactura creada automáticamente para pedido #$orderId", 'INFO', 'create_final_order.php');
                     }
                 }
             }

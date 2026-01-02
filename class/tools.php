@@ -745,5 +745,86 @@ class Utils {
         
         return null;
     }
+
+    /**
+     * Obtiene el siguiente número de factura usando SERIE_NUMERO_FACTURA
+     * Actualiza automáticamente el valor en la configuración
+     * @return string - Número de factura formateado
+     */
+    public static function getNextInvoiceNumber() {
+        global $sandycat;
+        
+        try {
+            // Obtener el valor actual de SERIE_NUMERO_FACTURA
+            $current_number = SERIE_NUMERO_FACTURA;
+            
+            // El número actual será el que se use para esta factura
+            $invoice_number = (string)$current_number;
+            
+            // Incrementar para la próxima factura
+            $next_number = $current_number + 1;
+            
+            // Actualizar en la base de datos
+            $update_sql = "UPDATE configuracion SET valor = ? WHERE clave = 'SERIE_NUMERO_FACTURA'";
+            $stmt = mysqli_prepare($sandycat, $update_sql);
+            
+            if ($stmt) {
+                $next_number_str = (string)$next_number;
+                mysqli_stmt_bind_param($stmt, 's', $next_number_str);
+                $success = mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+                
+                if ($success) {
+                    self::logError("Número de factura generado: $invoice_number. Próximo número: $next_number", 'INFO', 'Utils::getNextInvoiceNumber');
+                } else {
+                    self::logError("Error actualizando SERIE_NUMERO_FACTURA: " . mysqli_error($sandycat), 'ERROR', 'Utils::getNextInvoiceNumber');
+                }
+            } else {
+                self::logError("Error preparando query para actualizar SERIE_NUMERO_FACTURA: " . mysqli_error($sandycat), 'ERROR', 'Utils::getNextInvoiceNumber');
+            }
+            
+            return $invoice_number;
+            
+        } catch (Exception $e) {
+            self::logError("Excepción en getNextInvoiceNumber: " . $e->getMessage(), 'ERROR', 'Utils::getNextInvoiceNumber');
+            
+            // Fallback: usar timestamp como número de factura
+            return (string)time();
+        }
+    }
+
+    /**
+     * Verifica si un número de factura ya existe en la base de datos
+     * @param string $invoice_number - Número de factura a verificar
+     * @return bool - true si existe, false si no existe
+     */
+    public static function invoiceNumberExists($invoice_number) {
+        global $sandycat;
+        
+        try {
+            $check_sql = "SELECT COUNT(*) as count FROM facturas WHERE factura = ? AND estado = 'a'";
+            $stmt = mysqli_prepare($sandycat, $check_sql);
+            
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, 's', $invoice_number);
+                mysqli_stmt_execute($stmt);
+                $result = mysqli_stmt_get_result($stmt);
+                
+                if ($result) {
+                    $row = mysqli_fetch_assoc($result);
+                    mysqli_stmt_close($stmt);
+                    return (int)($row['count'] ?? 0) > 0;
+                }
+                
+                mysqli_stmt_close($stmt);
+            }
+            
+            return false;
+            
+        } catch (Exception $e) {
+            self::logError("Error verificando existencia de factura $invoice_number: " . $e->getMessage(), 'ERROR', 'Utils::invoiceNumberExists');
+            return false;
+        }
+    }
 }
 ?>

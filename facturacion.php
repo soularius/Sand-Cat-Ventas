@@ -51,17 +51,8 @@ try {
     exit();
 }
 
-// 9. Obtener número de factura siguiente
-$query_numfact = "SELECT COUNT(id_facturas) AS numero FROM facturas";
-$numfact_result = mysqli_query($sandycat, $query_numfact);
-if ($numfact_result) {
-    $row_numfact = mysqli_fetch_assoc($numfact_result);
-    $numfact = ($row_numfact['numero'] ?? 0) + 1;
-    mysqli_free_result($numfact_result);
-} else {
-    $numfact = 1;
-    Utils::logError("Error obteniendo número de factura: " . mysqli_error($sandycat), 'ERROR', 'facturacion.php');
-}
+// 9. Obtener número de factura siguiente para mostrar (sin incrementar)
+$numfact = SERIE_NUMERO_FACTURA;
 
 // 10. Procesar datos del pedido para mostrar
 $customer_data = [
@@ -121,57 +112,41 @@ Utils::logError("Datos del cliente procesados para pedido $order_id", 'INFO', 'f
 // 12. Procesar generación de factura si se envió el formulario
 if (Utils::isPostRequest() && isset($_POST['ingfact'])) {
     try {
-        $invoice_number = Utils::captureValue('num', 'POST', '');
+        // Verificar si ya existe una factura para este pedido
+        $check_sql = "SELECT id_facturas FROM facturas WHERE id_order = ?";
+        $check_stmt = mysqli_prepare($sandycat, $check_sql);
 
-        if (empty($invoice_number) || !is_numeric($invoice_number)) {
-            Utils::logError("Número de factura inválido: $invoice_number", 'ERROR', 'facturacion.php');
-            $error_message = "Número de factura inválido";
-        } else {
-            // Verificar si ya existe una factura para este pedido
-            $check_sql = "SELECT id_facturas FROM facturas WHERE id_order = ?";
-            $check_stmt = mysqli_prepare($sandycat, $check_sql);
+        if ($check_stmt) {
+            mysqli_stmt_bind_param($check_stmt, 'i', $order_id);
+            mysqli_stmt_execute($check_stmt);
+            $check_result = mysqli_stmt_get_result($check_stmt);
 
-            if ($check_stmt) {
-                mysqli_stmt_bind_param($check_stmt, 'i', $order_id);
-                mysqli_stmt_execute($check_stmt);
-                $check_result = mysqli_stmt_get_result($check_stmt);
-
-                if (mysqli_num_rows($check_result) > 0) {
-                    Utils::logError("Factura ya existe para pedido $order_id", 'WARNING', 'facturacion.php');
-                    $error_message = "Ya existe una factura para este pedido";
-                } else {
-                    // Crear la factura
-                    $insert_sql = "INSERT INTO facturas (id_order, factura, estado) VALUES (?, ?, 'a')";
-                    $insert_stmt = mysqli_prepare($sandycat, $insert_sql);
-
-                    if ($insert_stmt) {
-                        $factura_str = (string)$invoice_number;
-                        mysqli_stmt_bind_param($insert_stmt, 'is', $order_id, $factura_str);
-
-                        if (mysqli_stmt_execute($insert_stmt)) {
-                            Utils::logError("Factura #$invoice_number generada exitosamente para pedido $order_id por usuario: $ellogin", 'INFO', 'facturacion.php');
-
-                            // Redirigir a ventas.php con mensaje de éxito
-                            $_SESSION['factura_success'] = "Factura #$invoice_number generada exitosamente";
-                            Header("Location: ventas.php");
-                            exit();
-                        } else {
-                            Utils::logError("Error ejecutando inserción de factura: " . mysqli_error($sandycat), 'ERROR', 'facturacion.php');
-                            $error_message = "Error al generar la factura";
-                        }
-
-                        mysqli_stmt_close($insert_stmt);
-                    } else {
-                        Utils::logError("Error preparando inserción de factura: " . mysqli_error($sandycat), 'ERROR', 'facturacion.php');
-                        $error_message = "Error al preparar la factura";
-                    }
-                }
-
-                mysqli_stmt_close($check_stmt);
+            if (mysqli_num_rows($check_result) > 0) {
+                Utils::logError("Factura ya existe para pedido $order_id", 'WARNING', 'facturacion.php');
+                $error_message = "Ya existe una factura para este pedido";
             } else {
-                Utils::logError("Error preparando verificación de factura: " . mysqli_error($sandycat), 'ERROR', 'facturacion.php');
-                $error_message = "Error al verificar factura existente";
+                // Completar pedido y crear factura
+                $result = $wc_orders->completeOrder((int)$order_id);
+                
+                if ($result['success']) {
+                    $invoice_number = $result['invoice_number'];
+                    Utils::logError("Pedido #$order_id completado exitosamente con factura #$invoice_number por usuario: $ellogin", 'INFO', 'facturacion.php');
+
+                    // Redirigir a ventas.php con mensaje de éxito
+                    $_SESSION['factura_success'] = "Factura #$invoice_number generada exitosamente";
+                    Header("Location: ventas.php");
+                    exit();
+                } else {
+                    $error_details = $result['error'] ?? 'Error desconocido';
+                    Utils::logError("Error completando pedido #$order_id: $error_details", 'ERROR', 'facturacion.php');
+                    $error_message = "Error al generar la factura y completar el pedido: $error_details";
+                }
             }
+
+            mysqli_stmt_close($check_stmt);
+        } else {
+            Utils::logError("Error preparando verificación de factura: " . mysqli_error($sandycat), 'ERROR', 'facturacion.php');
+            $error_message = "Error al verificar factura existente";
         }
     } catch (Exception $e) {
         Utils::logError("Error generando factura: " . $e->getMessage(), 'ERROR', 'facturacion.php');

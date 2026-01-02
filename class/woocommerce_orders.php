@@ -2133,24 +2133,36 @@ class WooCommerceOrders
     /**
      * Completar pedido y crear factura
      * @param int $order_id ID del pedido
-     * @param string $invoice_number Número de factura
-     * @return bool True si se completó exitosamente
+     * @return array Resultado con éxito y número de factura generado
      */
-    public function completeOrder(int $order_id, string $invoice_number): bool
+    public function completeOrder(int $order_id): array
     {
         try {
             // Sanitizar datos
             $order_id = (int)$order_id;
-            $invoice_number = mysqli_real_escape_string($this->wp_connection, $invoice_number);
             
-            // Iniciar transacción
-            mysqli_autocommit($this->wp_connection, false);
+            // Obtener conexión a la base de datos de ventas para tabla facturas
+            $ventas_connection = DatabaseConfig::getVentasConnection();
             
-            // 1. Insertar en tabla facturas (sistema local)
-            $query_factura = "INSERT INTO facturas (id_order, factura, estado) VALUES ('$order_id', '$invoice_number', 'a')";
-            if (!mysqli_query($this->wp_connection, $query_factura)) {
-                throw new Exception("Error insertando factura: " . mysqli_error($this->wp_connection));
+            // 1. Generar número de factura usando SERIE_NUMERO_FACTURA
+            $invoice_number = Utils::getNextInvoiceNumber();
+            
+            // Verificar que el número no exista (por seguridad)
+            if (Utils::invoiceNumberExists($invoice_number)) {
+                Utils::logError("Número de factura $invoice_number ya existe, generando nuevo número", 'WARNING', 'WooCommerceOrders');
+                $invoice_number = Utils::getNextInvoiceNumber();
             }
+            
+            $invoice_number_escaped = mysqli_real_escape_string($ventas_connection, $invoice_number);
+            
+            // 2. Insertar en tabla facturas (base de datos ventas)
+            $query_factura = "INSERT INTO facturas (id_order, factura, estado) VALUES ('$order_id', '$invoice_number_escaped', 'a')";
+            if (!mysqli_query($ventas_connection, $query_factura)) {
+                throw new Exception("Error insertando factura: " . mysqli_error($ventas_connection));
+            }
+            
+            // Iniciar transacción en WordPress para las actualizaciones de WooCommerce
+            mysqli_autocommit($this->wp_connection, false);
             
             // 2. Actualizar estado del pedido a completado
             $query_post = "UPDATE miau_posts SET post_status = 'wc-completed' WHERE ID = '$order_id'";
@@ -2166,19 +2178,36 @@ class WooCommerceOrders
             $query_hpos = "UPDATE miau_wc_orders SET status = 'wc-completed' WHERE id = '$order_id'";
             mysqli_query($this->wp_connection, $query_hpos); // No crítico si falla
             
-            // Confirmar transacción
+            // Confirmar transacción de WordPress
             mysqli_commit($this->wp_connection);
             mysqli_autocommit($this->wp_connection, true);
             
-            return true;
+            // Cerrar conexión de ventas
+            mysqli_close($ventas_connection);
+            
+            Utils::logError("Pedido #$order_id completado exitosamente con factura #$invoice_number", 'INFO', 'WooCommerceOrders');
+            return [
+                'success' => true,
+                'invoice_number' => $invoice_number
+            ];
             
         } catch (Exception $e) {
-            // Revertir transacción
-            mysqli_rollback($this->wp_connection);
-            mysqli_autocommit($this->wp_connection, true);
+            // Revertir transacción de WordPress si estaba activa
+            if (isset($this->wp_connection)) {
+                mysqli_rollback($this->wp_connection);
+                mysqli_autocommit($this->wp_connection, true);
+            }
+            
+            // Cerrar conexión de ventas si existe
+            if (isset($ventas_connection)) {
+                mysqli_close($ventas_connection);
+            }
             
             Utils::logError("Error en completeOrder: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
-            return false;
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
         }
     }
     
