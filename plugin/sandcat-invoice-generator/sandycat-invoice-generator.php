@@ -42,7 +42,11 @@ class SandCatInvoiceGenerator {
         add_action('add_meta_boxes', array($this, 'add_invoice_metabox'));
         add_action('wp_ajax_generate_sandcat_invoice', array($this, 'ajax_generate_invoice'));
         add_action('wp_ajax_get_invoice_pdf_url', array($this, 'ajax_get_invoice_pdf_url'));
+        add_action('wp_ajax_stream_invoice_pdf', array($this, 'ajax_stream_invoice_pdf'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+        
+        // Hook adicional para asegurar que el script se carga
+        add_action('admin_footer', array($this, 'ensure_script_loaded'));
         
         // Hook de activación
         register_activation_hook(__FILE__, array($this, 'activate'));
@@ -225,8 +229,95 @@ class SandCatInvoiceGenerator {
     public function enqueue_admin_scripts($hook) {
         global $post_type;
         
-        // Solo cargar en páginas de pedidos
+        $this->logger->info('Enqueue admin scripts called', array(
+            'hook' => $hook,
+            'post_type' => $post_type,
+            'get_current_screen' => get_current_screen() ? get_current_screen()->id : 'null'
+        ));
+        
+        // Verificar si estamos en una página de pedidos (compatible con HPOS)
+        $is_order_page = false;
+        
+        // Método tradicional
         if (('post.php' === $hook || 'post-new.php' === $hook) && 'shop_order' === $post_type) {
+            $is_order_page = true;
+        }
+        
+        // Método HPOS
+        $current_screen = get_current_screen();
+        if ($current_screen && (
+            $current_screen->id === 'woocommerce_page_wc-orders' ||
+            strpos($current_screen->id, 'shop-order') !== false ||
+            strpos($hook, 'wc-orders') !== false
+        )) {
+            $is_order_page = true;
+        }
+        
+        // También cargar en páginas de WooCommerce admin
+        if (strpos($hook, 'woocommerce') !== false) {
+            $is_order_page = true;
+        }
+        
+        // Verificar por URL si contiene order o pedido
+        if (isset($_GET['page']) && $_GET['page'] === 'wc-orders') {
+            $is_order_page = true;
+        }
+        
+        // Verificar si estamos editando un pedido específico
+        if (isset($_GET['id']) && isset($_GET['action']) && $_GET['action'] === 'edit') {
+            $is_order_page = true;
+        }
+        
+        $this->logger->info('Order page check result', array('is_order_page' => $is_order_page));
+        
+        if ($is_order_page) {
+            $this->logger->info('Loading admin scripts');
+            
+            wp_enqueue_script(
+                'sandcat-invoice-admin',
+                SANDCAT_INVOICE_PLUGIN_URL . 'assets/admin.js',
+                array('jquery'),
+                SANDCAT_INVOICE_VERSION,
+                true
+            );
+            
+            wp_localize_script('sandcat-invoice-admin', 'sandcat_invoice_ajax', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('sandcat_invoice_nonce'),
+                'messages' => array(
+                    'generating' => __('Generando factura...', 'sandcat-invoice'),
+                    'success' => __('Factura generada exitosamente', 'sandcat-invoice'),
+                    'error' => __('Error generando factura', 'sandcat-invoice')
+                )
+            ));
+            
+            $this->logger->info('Admin scripts loaded successfully');
+        }
+    }
+    
+    /**
+     * Asegurar que el script se carga en páginas de pedidos
+     */
+    public function ensure_script_loaded() {
+        // Verificar si estamos en una página que podría tener pedidos
+        $current_screen = get_current_screen();
+        if (!$current_screen) {
+            return;
+        }
+        
+        $should_load = false;
+        
+        // Verificar si es una página de WooCommerce
+        if (strpos($current_screen->id, 'woocommerce') !== false ||
+            strpos($current_screen->id, 'shop-order') !== false ||
+            strpos($current_screen->id, 'wc-orders') !== false ||
+            (isset($_GET['page']) && $_GET['page'] === 'wc-orders')) {
+            $should_load = true;
+        }
+        
+        if ($should_load && !wp_script_is('sandcat-invoice-admin', 'enqueued')) {
+            $this->logger->info('Loading script via admin_footer fallback');
+            
             wp_enqueue_script(
                 'sandcat-invoice-admin',
                 SANDCAT_INVOICE_PLUGIN_URL . 'assets/admin.js',
@@ -384,69 +475,387 @@ class SandCatInvoiceGenerator {
     }
     
     /**
-     * Crear PDF usando mPDF
+     * Crear PDF usando mPDF con template HTML (temporal, no guarda archivo)
      */
-    private function create_pdf($order, $invoice_number) {
+    private function create_pdf_temp($order, $invoice_number) {
         // Verificar si mPDF está disponible
         if (!class_exists('\Mpdf\Mpdf')) {
-            // Intentar cargar desde vendor del proyecto principal
-            $vendor_path = ABSPATH . '../vendor/autoload.php';
+            // Intentar cargar desde vendor del plugin
+            $vendor_path = SANDCAT_INVOICE_PLUGIN_PATH . 'vendor/autoload.php';
+            $this->logger->info('Checking mPDF vendor path', array('path' => $vendor_path, 'exists' => file_exists($vendor_path)));
+            
             if (file_exists($vendor_path)) {
                 require_once $vendor_path;
+                $this->logger->info('mPDF vendor loaded successfully');
             } else {
-                return array('success' => false, 'error' => 'mPDF no está disponible');
+                $this->logger->error('mPDF vendor not found', array('path' => $vendor_path));
+                return array('success' => false, 'error' => 'mPDF no está disponible. Ejecute: composer install en el directorio del plugin');
             }
         }
         
+        // Verificar nuevamente después de cargar
+        if (!class_exists('\Mpdf\Mpdf')) {
+            $this->logger->error('mPDF class still not available after vendor load');
+            return array('success' => false, 'error' => 'mPDF class no disponible después de cargar vendor');
+        }
+        
         try {
-            // Configuración de mPDF
+            // Configuración de mPDF para formato POS (80mm)
             $mpdf = new \Mpdf\Mpdf([
                 'mode' => 'utf-8',
-                'format' => 'Letter',
-                'margin_left' => 10,
-                'margin_right' => 10,
-                'margin_top' => 10,
-                'margin_bottom' => 10,
-                'default_font' => 'Arial'
+                'format' => [80, 297], // 80mm ancho, 297mm alto (A4 altura)
+                'margin_left' => 2,
+                'margin_right' => 2,
+                'margin_top' => 2,
+                'margin_bottom' => 2,
+                'default_font' => 'Arial',
+                'default_font_size' => 8
             ]);
             
-            // Generar HTML del PDF
-            $html = $this->generate_pdf_html($order, $invoice_number);
+            // Generar HTML usando template
+            $html = $this->generate_pdf_from_template($order, $invoice_number);
             
             // Escribir HTML al PDF
             $mpdf->WriteHTML($html);
             
-            // Crear directorio de facturas si no existe
-            $upload_dir = wp_upload_dir();
-            $invoice_dir = $upload_dir['basedir'] . '/sandcat-invoices/';
-            if (!file_exists($invoice_dir)) {
-                wp_mkdir_p($invoice_dir);
-            }
-            
-            // Nombre del archivo PDF
-            $filename = 'factura_' . $invoice_number . '_' . $order->get_id() . '.pdf';
-            $filepath = $invoice_dir . $filename;
-            
-            // Guardar PDF
-            $mpdf->Output($filepath, \Mpdf\Output\Destination::FILE);
-            
-            // URL del PDF
-            $pdf_url = $upload_dir['baseurl'] . '/sandcat-invoices/' . $filename;
+            $this->logger->info('PDF generated successfully (temporary)', array(
+                'invoice_number' => $invoice_number,
+                'order_id' => $order->get_id()
+            ));
             
             return array(
                 'success' => true,
-                'pdf_path' => $filepath,
-                'pdf_url' => $pdf_url
+                'mpdf_object' => $mpdf,
+                'invoice_number' => $invoice_number,
+                'order_id' => $order->get_id()
             );
             
         } catch (Exception $e) {
-            error_log('Error generando PDF: ' . $e->getMessage());
+            $this->logger->error('Error generating temporary PDF', array(
+                'error' => $e->getMessage(),
+                'invoice_number' => $invoice_number,
+                'order_id' => $order->get_id()
+            ));
             return array('success' => false, 'error' => 'Error generando PDF: ' . $e->getMessage());
         }
     }
     
     /**
-     * Generar HTML para el PDF usando el template existente
+     * Crear PDF usando mPDF con template HTML (mantener compatibilidad)
+     */
+    private function create_pdf($order, $invoice_number) {
+        return $this->create_pdf_temp($order, $invoice_number);
+    }
+    
+    /**
+     * Generar HTML usando template con placeholders
+     */
+    private function generate_pdf_from_template($order, $invoice_number) {
+        // Cargar template HTML
+        $template_path = SANDCAT_INVOICE_PLUGIN_PATH . 'templates/pdf_factura.html';
+        if (!file_exists($template_path)) {
+            throw new Exception('Template de factura no encontrado: ' . $template_path);
+        }
+        
+        $html_template = file_get_contents($template_path);
+        
+        // Obtener datos del pedido
+        $order_data = $this->extract_order_data($order);
+        
+        // Procesar datos para el template
+        $template_data = $this->prepare_template_data($order, $invoice_number, $order_data);
+        
+        // Reemplazar placeholders en el template
+        foreach ($template_data as $placeholder => $value) {
+            $html_template = str_replace('{{' . $placeholder . '}}', $value, $html_template);
+        }
+        
+        return $html_template;
+    }
+    
+    /**
+     * Preparar datos para el template
+     */
+    private function prepare_template_data($order, $invoice_number, $order_data) {
+        // Datos básicos
+        $data = array(
+            'factura_num' => $invoice_number,
+            'factura_formateada' => sprintf('%06d', $invoice_number),
+            'fecha' => date('d/m/Y H:i', strtotime($order_data['fecha'])),
+            'orden_id' => $order_data['id'],
+            'nombre_cliente_upper' => strtoupper($order_data['nombre_completo']),
+            'apellido_cliente_upper' => '', // Ya incluido en nombre_completo
+            'celular' => $order_data['telefono'],
+            'correo' => $order_data['email'],
+            'total_formateado' => '$' . number_format($order_data['total'], 0, ',', '.'),
+            'logo_factura' => $this->get_logo_url(),
+            'woocommerce_url' => home_url(),
+            'woocommerce_url_pedido' => $order->get_view_order_url()
+        );
+        
+        // Secciones condicionales
+        $data['metodo_pago_section'] = $this->get_metodo_pago_section($order_data['metodo_pago']);
+        $data['dni_section'] = $this->get_dni_section($order_data['dni']);
+        $data['documento_section'] = ''; // Placeholder para compatibilidad
+        $data['direccion_completa_section'] = $this->get_direccion_section($order_data);
+        $data['barrio_section'] = $this->get_barrio_section($order_data['barrio']);
+        $data['ubicacion_section'] = $this->get_ubicacion_section($order_data);
+        $data['direccion_section'] = ''; // Ya incluido en direccion_completa_section
+        $data['comentarios_section'] = $this->get_comentarios_section($order);
+        
+        // Productos
+        $data['productos_html'] = $this->get_productos_html($order);
+        
+        // Totales
+        $data['envio_section'] = $this->get_envio_section($order_data['total_envio']);
+        $data['descuento_section'] = $this->get_descuento_section($order_data['total_descuento']);
+        
+        return $data;
+    }
+    
+    /**
+     * Obtener URL del logo
+     */
+    private function get_logo_url() {
+        // Usar logo de WordPress o placeholder
+        $custom_logo_id = get_theme_mod('custom_logo');
+        if ($custom_logo_id) {
+            $logo_url = wp_get_attachment_image_url($custom_logo_id, 'full');
+            return $logo_url;
+        }
+        
+        // Logo por defecto o placeholder
+        return SANDCAT_INVOICE_PLUGIN_URL . 'assets/logo-default.png';
+    }
+    
+    /**
+     * Sección método de pago
+     */
+    private function get_metodo_pago_section($metodo_pago) {
+        if (empty($metodo_pago)) {
+            return '';
+        }
+        
+        return '<tr><td colspan="4"><strong>Método de Pago:</strong> ' . htmlspecialchars($metodo_pago) . '</td></tr>';
+    }
+    
+    /**
+     * Sección DNI
+     */
+    private function get_dni_section($dni) {
+        if (empty($dni)) {
+            return '';
+        }
+        
+        return '<tr><td colspan="4"><strong>DNI:</strong> ' . htmlspecialchars($dni) . '</td></tr>';
+    }
+    
+    /**
+     * Sección dirección
+     */
+    private function get_direccion_section($order_data) {
+        $direccion_parts = array();
+        
+        if (!empty($order_data['direccion'])) {
+            $direccion_parts[] = $order_data['direccion'];
+        }
+        
+        if (!empty($order_data['direccion_2'])) {
+            $direccion_parts[] = $order_data['direccion_2'];
+        }
+        
+        if (empty($direccion_parts)) {
+            return '';
+        }
+        
+        $direccion_completa = implode(' ', $direccion_parts);
+        return '<tr><td colspan="4" style="word-wrap: break-word; width: 180"><strong>Dirección:</strong> ' . htmlspecialchars($direccion_completa) . '</td></tr>';
+    }
+    
+    /**
+     * Sección barrio
+     */
+    private function get_barrio_section($barrio) {
+        if (empty($barrio)) {
+            return '';
+        }
+        
+        return '<tr><td colspan="4"><strong>Barrio:</strong> ' . htmlspecialchars($barrio) . '</td></tr>';
+    }
+    
+    /**
+     * Sección ubicación (ciudad, departamento)
+     */
+    private function get_ubicacion_section($order_data) {
+        $ubicacion_parts = array();
+        
+        if (!empty($order_data['ciudad'])) {
+            $ubicacion_parts[] = $order_data['ciudad'];
+        }
+        
+        if (!empty($order_data['departamento'])) {
+            // Convertir código de departamento a nombre si es necesario
+            $departamento_nombre = $this->convert_department_code($order_data['departamento']);
+            $ubicacion_parts[] = $departamento_nombre;
+        }
+        
+        if (!empty($order_data['pais'])) {
+            $pais_nombre = ($order_data['pais'] === 'CO') ? 'Colombia' : $order_data['pais'];
+            $ubicacion_parts[] = $pais_nombre;
+        }
+        
+        if (empty($ubicacion_parts)) {
+            return '';
+        }
+        
+        $ubicacion = implode(', ', $ubicacion_parts);
+        return '<tr><td colspan="4"><strong>Ubicación:</strong> ' . htmlspecialchars($ubicacion) . '</td></tr>';
+    }
+    
+    /**
+     * Convertir código de departamento a nombre
+     */
+    private function convert_department_code($code) {
+        // Datos de departamentos de Colombia
+        $departments = array(
+            'ANT' => 'Antioquia',
+            'ATL' => 'Atlántico', 
+            'BOG' => 'Bogotá D.C.',
+            'BOL' => 'Bolívar',
+            'BOY' => 'Boyacá',
+            'CAL' => 'Caldas',
+            'CAQ' => 'Caquetá',
+            'CAS' => 'Casanare',
+            'CAU' => 'Cauca',
+            'CES' => 'Cesar',
+            'CHO' => 'Chocó',
+            'COR' => 'Córdoba',
+            'CUN' => 'Cundinamarca',
+            'GUA' => 'Guainía',
+            'GUV' => 'Guaviare',
+            'HUI' => 'Huila',
+            'LAG' => 'La Guajira',
+            'MAG' => 'Magdalena',
+            'MET' => 'Meta',
+            'NAR' => 'Nariño',
+            'NSA' => 'Norte de Santander',
+            'PUT' => 'Putumayo',
+            'QUI' => 'Quindío',
+            'RIS' => 'Risaralda',
+            'SAN' => 'Santander',
+            'SUC' => 'Sucre',
+            'TOL' => 'Tolima',
+            'VAC' => 'Valle del Cauca',
+            'VAU' => 'Vaupés',
+            'VID' => 'Vichada'
+        );
+        
+        // Si el código contiene "CO-", extraer solo la parte del código
+        if (strpos($code, 'CO-') === 0) {
+            $code = substr($code, 3);
+        }
+        
+        return isset($departments[strtoupper($code)]) ? $departments[strtoupper($code)] : $code;
+    }
+    
+    /**
+     * Sección comentarios
+     */
+    private function get_comentarios_section($order) {
+        $comentarios = $order->get_customer_note();
+        
+        if (empty($comentarios)) {
+            return '';
+        }
+        
+        return '<tr><td colspan="4" style="word-wrap: break-word; width: 180"><strong>Comentarios:</strong> ' . htmlspecialchars($comentarios) . '</td></tr>';
+    }
+    
+    /**
+     * HTML de productos
+     */
+    private function get_productos_html($order) {
+        $html = '';
+        
+        foreach ($order->get_items() as $item_id => $item) {
+            $product = $item->get_product();
+            $quantity = $item->get_quantity();
+            $total = $item->get_total();
+            $subtotal = $item->get_subtotal();
+            $unit_price = $total / $quantity;
+            
+            // Nombre del producto
+            $product_name = $item->get_name();
+            
+            // SKU del producto
+            $sku = '';
+            if ($product) {
+                $sku = $product->get_sku();
+            }
+            
+            // Truncar nombre si es muy largo
+            $product_name_truncated = $this->truncate_text($product_name, 25);
+            
+            // Descripción con SKU
+            $description = '';
+            if (!empty($sku)) {
+                $description .= '<span class="sku-text">SKU: ' . htmlspecialchars($sku) . '</span><br>';
+            }
+            $description .= htmlspecialchars($product_name_truncated);
+            
+            // Verificar si hay descuento
+            $has_discount = $subtotal > $total;
+            $unit_subtotal = $subtotal / $quantity;
+            
+            if ($has_discount) {
+                // Mostrar precio original tachado y precio con descuento
+                $price_html = '<span class="precio-tachado">$' . number_format($unit_subtotal, 0, ',', '.') . '</span><br>';
+                $price_html .= '<span class="precio-descuento">$' . number_format($unit_price, 0, ',', '.') . '</span>';
+            } else {
+                $price_html = '$' . number_format($unit_price, 0, ',', '.');
+            }
+            
+            $html .= '<tr>
+                <td style="text-align: center; vertical-align: top"><br>' . $quantity . '</td>
+                <td style="word-wrap: break-word; width: 180; vertical-align: top"><br>' . $description . '</td>
+                <td style="text-align: center; vertical-align: top"><br>' . $price_html . '</td>
+                <td style="text-align: center; vertical-align: top"><br>$' . number_format($total, 0, ',', '.') . '</td>
+            </tr>';
+        }
+        
+        return $html;
+    }
+    
+    /**
+     * Sección envío
+     */
+    private function get_envio_section($total_envio) {
+        if ($total_envio <= 0) {
+            return '';
+        }
+        
+        return '<tr>
+            <td colspan="3" style="text-align: right; vertical-align: right; word-wrap: break-word; width: 120"><strong>Domicilio:</strong></td>
+            <td style="text-align: right"><strong>$' . number_format($total_envio, 0, ',', '.') . '</strong></td>
+        </tr>';
+    }
+    
+    /**
+     * Sección descuento
+     */
+    private function get_descuento_section($total_descuento) {
+        if ($total_descuento <= 0) {
+            return '';
+        }
+        
+        return '<tr>
+            <td colspan="3" style="text-align: right; vertical-align: right; word-wrap: break-word; width: 120; color: #dc3545;"><strong>Descuento:</strong></td>
+            <td style="text-align: right; color: #dc3545;"><strong>-$' . number_format($total_descuento, 0, ',', '.') . '</strong></td>
+        </tr>';
+    }
+    
+    /**
+     * Generar HTML para el PDF usando el template existente (método legacy)
      */
     private function generate_pdf_html($order, $invoice_number) {
         // Obtener datos del pedido
@@ -480,6 +889,16 @@ class SandCatInvoiceGenerator {
         $html .= '</body></html>';
         
         return $html;
+    }
+    
+    /**
+     * Truncar texto
+     */
+    private function truncate_text($text, $limit = 35) {
+        if (mb_strlen($text, 'UTF-8') > $limit) {
+            return mb_substr($text, 0, $limit - 3, 'UTF-8') . '...';
+        }
+        return $text;
     }
     
     /**
@@ -667,16 +1086,6 @@ class SandCatInvoiceGenerator {
     }
     
     /**
-     * Truncar texto
-     */
-    private function truncate_text($text, $limit = 35) {
-        if (mb_strlen($text, 'UTF-8') > $limit) {
-            return mb_substr($text, 0, $limit - 3, 'UTF-8') . '...';
-        }
-        return $text;
-    }
-    
-    /**
      * Guardar factura en base de datos
      */
     private function save_invoice_to_db($order_id, $invoice_number) {
@@ -759,13 +1168,17 @@ class SandCatInvoiceGenerator {
      * AJAX handler para obtener URL del PDF de factura existente
      */
     public function ajax_get_invoice_pdf_url() {
+        $this->logger->info('AJAX get_invoice_pdf_url called', array('post_data' => $_POST));
+        
         // Verificar nonce
         if (!wp_verify_nonce($_POST['nonce'], 'sandcat_invoice_nonce')) {
+            $this->logger->error('Nonce verification failed');
             wp_die(__('Error de seguridad', 'sandcat-invoice'));
         }
         
         // Verificar permisos
         if (!current_user_can('edit_shop_orders')) {
+            $this->logger->error('Insufficient permissions for user');
             wp_die(__('Permisos insuficientes', 'sandcat-invoice'));
         }
         
@@ -776,8 +1189,10 @@ class SandCatInvoiceGenerator {
         try {
             // Verificar si existe factura
             $existing_invoice = $this->get_existing_invoice($order_id);
+            $this->logger->info('Existing invoice check result', array('existing_invoice' => $existing_invoice));
             
             if (!$existing_invoice) {
+                $this->logger->error('No existing invoice found', array('order_id' => $order_id));
                 wp_send_json_error(array(
                     'message' => __('No se encontró factura para este pedido.', 'sandcat-invoice')
                 ));
@@ -787,6 +1202,7 @@ class SandCatInvoiceGenerator {
             // Obtener datos del pedido
             $order = wc_get_order($order_id);
             if (!$order) {
+                $this->logger->error('Order not found', array('order_id' => $order_id));
                 wp_send_json_error(array(
                     'message' => __('Pedido no encontrado.', 'sandcat-invoice')
                 ));
@@ -795,12 +1211,16 @@ class SandCatInvoiceGenerator {
             
             // Generar PDF con los datos existentes
             $invoice_number = $existing_invoice['factura'];
+            $this->logger->info('Starting PDF generation', array('invoice_number' => $invoice_number, 'order_id' => $order_id));
+            
             $pdf_result = $this->create_pdf($order, $invoice_number);
+            $this->logger->info('PDF generation result', array('pdf_result' => $pdf_result));
             
             if ($pdf_result && isset($pdf_result['success']) && $pdf_result['success']) {
                 $this->logger->info('PDF URL generated successfully', array(
                     'order_id' => $order_id,
-                    'invoice_number' => $invoice_number
+                    'invoice_number' => $invoice_number,
+                    'pdf_url' => $pdf_result['pdf_url']
                 ));
                 
                 wp_send_json_success(array(
@@ -809,11 +1229,12 @@ class SandCatInvoiceGenerator {
                     'message' => __('PDF generado correctamente.', 'sandcat-invoice')
                 ));
             } else {
-                $error_message = isset($pdf_result['message']) ? $pdf_result['message'] : __('Error generando PDF.', 'sandcat-invoice');
+                $error_message = isset($pdf_result['message']) ? $pdf_result['message'] : (isset($pdf_result['error']) ? $pdf_result['error'] : __('Error generando PDF.', 'sandcat-invoice'));
                 
                 $this->logger->error('Error generating PDF for viewing', array(
                     'order_id' => $order_id,
-                    'error' => $error_message
+                    'error' => $error_message,
+                    'pdf_result' => $pdf_result
                 ));
                 
                 wp_send_json_error(array(
@@ -830,6 +1251,76 @@ class SandCatInvoiceGenerator {
             wp_send_json_error(array(
                 'message' => __('Error interno del servidor.', 'sandcat-invoice')
             ));
+        }
+    }
+    
+    /**
+     * AJAX handler para servir PDF directamente (temporal)
+     */
+    public function ajax_stream_invoice_pdf() {
+        $this->logger->info('AJAX stream_invoice_pdf called', array('post_data' => $_POST));
+        
+        // Verificar nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sandcat_invoice_nonce')) {
+            $this->logger->error('Nonce verification failed in stream PDF');
+            wp_die(__('Error de seguridad', 'sandcat-invoice'));
+        }
+        
+        // Verificar permisos
+        if (!current_user_can('edit_shop_orders')) {
+            $this->logger->error('Insufficient permissions for PDF streaming');
+            wp_die(__('Permisos insuficientes', 'sandcat-invoice'));
+        }
+        
+        $order_id = intval($_POST['order_id']);
+        
+        try {
+            // Verificar si existe factura
+            $existing_invoice = $this->get_existing_invoice($order_id);
+            if (!$existing_invoice) {
+                wp_die(__('No se encontró factura para este pedido.', 'sandcat-invoice'));
+            }
+            
+            // Obtener datos del pedido
+            $order = wc_get_order($order_id);
+            if (!$order) {
+                wp_die(__('Pedido no encontrado.', 'sandcat-invoice'));
+            }
+            
+            // Generar PDF temporal
+            $invoice_number = $existing_invoice['factura'];
+            $pdf_result = $this->create_pdf_temp($order, $invoice_number);
+            
+            if ($pdf_result && $pdf_result['success'] && isset($pdf_result['mpdf_object'])) {
+                $this->logger->info('Streaming PDF directly', array(
+                    'order_id' => $order_id,
+                    'invoice_number' => $invoice_number
+                ));
+                
+                // Configurar headers para PDF
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: inline; filename="factura_' . $invoice_number . '_' . $order_id . '.pdf"');
+                header('Cache-Control: private, max-age=0, must-revalidate');
+                header('Pragma: public');
+                
+                // Generar nombre del archivo similar a pdf_generator.php
+                $filename = "Factura_" . sprintf('%06d', $invoice_number) . "_Orden_" . $order_id . ".pdf";
+                
+                // Servir PDF directamente en línea (similar a pdf_generator.php)
+                $pdf_result['mpdf_object']->Output($filename, 'I');
+                exit;
+                
+            } else {
+                $error_message = isset($pdf_result['error']) ? $pdf_result['error'] : __('Error generando PDF.', 'sandcat-invoice');
+                wp_die($error_message);
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->error('Exception in ajax_stream_invoice_pdf', array(
+                'order_id' => $order_id,
+                'error' => $e->getMessage()
+            ));
+            wp_die(__('Error interno del servidor.', 'sandcat-invoice'));
         }
     }
     

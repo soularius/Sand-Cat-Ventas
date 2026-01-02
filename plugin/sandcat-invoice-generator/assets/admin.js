@@ -1,12 +1,12 @@
 jQuery(document).ready(function($) {
-    
+    console.log('Document ready');
     // Manejar clic en botón generar factura
-    $('#generate-invoice').on('click', function(e) {
+    $('#generate-invoice, #regenerate-invoice').on('click', function(e) {
         e.preventDefault();
         
         var $button = $(this);
         var orderId = $button.data('order-id');
-        var isRegenerate = false;
+        var isRegenerate = $button.attr('id') === 'regenerate-invoice';
         
         // Mostrar loading
         $('#invoice-loading').show();
@@ -31,12 +31,17 @@ jQuery(document).ready(function($) {
                 $button.prop('disabled', false);
                 
                 if (response.success) {
+                    // Abrir PDF en nueva pestaña automáticamente
+                    if (response.data.pdf_url) {
+                        window.open(response.data.pdf_url, '_blank');
+                    }
+                    
                     // Mostrar mensaje de éxito
                     var successHtml = '<div class="notice notice-success inline">' +
                         '<p><strong>' + sandcat_invoice_ajax.messages.success + '</strong></p>' +
                         '<p>Número de factura: ' + response.data.invoice_number + '</p>' +
-                        '<p><a href="' + response.data.pdf_url + '" target="_blank" class="button button-secondary">' +
-                        'Descargar PDF</a></p>' +
+                        '<p><button type="button" class="button button-secondary view-pdf-btn" data-pdf-url="' + response.data.pdf_url + '">' +
+                        '<i class="dashicons dashicons-visibility"></i> Ver PDF</button></p>' +
                         '</div>';
                     
                     $('#invoice-result').html(successHtml);
@@ -70,6 +75,46 @@ jQuery(document).ready(function($) {
                 console.error('Error AJAX:', xhr.responseText);
             }
         });
+    });
+    
+    // Manejar clic en botón "Ver Factura" para facturas existentes (streaming temporal)
+    $(document).on('click', '#view-invoice', function(e) {
+        e.preventDefault();
+        
+        var $button = $(this);
+        var orderId = $button.data('order-id');
+        
+        // Mostrar loading
+        $('#invoice-loading').show();
+        $button.prop('disabled', true);
+        $button.text('Generando...');
+        
+        console.log('Opening PDF via streaming for order:', orderId);
+        
+        // Crear URL para streaming directo del PDF
+        var streamUrl = sandcat_invoice_ajax.ajax_url + 
+            '?action=stream_invoice_pdf' +
+            '&nonce=' + encodeURIComponent(sandcat_invoice_ajax.nonce) +
+            '&order_id=' + encodeURIComponent(orderId);
+        
+        // Abrir PDF en nueva pestaña directamente
+        window.open(streamUrl, '_blank');
+        
+        // Restaurar estado del botón después de un breve delay
+        setTimeout(function() {
+            $('#invoice-loading').hide();
+            $button.prop('disabled', false);
+            $button.text('Ver Factura');
+        }, 1000);
+    });
+    
+    // Manejar clic en botones "Ver PDF" dinámicos
+    $(document).on('click', '.view-pdf-btn', function(e) {
+        e.preventDefault();
+        var pdfUrl = $(this).data('pdf-url');
+        if (pdfUrl) {
+            window.open(pdfUrl, '_blank');
+        }
     });
     
     /**
