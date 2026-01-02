@@ -38,6 +38,187 @@ class WooCommerceOrders
     }
 
     /* ==============================================================
+     *  OBTENER DATOS DE ORDEN PARA EMAIL
+     * ============================================================ */
+
+    /**
+     * Obtener datos completos de una orden para envío por email
+     * @param int $orden_id - ID de la orden
+     * @return array - Datos de la orden con metadatos incluidos
+     * @throws Exception si la orden no existe
+     */
+    public function getOrderDataForEmail(int $orden_id): array
+    {
+        // Obtener datos básicos de la orden
+        $query = "SELECT 
+            o.id as orden_id,
+            o.total_amount as total,
+            o.date_created_gmt as fecha_orden,
+            ba.first_name as nombre_cliente,
+            ba.last_name as apellido_cliente,
+            ba.email as email_cliente,
+            ba.phone as telefono_cliente,
+            ba.address_1 as direccion_1,
+            ba.address_2 as direccion_2,
+            ba.city as ciudad,
+            ba.state as departamento,
+            ba.country as pais
+        FROM miau_wc_orders o
+        LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+        WHERE o.id = ?";
+
+        $stmt = mysqli_prepare($this->wp_connection, $query);
+        if (!$stmt) {
+            throw new Exception("Error preparando consulta: " . mysqli_error($this->wp_connection));
+        }
+
+        mysqli_stmt_bind_param($stmt, "i", $orden_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $orden = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
+
+        if (!$orden) {
+            throw new Exception("Orden no encontrada: {$orden_id}");
+        }
+
+        // Obtener metadatos adicionales desde postmeta (compatibilidad legacy)
+        $metaQuery = "SELECT meta_key, meta_value FROM miau_postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title','_billing_dni','_billing_barrio')";
+        $metaStmt = mysqli_prepare($this->wp_connection, $metaQuery);
+        
+        $meta = [
+            '_order_shipping' => '0',
+            '_cart_discount' => '0', 
+            '_payment_method_title' => '',
+            '_billing_dni' => '',
+            '_billing_barrio' => ''
+        ];
+
+        if ($metaStmt) {
+            mysqli_stmt_bind_param($metaStmt, 'i', $orden_id);
+            mysqli_stmt_execute($metaStmt);
+            $metaResult = mysqli_stmt_get_result($metaStmt);
+            
+            while ($metaRow = mysqli_fetch_assoc($metaResult)) {
+                $meta[$metaRow['meta_key']] = $metaRow['meta_value'];
+            }
+            mysqli_stmt_close($metaStmt);
+        }
+
+        // Combinar datos de orden con metadatos
+        $orden['envio'] = $meta['_order_shipping'];
+        $orden['descuento'] = $meta['_cart_discount'];
+        $orden['metodo_pago'] = $meta['_payment_method_title'];
+        $orden['dni'] = $meta['_billing_dni'];
+        $orden['barrio'] = $meta['_billing_barrio'];
+
+        return $orden;
+    }
+
+    /**
+     * Obtener productos de una orden optimizado para facturas (evita duplicados)
+     * @param int $orden_id - ID de la orden
+     * @return array - Array de productos con SKU, precios y cantidades
+     * @throws Exception si hay error en la consulta
+     */
+    public function getOrderProductsForInvoice(int $orden_id): array
+    {
+        $query_productos = "
+            SELECT
+                I.order_item_id,
+                I.order_item_name as nombre_producto,
+                I.order_id,
+
+                /* Cantidad y totales desde el pedido (lo que realmente se facturó) */
+                COALESCE(CAST(IM.qty AS UNSIGNED), 1) AS cantidad,
+
+                COALESCE(CAST(IM.line_total AS DECIMAL(18,2)), 0)    AS line_total,
+                COALESCE(CAST(IM.line_subtotal AS DECIMAL(18,2)), 0) AS line_subtotal,
+
+                /* Unitarios basados en el pedido (RECOMENDADO para factura) */
+                CASE
+                    WHEN COALESCE(CAST(IM.qty AS UNSIGNED), 1) > 0
+                    THEN ROUND(COALESCE(CAST(IM.line_subtotal AS DECIMAL(18,2)), 0) / COALESCE(CAST(IM.qty AS UNSIGNED), 1), 2)
+                    ELSE 0
+                END AS regular_price,  -- precio unitario sin descuentos (del pedido)
+
+                CASE
+                    WHEN COALESCE(CAST(IM.qty AS UNSIGNED), 1) > 0
+                    THEN ROUND(COALESCE(CAST(IM.line_total AS DECIMAL(18,2)), 0) / COALESCE(CAST(IM.qty AS UNSIGNED), 1), 2)
+                    ELSE 0
+                END AS sale_price,     -- precio unitario con descuentos (del pedido)
+
+                /* SKU: variación si existe, si no producto */
+                COALESCE(PM_sku_var.sku_var, PM_sku_prod.sku_prod, '') AS sku,
+
+                /* IDs para obtener imagen y link del producto */
+                CAST(IM.product_id AS UNSIGNED) AS product_id,
+                CAST(IM.variation_id AS UNSIGNED) AS variation_id
+
+            FROM miau_woocommerce_order_items I
+
+            /* Pivot de itemmeta: saco lo necesario en un solo join */
+            LEFT JOIN (
+                SELECT
+                    order_item_id,
+                    MAX(CASE WHEN meta_key = '_qty' THEN meta_value END)           AS qty,
+                    MAX(CASE WHEN meta_key = '_line_total' THEN meta_value END)    AS line_total,
+                    MAX(CASE WHEN meta_key = '_line_subtotal' THEN meta_value END) AS line_subtotal,
+                    MAX(CASE WHEN meta_key = '_product_id' THEN meta_value END)    AS product_id,
+                    MAX(CASE WHEN meta_key = '_variation_id' THEN meta_value END)  AS variation_id
+                FROM miau_woocommerce_order_itemmeta
+                WHERE meta_key IN ('_qty','_line_total','_line_subtotal','_product_id','_variation_id')
+                GROUP BY order_item_id
+            ) IM
+                ON IM.order_item_id = I.order_item_id
+
+            /* SKU usando subconsultas para evitar duplicados */
+            LEFT JOIN (
+                SELECT post_id, meta_value as sku_prod
+                FROM miau_postmeta 
+                WHERE meta_key = '_sku'
+            ) PM_sku_prod
+                ON PM_sku_prod.post_id = CAST(IM.product_id AS UNSIGNED)
+
+            LEFT JOIN (
+                SELECT post_id, meta_value as sku_var
+                FROM miau_postmeta 
+                WHERE meta_key = '_sku'
+            ) PM_sku_var
+                ON PM_sku_var.post_id = CAST(IM.variation_id AS UNSIGNED)
+
+            WHERE
+                I.order_id = ? 
+                AND I.order_item_type = 'line_item'
+            GROUP BY I.order_item_id";
+        
+        $stmt = mysqli_prepare($this->wp_connection, $query_productos);
+        if (!$stmt) {
+            throw new Exception("Error preparando consulta de productos: " . mysqli_error($this->wp_connection));
+        }
+
+        mysqli_stmt_bind_param($stmt, "i", $orden_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        
+        $productos_array = [];
+        if ($result && mysqli_num_rows($result) > 0) {
+            while ($producto = mysqli_fetch_assoc($result)) {
+                // Calcular total_producto para compatibilidad
+                $producto['total_producto'] = $producto['line_total'];
+                
+                // URL del producto en la tienda
+                $producto['product_url'] = URL_WOOCOMMERCE . '/?p=' . $producto['product_id'];
+                
+                $productos_array[] = $producto;
+            }
+        }
+        
+        mysqli_stmt_close($stmt);
+        return $productos_array;
+    }
+
+    /* ==============================================================
      *  UTILIDADES DB
      * ============================================================ */
 

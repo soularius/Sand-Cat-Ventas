@@ -14,7 +14,7 @@ $MM_donotCheckaccess = "false";
 // *** Restrict Access To Page: Grant or deny access to this page
 // La función isAuthorized() ahora está disponible desde tools.php
 
-$MM_restrictGoTo = "http://localhost/ventas";
+$MM_restrictGoTo = VENTAS_URL;
 
 
 if (!((isset($_SESSION['MM_Username'])))) {

@@ -39,7 +39,7 @@ function isAuthorized($strUsers, $strGroups, $UserName, $UserGroup)
 
 
 
-$MM_restrictGoTo = "http://localhost/ventas";
+$MM_restrictGoTo = VENTAS_URL;
 
 
 if (!((isset($_SESSION['MM_Username'])))) {
@@ -66,6 +66,13 @@ $ellogin = '';
 $ellogin = isset($row_usuario['documento']) ? $row_usuario['documento'] : '';
 $id_usuarios = isset($row_usuario['id_usuarios']) ? $row_usuario['id_usuarios'] : 0;
 $hoy = date("Y-m-d");
+
+// Inicializar variables por defecto
+$id_ventas = '';
+$row_preventa = null;
+$row_totalpreventa = null;
+$row_artpreventa = null;
+$artpreventa = null;
 
 /*if(isset($_POST['id_ventas']) && isset($_POST['valor'])) { */
 if (isset($_POST['id_ventas'])) {
@@ -107,10 +114,10 @@ if (isset($_POST['id_ventas'])) {
 	      		  <span class="fa fa-user-o"></span>
 		      	</div> -->
 						<div class="container p-3 my-3 bg-primary text-white">
-							<?php echo $row_preventa['nom_cliente']; ?><br />
-							<?php echo $row_preventa['doc_cliente']; ?><br />
-							<?php echo "Total: " . number_format($row_totalpreventa['eltotal']); ?><br />
-							<?php echo $row_preventa['consecutivo']; ?>
+							<?php echo isset($row_preventa['nom_cliente']) ? $row_preventa['nom_cliente'] : ''; ?><br />
+							<?php echo isset($row_preventa['doc_cliente']) ? $row_preventa['doc_cliente'] : ''; ?><br />
+							<?php echo "Total: " . number_format(isset($row_totalpreventa['eltotal']) ? $row_totalpreventa['eltotal'] : 0); ?><br />
+							<?php echo isset($row_preventa['consecutivo']) ? $row_preventa['consecutivo'] : ''; ?>
 						</div>
 						<div class="form-group">
 							<form action="admin.php" class="login-form" method="post">
@@ -118,38 +125,43 @@ if (isset($_POST['id_ventas'])) {
 								<input type="hidden" id="factura" name="factura" value="si" />
 								<div class="row">
 									<div class="input-group mb-3 text-center">
-										<input type="text" class="form-control" value="Factura No. <?php echo $row_preventa['factura']; ?>" aria-label="Recipient's username" aria-describedby="basic-addon2" id="num" name="num" disabled>
+										<input type="text" class="form-control" placeholder="Factura No." aria-label="Recipient's username" aria-describedby="basic-addon2" id="num" name="num" required>
+										<div class="input-group-append">
+											<button class="btn btn-outline-primary" type="submit" name="ingfact" id="ingfact">Enviar</button>
+										</div>
 									</div>
 								</div>
 							</form>
 							<div class="row">
 								<div class="col text-center">
-									<form action="admin.php?df=30" class="login-form" method="post">
+									<form action="admin.php" class="login-form" method="post">
 										<input type="hidden" id="id_ventas" name="id_ventas" value="<?php echo $id_ventas; ?>" />
 										<input type="hidden" id="cancela" name="cancela" value="si" /><button type="submit" class="btn btn-danger rounded submit px-3" name="cancelar" id="cancelar">Cancelar pedido</button>
 									</form>
 								</div>
 								<div class="col text-center">
-									<a href="admin.php?df=30" class="btn btn-warning rounded submit px-3" role="button">Regresar</a>
+									<a href="admin.php" class="btn btn-warning rounded submit px-3" role="button">Regresar</a>
 								</div>
 							</div>
 						</div>
-						<?php if (!empty($row_preventa['observacion'])) { ?>
+						<?php if (isset($row_preventa['observacion']) && !empty($row_preventa['observacion'])) { ?>
 							<div class="container p-3 my-3 bg-success text-white">
 								<?php echo $row_preventa['observacion']; ?>
 							</div>
 						<?php } ?>
 						<?php
-						do {
+						if ($artpreventa && $row_artpreventa) {
+							do {
 						?>
-							<div class="container p-3 my-3 border">
-								<?php echo $row_artpreventa['nombre']; ?><br />
-								Valor: <?php echo number_format($row_artpreventa['valor']); ?><br />
-								Descuento: <?php echo $row_artpreventa['descuento']; ?><br />
-								Cantidad: <?php echo $row_artpreventa['cantidad']; ?><br />
-								Valor: <?php echo number_format(($row_artpreventa['valor'] - $row_artpreventa['descuento']) * $row_artpreventa['cantidad']); ?>
-							</div>
+								<div class="container p-3 my-3 border">
+									<?php echo isset($row_artpreventa['nombre']) ? $row_artpreventa['nombre'] : ''; ?><br />
+									Valor: <?php echo number_format(isset($row_artpreventa['valor']) ? $row_artpreventa['valor'] : 0); ?><br />
+									Descuento: <?php echo isset($row_artpreventa['descuento']) ? $row_artpreventa['descuento'] : 0; ?><br />
+									Cantidad: <?php echo isset($row_artpreventa['cantidad']) ? $row_artpreventa['cantidad'] : 0; ?><br />
+									Valor: <?php echo number_format(((isset($row_artpreventa['valor']) ? $row_artpreventa['valor'] : 0) - (isset($row_artpreventa['descuento']) ? $row_artpreventa['descuento'] : 0)) * (isset($row_artpreventa['cantidad']) ? $row_artpreventa['cantidad'] : 0)); ?>
+								</div>
 						<?php } while ($row_artpreventa = mysqli_fetch_assoc($artpreventa));
+						}
 						?>
 					</div>
 				</div>
