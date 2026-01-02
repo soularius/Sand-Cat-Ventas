@@ -572,7 +572,6 @@ class OrderSummary {
         const container = document.getElementById('order-notes');
         
         if (!container) return;
-        
         // Obtener notas desde los datos del servidor o desde el cache
         let orderNotes = [];
         
@@ -581,8 +580,21 @@ class OrderSummary {
             orderNotes = window.serverOrderData.order_notes;
         }
         // Si no hay datos del servidor, intentar desde orderData local
-        else if (this.orderData && this.orderData.order_notes) {
-            orderNotes = this.orderData.order_notes;
+        else if (this.orderData && this.orderData.post_expcerpt) {
+            // Si es string, convertir a array; si ya es array, mantenerlo
+            if (typeof this.orderData.post_expcerpt === 'string') {
+                const excerpt = this.orderData.post_expcerpt.trim();
+                if (excerpt) {
+                    orderNotes = [{
+                        type: 'note',
+                        content: excerpt,
+                        author: 'WooCommerce',
+                        formatted_date: new Date().toLocaleDateString()
+                    }];
+                }
+            } else if (Array.isArray(this.orderData.post_expcerpt)) {
+                orderNotes = this.orderData.post_expcerpt;
+            }
         }
         
         if (!orderNotes || orderNotes.length === 0) {
