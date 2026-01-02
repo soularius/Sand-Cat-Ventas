@@ -108,9 +108,67 @@ class SandCatInvoiceGenerator {
             $this->ventas_db->set_charset('utf8');
             $this->logger->info('Successfully connected to sales database');
             
+            // Cargar constantes desde la base de datos
+            $this->load_constants_from_db();
+            
         } catch (Exception $e) {
             $this->logger->error('Error connecting to sales database', array('error' => $e->getMessage()));
             add_action('admin_notices', array($this, 'database_error_notice'));
+        }
+    }
+    
+    /**
+     * Cargar constantes desde la base de datos de ventas
+     */
+    private function load_constants_from_db() {
+        try {
+            $query = "SELECT config_key, config_value FROM configuracion WHERE config_key IN (
+                'DEBUG_MODE', 'DIRECCION', 'LOGO_FACTURA', 'LOGO_VENTAS', 
+                'NIT', 'NOMBRE_NEGOCIO', 'SERIE_NUMERO_FACTURA', 'TAX_RATE', 'TELEFONO', 'URL_WOOCOMMERCE'
+            )";
+            
+            $result = $this->ventas_db->query($query);
+            if ($result) {
+                $constants = array();
+                while ($row = $result->fetch_assoc()) {
+                    $constants[$row['config_key']] = $row['config_value'];
+                }
+                
+                // Definir constantes si no están ya definidas
+                if (!defined('DEBUG_MODE')) define('DEBUG_MODE', $constants['DEBUG_MODE'] ?? false);
+                if (!defined('DIRECCION')) define('DIRECCION', $constants['DIRECCION'] ?? '');
+                if (!defined('LOGO_FACTURA')) define('LOGO_FACTURA', $constants['LOGO_FACTURA'] ?? '');
+                if (!defined('LOGO_VENTAS')) define('LOGO_VENTAS', $constants['LOGO_VENTAS'] ?? '');
+                if (!defined('NIT')) define('NIT', $constants['NIT'] ?? '');
+                if (!defined('NOMBRE_NEGOCIO')) define('NOMBRE_NEGOCIO', $constants['NOMBRE_NEGOCIO'] ?? '');
+                if (!defined('SERIE_NUMERO_FACTURA')) define('SERIE_NUMERO_FACTURA', intval($constants['SERIE_NUMERO_FACTURA'] ?? 0));
+                if (!defined('TAX_RATE')) define('TAX_RATE', intval($constants['TAX_RATE'] ?? 0));
+                if (!defined('TELEFONO')) define('TELEFONO', $constants['TELEFONO'] ?? '');
+                if (!defined('URL_WOOCOMMERCE')) define('URL_WOOCOMMERCE', $constants['URL_WOOCOMMERCE'] ?? '');
+                
+                $this->logger->info('Constants loaded from sales database', array(
+                    'constants_loaded' => array_keys($constants)
+                ));
+                
+                $result->free();
+            } else {
+                throw new Exception('Error loading constants: ' . $this->ventas_db->error);
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->error('Error loading constants from database', array('error' => $e->getMessage()));
+            
+            // Definir valores por defecto si falla la carga
+            if (!defined('DEBUG_MODE')) define('DEBUG_MODE', false);
+            if (!defined('DIRECCION')) define('DIRECCION', '');
+            if (!defined('LOGO_FACTURA')) define('LOGO_FACTURA', '');
+            if (!defined('LOGO_VENTAS')) define('LOGO_VENTAS', '');
+            if (!defined('NIT')) define('NIT', '');
+            if (!defined('NOMBRE_NEGOCIO')) define('NOMBRE_NEGOCIO', '');
+            if (!defined('SERIE_NUMERO_FACTURA')) define('SERIE_NUMERO_FACTURA', 1);
+            if (!defined('TAX_RATE')) define('TAX_RATE', 0);
+            if (!defined('TELEFONO')) define('TELEFONO', '');
+            if (!defined('URL_WOOCOMMERCE')) define('URL_WOOCOMMERCE', '');
         }
     }
     
@@ -339,9 +397,50 @@ class SandCatInvoiceGenerator {
     }
     
     /**
+     * Asegurar que las constantes estén cargadas
+     */
+    private function ensure_constants_loaded() {
+        $this->logger->info('ensure_constants_loaded called', array(
+            'NOMBRE_NEGOCIO_defined' => defined('NOMBRE_NEGOCIO'),
+            'NIT_defined' => defined('NIT'),
+            'NOMBRE_NEGOCIO_value' => defined('NOMBRE_NEGOCIO') ? NOMBRE_NEGOCIO : 'NOT_DEFINED',
+            'NIT_value' => defined('NIT') ? NIT : 'NOT_DEFINED'
+        ));
+        
+        // Si las constantes ya están definidas y no están vacías, no hacer nada
+        if (defined('NOMBRE_NEGOCIO') && defined('NIT') && !empty(NOMBRE_NEGOCIO) && !empty(NIT)) {
+            $this->logger->info('Constants already loaded and not empty');
+            return;
+        }
+        
+        $this->logger->info('Constants not loaded or empty, attempting to load from database');
+        
+        // Si no hay conexión a la DB, establecerla
+        if (!$this->ventas_db) {
+            $this->logger->info('No database connection, initializing...');
+            $this->init_ventas_db_connection();
+        } else {
+            // Si hay conexión, solo cargar las constantes
+            $this->logger->info('Database connection exists, loading constants...');
+            $this->load_constants_from_db();
+        }
+        
+        // Log final para verificar si se cargaron
+        $this->logger->info('Constants after loading attempt', array(
+            'NOMBRE_NEGOCIO_defined' => defined('NOMBRE_NEGOCIO'),
+            'NIT_defined' => defined('NIT'),
+            'NOMBRE_NEGOCIO_value' => defined('NOMBRE_NEGOCIO') ? NOMBRE_NEGOCIO : 'NOT_DEFINED',
+            'NIT_value' => defined('NIT') ? NIT : 'NOT_DEFINED'
+        ));
+    }
+    
+    /**
      * AJAX handler para generar factura
      */
     public function ajax_generate_invoice() {
+        // Asegurar que las constantes estén cargadas
+        $this->ensure_constants_loaded();
+        
         // Verificar nonce
         if (!wp_verify_nonce($_POST['nonce'], 'sandcat_invoice_nonce')) {
             wp_die(__('Error de seguridad', 'sandcat-invoice'));
@@ -353,25 +452,48 @@ class SandCatInvoiceGenerator {
         }
         
         $order_id = intval($_POST['order_id']);
-        $regenerate = isset($_POST['regenerate']) && $_POST['regenerate'] === 'true';
         
         try {
-            $result = $this->generate_invoice_pdf($order_id, $regenerate);
+            // Generar número de factura
+            $invoice_number = $this->get_next_invoice_number();
             
-            if ($result['success']) {
-                wp_send_json_success(array(
-                    'message' => __('Factura generada exitosamente', 'sandcat-invoice'),
-                    'invoice_number' => $result['invoice_number'],
-                    'pdf_url' => $result['pdf_url']
-                ));
-            } else {
+            if (!$invoice_number) {
                 wp_send_json_error(array(
-                    'message' => $result['error'] ?? __('Error desconocido', 'sandcat-invoice')
+                    'message' => __('Error generando número de factura', 'sandcat-invoice')
                 ));
+                return;
             }
             
+            // Obtener pedido
+            $order = wc_get_order($order_id);
+            if (!$order) {
+                wp_send_json_error(array(
+                    'message' => __('Pedido no encontrado', 'sandcat-invoice')
+                ));
+                return;
+            }
+            
+            // Crear PDF temporal
+            $pdf_result = $this->create_pdf_temp($order, $invoice_number);
+            
+            if (!$pdf_result['success']) {
+                wp_send_json_error(array(
+                    'message' => $pdf_result['error'] ?? __('Error generando PDF', 'sandcat-invoice')
+                ));
+                return;
+            }
+            
+            // Guardar registro de factura
+            $save_result = $this->save_invoice_record($order_id, $invoice_number, '');
+            
+            wp_send_json_success(array(
+                'message' => __('Factura generada exitosamente', 'sandcat-invoice'),
+                'invoice_number' => $invoice_number,
+                'pdf_url' => admin_url('admin-ajax.php?action=stream_invoice_pdf&order_id=' . $order_id)
+            ));
+            
         } catch (Exception $e) {
-            error_log('SandCat Invoice Error: ' . $e->getMessage());
+            $this->logger->error('Error in ajax_generate_invoice', array('error' => $e->getMessage()));
             wp_send_json_error(array(
                 'message' => __('Error interno del servidor', 'sandcat-invoice')
             ));
@@ -379,55 +501,11 @@ class SandCatInvoiceGenerator {
     }
     
     /**
-     * Generar PDF de factura
-     */
-    private function generate_invoice_pdf($order_id, $regenerate = false) {
-        // Obtener orden de WooCommerce
-        $order = wc_get_order($order_id);
-        if (!$order) {
-            return array('success' => false, 'error' => 'Pedido no encontrado');
-        }
-        
-        // Verificar si ya existe factura (a menos que sea regeneración)
-        if (!$regenerate) {
-            $existing = $this->get_existing_invoice($order_id);
-            if ($existing) {
-                return array('success' => false, 'error' => 'Ya existe una factura para este pedido');
-            }
-        }
-        
-        // Obtener número de factura
-        $invoice_number = $this->get_next_invoice_number();
-        if (!$invoice_number) {
-            return array('success' => false, 'error' => 'Error obteniendo número de factura');
-        }
-        
-        // Generar PDF
-        $pdf_result = $this->create_pdf($order, $invoice_number);
-        if (!$pdf_result['success']) {
-            return $pdf_result;
-        }
-        
-        // Guardar factura en base de datos (solo si no es regeneración)
-        if (!$regenerate) {
-            $save_result = $this->save_invoice_to_db($order_id, $invoice_number);
-            if (!$save_result) {
-                return array('success' => false, 'error' => 'Error guardando factura en base de datos');
-            }
-        }
-        
-        return array(
-            'success' => true,
-            'invoice_number' => $invoice_number,
-            'pdf_url' => $pdf_result['pdf_url']
-        );
-    }
-    
-    /**
      * Obtener siguiente número de factura
      */
     private function get_next_invoice_number() {
         if (!$this->ventas_db) {
+            $this->logger->error('No database connection in get_next_invoice_number');
             return false;
         }
         
@@ -472,6 +550,44 @@ class SandCatInvoiceGenerator {
         $stmt->close();
         $this->logger->info('Successfully generated new invoice number', array('invoice_number' => $next_number));
         return $next_number;
+    }
+    
+    /**
+     * Guardar registro de factura en base de datos
+     */
+    private function save_invoice_record($order_id, $invoice_number, $pdf_path) {
+        if (!$this->ventas_db) {
+            $this->logger->error('No database connection in save_invoice_record');
+            return false;
+        }
+        
+        // Verificar si la conexión está activa
+        if ($this->ventas_db->ping() === false) {
+            $this->logger->error('Database connection lost in save_invoice_record');
+            return false;
+        }
+        
+        $stmt = $this->ventas_db->prepare("INSERT INTO facturas (id_order, factura, fecha_creacion, estado) VALUES (?, ?, NOW(), 'a')");
+        
+        if ($stmt === false) {
+            $this->logger->error('Error preparing INSERT statement for facturas', array('mysql_error' => $this->ventas_db->error));
+            return false;
+        }
+        
+        $stmt->bind_param('ii', $order_id, $invoice_number);
+        
+        if (!$stmt->execute()) {
+            $this->logger->error('Error executing INSERT statement for facturas', array('mysql_error' => $stmt->error));
+            $stmt->close();
+            return false;
+        }
+        
+        $stmt->close();
+        $this->logger->info('Successfully saved invoice record', array(
+            'order_id' => $order_id,
+            'invoice_number' => $invoice_number
+        ));
+        return true;
     }
     
     /**
@@ -575,6 +691,14 @@ class SandCatInvoiceGenerator {
             $html_template = str_replace('{{' . $placeholder . '}}', $value, $html_template);
         }
         
+        // Debug: Log algunos reemplazos importantes
+        $this->logger->info('Template placeholders replaced', array(
+            'nombre_negocio_replaced' => strpos($html_template, '{{nombre_negocio}}') === false,
+            'nit_replaced' => strpos($html_template, '{{nit}}') === false,
+            'telefono_negocio_replaced' => strpos($html_template, '{{telefono_negocio}}') === false,
+            'direccion_negocio_replaced' => strpos($html_template, '{{direccion_negocio}}') === false
+        ));
+        
         return $html_template;
     }
     
@@ -585,7 +709,7 @@ class SandCatInvoiceGenerator {
         // Datos básicos
         $data = array(
             'factura_num' => $invoice_number,
-            'factura_formateada' => sprintf('%06d', $invoice_number),
+            'factura_formateada' => sprintf('%010d', $invoice_number),
             'fecha' => date('d/m/Y H:i', strtotime($order_data['fecha'])),
             'orden_id' => $order_data['id'],
             'nombre_cliente_upper' => strtoupper($order_data['nombre_completo']),
@@ -594,8 +718,13 @@ class SandCatInvoiceGenerator {
             'correo' => $order_data['email'],
             'total_formateado' => '$' . number_format($order_data['total'], 0, ',', '.'),
             'logo_factura' => $this->get_logo_url(),
-            'woocommerce_url' => home_url(),
-            'woocommerce_url_pedido' => $order->get_view_order_url()
+            'woocommerce_url' => defined('URL_WOOCOMMERCE') ? URL_WOOCOMMERCE : home_url(),
+            'woocommerce_url_pedido' => $order->get_view_order_url(),
+            // Datos de la empresa desde la base de datos de ventas
+            'nombre_negocio' => defined('NOMBRE_NEGOCIO') ? NOMBRE_NEGOCIO : '',
+            'nit' => defined('NIT') ? NIT : '',
+            'telefono_negocio' => defined('TELEFONO') ? TELEFONO : '',
+            'direccion_negocio' => defined('DIRECCION') ? DIRECCION : ''
         );
         
         // Secciones condicionales
@@ -615,6 +744,20 @@ class SandCatInvoiceGenerator {
         $data['envio_section'] = $this->get_envio_section($order_data['total_envio']);
         $data['descuento_section'] = $this->get_descuento_section($order_data['total_descuento']);
         
+        // Debug: Log template data para verificar que se están pasando correctamente
+        $this->logger->info('Template data prepared', array(
+            'nombre_negocio' => $data['nombre_negocio'],
+            'nit' => $data['nit'],
+            'telefono_negocio' => $data['telefono_negocio'],
+            'direccion_negocio' => $data['direccion_negocio'],
+            'constants_defined' => array(
+                'NOMBRE_NEGOCIO' => defined('NOMBRE_NEGOCIO'),
+                'NIT' => defined('NIT'),
+                'TELEFONO' => defined('TELEFONO'),
+                'DIRECCION' => defined('DIRECCION')
+            )
+        ));
+        
         return $data;
     }
     
@@ -622,7 +765,12 @@ class SandCatInvoiceGenerator {
      * Obtener URL del logo
      */
     private function get_logo_url() {
-        // Usar logo de WordPress o placeholder
+        // Usar logo de la base de datos de ventas si está disponible
+        if (defined('LOGO_FACTURA') && !empty(LOGO_FACTURA)) {
+            return LOGO_FACTURA;
+        }
+        
+        // Usar logo de WordPress como fallback
         $custom_logo_id = get_theme_mod('custom_logo');
         if ($custom_logo_id) {
             $logo_url = wp_get_attachment_image_url($custom_logo_id, 'full');
@@ -645,14 +793,17 @@ class SandCatInvoiceGenerator {
     }
     
     /**
-     * Sección DNI
+     * Sección DNI (igual que EmailTemplate::processPDFTemplate)
      */
     private function get_dni_section($dni) {
         if (empty($dni)) {
             return '';
         }
         
-        return '<tr><td colspan="4"><strong>DNI:</strong> ' . htmlspecialchars($dni) . '</td></tr>';
+        return '
+            <tr>
+                <td colspan="4"><strong>DNI:</strong> ' . htmlspecialchars($dni) . '</td>
+            </tr>';
     }
     
     /**
@@ -678,14 +829,17 @@ class SandCatInvoiceGenerator {
     }
     
     /**
-     * Sección barrio
+     * Sección barrio (igual que EmailTemplate::processPDFTemplate)
      */
     private function get_barrio_section($barrio) {
         if (empty($barrio)) {
             return '';
         }
         
-        return '<tr><td colspan="4"><strong>Barrio:</strong> ' . htmlspecialchars($barrio) . '</td></tr>';
+        return '
+            <tr>
+                <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Barrio:</strong> ' . htmlspecialchars($barrio) . '</td>
+            </tr>';
     }
     
     /**
@@ -764,7 +918,7 @@ class SandCatInvoiceGenerator {
     }
     
     /**
-     * Sección comentarios
+     * Sección comentarios/observaciones (igual que EmailTemplate::processPDFTemplate)
      */
     private function get_comentarios_section($order) {
         $comentarios = $order->get_customer_note();
@@ -773,7 +927,10 @@ class SandCatInvoiceGenerator {
             return '';
         }
         
-        return '<tr><td colspan="4" style="word-wrap: break-word; width: 180"><strong>Comentarios:</strong> ' . htmlspecialchars($comentarios) . '</td></tr>';
+        return '
+            <tr>
+                <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Observaciones:</strong> ' . htmlspecialchars($comentarios) . '</td>
+            </tr>';
     }
     
     /**
@@ -1267,6 +1424,10 @@ class SandCatInvoiceGenerator {
     public function ajax_stream_invoice_pdf() {
         $this->logger->info('AJAX stream_invoice_pdf called', array('post_data' => $_POST, 'get_data' => $_GET));
         
+        // Asegurar que las constantes estén cargadas
+        $this->logger->info('ajax_stream_invoice_pdf - loading constants');
+        $this->ensure_constants_loaded();
+        
         // Verificar nonce (solo para peticiones POST, GET puede venir sin nonce)
         $nonce = isset($_POST['nonce']) ? $_POST['nonce'] : (isset($_GET['nonce']) ? $_GET['nonce'] : '');
         if ($nonce && !wp_verify_nonce($nonce, 'sandcat_invoice_nonce')) {
@@ -1312,7 +1473,7 @@ class SandCatInvoiceGenerator {
                 header('Pragma: public');
                 
                 // Generar nombre del archivo similar a pdf_generator.php
-                $filename = "Factura_" . sprintf('%06d', $invoice_number) . "_Orden_" . $order_id . ".pdf";
+                $filename = "Factura_" . sprintf('%010d', $invoice_number) . "_Orden_" . $order_id . ".pdf";
                 
                 // Servir PDF directamente en línea (similar a pdf_generator.php)
                 $pdf_result['mpdf_object']->Output($filename, 'I');
