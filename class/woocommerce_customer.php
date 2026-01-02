@@ -301,11 +301,13 @@ class WooCommerceCustomer
             'billing_email' => $email,
             'shipping_first_name' => $firstName,
             'shipping_last_name' => $lastName,
+            'shipping_email' => $email,
         ];
         
         // Agregar campos adicionales si existen
         if (!empty($customerData['_billing_phone'])) {
             $userMeta['billing_phone'] = (string)$customerData['_billing_phone'];
+            $userMeta['shipping_phone'] = (string)$customerData['_billing_phone'];
         }
         if (!empty($customerData['_shipping_address_1'])) {
             $userMeta['billing_address_1'] = (string)$customerData['_shipping_address_1'];
@@ -321,9 +323,11 @@ class WooCommerceCustomer
         }
         if (!empty($customerData['billing_id'])) {
             $userMeta['billing_dni'] = (string)$customerData['billing_id'];
+            $userMeta['shipping_dni'] = (string)$customerData['billing_id'];
         }
         if (!empty($customerData['_billing_neighborhood'])) {
             $userMeta['billing_barrio'] = (string)$customerData['_billing_neighborhood'];
+            $userMeta['shipping_barrio'] = (string)$customerData['_billing_neighborhood'];
         }
         
         foreach ($userMeta as $metaKey => $metaValue) {
@@ -1226,28 +1230,37 @@ class WooCommerceCustomer
             // Shipping data con formato específico para usermeta
             'shipping_first_name' => $firstName,
             'shipping_last_name' => $lastName,
+            'shipping_email' => $email,
+            'shipping_phone' => $phone,
             'shipping_address_1' => $address1,
             'shipping_address_2' => $address2,
             'shipping_city' => $locationData['city_for_usermeta'], // Valor completo
             'shipping_state' => $locationData['state_for_usermeta'], // Solo clave (SAN)
             'shipping_country' => 'CO',
+            'shipping_dni' => $billingId,
+            'shipping_barrio' => $neighborhood,
         ];
 
         foreach ($userMeta as $metaKey => $metaValue) {
-            if (!empty($metaValue)) {
+            // Logging para debugging - ver qué valores están llegando
+            Utils::logError("Procesando meta: $metaKey = '$metaValue' (empty: " . (empty($metaValue) ? 'true' : 'false') . ")", 'INFO', 'WooCommerceCustomer');
+            
+            // Cambiar validación: permitir valores que no sean null y no sean string vacío después de trim
+            if ($metaValue !== null && trim((string)$metaValue) !== '') {
                 // Verificar si el metadato ya existe
                 $checkQuery = "SELECT umeta_id FROM miau_usermeta WHERE user_id = ? AND meta_key = ? LIMIT 1";
                 $stmt = mysqli_prepare($this->wp_connection, $checkQuery);
                 mysqli_stmt_bind_param($stmt, 'is', $userId, $metaKey);
                 mysqli_stmt_execute($stmt);
                 $result = mysqli_stmt_get_result($stmt);
-                
+
                 if ($result && mysqli_num_rows($result) > 0) {
                     // Actualizar metadato existente
                     $this->updateRowByWhere('miau_usermeta', 
                         ['meta_value' => $metaValue], 
                         "user_id = $userId AND meta_key = '$metaKey'"
                     );
+                    Utils::logError("Actualizado meta: $metaKey = '$metaValue'", 'INFO', 'WooCommerceCustomer');
                 } else {
                     // Insertar nuevo metadato
                     $this->insertRow('miau_usermeta', [
@@ -1255,8 +1268,11 @@ class WooCommerceCustomer
                         'meta_key' => $metaKey,
                         'meta_value' => $metaValue,
                     ]);
+                    Utils::logError("Insertado meta: $metaKey = '$metaValue'", 'INFO', 'WooCommerceCustomer');
                 }
                 mysqli_stmt_close($stmt);
+            } else {
+                Utils::logError("Saltado meta por valor vacío: $metaKey = '$metaValue'", 'WARNING', 'WooCommerceCustomer');
             }
         }
     }

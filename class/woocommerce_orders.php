@@ -678,7 +678,7 @@ class WooCommerceOrders
                     'address_1' => $addr1,
                     'address_2' => $addr2,
                     'city' => $city,
-                    'state' => $stateHPOS,
+                    'state' => $state,
                     'postcode' => null,
                     'country' => 'CO',
                     'email' => $email,
@@ -695,11 +695,11 @@ class WooCommerceOrders
                     'address_1' => $addr1,
                     'address_2' => $addr2,
                     'city' => $city,
-                    'state' => $stateHPOS,
+                    'state' => $state,
                     'postcode' => null,
                     'country' => 'CO',
-                    'email' => null,
-                    'phone' => null,
+                    'email' => $email,
+                    'phone' => $phone,
                 ]);
 
                 $debug['steps'][] = ['hpos_addresses_inserted' => true];
