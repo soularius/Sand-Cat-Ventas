@@ -1427,6 +1427,10 @@ include("parts/header.php");
                       <td class="px-3 py-2"><strong>Facturación:</strong></td>
                       <td class="px-3 py-2">${invoiceBadge || '<span class="badge bg-warning bg-custom">Pendiente</span>'}</td>
                     </tr>
+                    <tr>
+                      <td class="px-3 py-2"><strong>Comentario del cliente:</strong></td>
+                      <td class="px-3 py-2">${orderData.customer_note || 'N/A'}</td>
+                    </tr>
                 </table>
             </div>
             <div class="col-md-6 table-responsive">

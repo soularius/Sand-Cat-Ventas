@@ -100,6 +100,7 @@ try {
         'shipping_cost' => $order_details['shipping_cost'] ?? '0',
         'total' => $order_details['total'] ?? '0',
         'has_invoice' => $order_details['has_invoice'] ?? false,
+        'customer_note' => $order_details['customer_note'] ?? '',
         'invoice_number' => $invoice_number,
         'items' => [],
         'order_notes' => $order_notes

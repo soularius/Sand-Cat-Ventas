@@ -144,7 +144,7 @@ include("parts/header.php");
             $barrio = $order_data['billing_barrio'] ?? '';
             $ciudad = $order_data['billing_city'] ?? '';
             $departamento = $order_data['billing_state'] ?? '';
-            $comentarios = '';
+            $comentarios = $order_data['customer_note'] ?? '';
             $envio = $order_data['shipping_cost'] ?? '10000';
             $descuento = '0';
             $metodo_pago = $order_data['payment_method_title'] ?? '';

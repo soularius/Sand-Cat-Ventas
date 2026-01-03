@@ -2811,7 +2811,8 @@ class WooCommerceOrders
                 COALESCE(pm_payment.meta_value, '') as payment_method,
                 COALESCE(pm_payment_title.meta_value, '') as payment_method_title,
                 COALESCE(pm_shipping.meta_value, '0') as shipping_cost,
-                COALESCE(os.total_sales, 0) as total
+                COALESCE(os.total_sales, 0) as total,
+                COALESCE(wco.customer_note, '') as customer_note
             FROM miau_posts p
             LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
             LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
@@ -2827,6 +2828,7 @@ class WooCommerceOrders
             LEFT JOIN miau_postmeta pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
             LEFT JOIN miau_postmeta pm_payment_title ON p.ID = pm_payment_title.post_id AND pm_payment_title.meta_key = '_payment_method_title'
             LEFT JOIN miau_postmeta pm_shipping ON p.ID = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
+            LEFT JOIN miau_wc_orders wco ON p.ID = wco.id
             LEFT JOIN miau_wc_order_stats os ON p.ID = os.order_id
             WHERE p.ID = '$order_id'";
             
