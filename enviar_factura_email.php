@@ -118,7 +118,8 @@ try {
         'departamento' => (string)($orden['departamento'] ?? ''),
         'pais' => (string)($orden['pais'] ?? ''),
         'barrio' => (string)($orden['barrio'] ?? ''),
-        'dni' => (string)($orden['dni'] ?? '')
+        'dni' => (string)($orden['dni'] ?? ''),
+        'comentarios' => (string)($orden['customer_note'] ?? ''),
     ];
 
     // Generar PDF como string para adjuntar al email
@@ -217,7 +218,8 @@ try {
         'barrio' => $orden['barrio'] ?? '',
         'ubicacion' => $ubicacion,
         'envio' => (float)($orden['envio'] ?? 0),
-        'descuento' => (float)($orden['descuento'] ?? 0)
+        'descuento' => (float)($orden['descuento'] ?? 0),
+        'customer_note' => $orden['customer_note'] ?? '',
     ];
 
     // Procesar template

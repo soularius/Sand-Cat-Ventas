@@ -57,7 +57,8 @@ class EmailTemplate
             '{{envio_section}}' => $envio_section,
             '{{descuento_section}}' => $descuento_section,
             '{{logo_ventas}}' => LOGO_VENTAS,
-            '{{woocommerce_url}}' => VENTAS_URL
+            '{{woocommerce_url}}' => VENTAS_URL,
+            '{{customer_note}}' => $data['customer_note'],
         ];
         
         return str_replace(array_keys($replacements), array_values($replacements), $template);

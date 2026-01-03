@@ -464,9 +464,10 @@ class OrderSummary {
         const cartDiscountRaw = (this.formData && this.formData._cart_discount)
             ? this.formData._cart_discount
             : ((this.orderData && this.orderData._cart_discount) ? this.orderData._cart_discount : '');
-        const orderNotes = (this.formData && this.formData.post_expcerpt)
-            ? this.formData.post_expcerpt
-            : ((this.orderData && this.orderData.post_expcerpt) ? this.orderData.post_expcerpt : '');
+        // Obtener comentarios del cliente desde customer_note
+        const customerComments = (this.orderData && this.orderData.customer_comments) 
+            ? this.orderData.customer_comments 
+            : '';
 
         console.log('[OrderSummary] order details sources:', {
             hasFormData: !!this.formData,
@@ -475,7 +476,7 @@ class OrderSummary {
             orderShippingRaw,
             cartDiscountRaw,
             paymentMethodTitle,
-            orderNotes
+            customerComments
         });
 
         const parseMoney = (value) => {
@@ -564,13 +565,13 @@ class OrderSummary {
                         <span class="text-muted">${paymentMethodTitle || 'No especificado'}</span>
                     </div>
                 </div>
-                ${orderNotes ? `
+                ${customerComments ? `
                 <hr>
                 <div class="info-item">
-                    <i class="fas fa-comment-alt text-muted me-2"></i>
+                    <i class="fas fa-comment text-muted me-2"></i>
                     <div>
-                        <strong>Notas:</strong>
-                        <span class="text-muted">${orderNotes}</span>
+                        <strong>Comentarios del Cliente:</strong>
+                        <span class="text-muted">${customerComments}</span>
                     </div>
                 </div>
                 ` : ''}
@@ -580,41 +581,24 @@ class OrderSummary {
         container.innerHTML = html;
     }
     
-    // Renderizar notas del pedido
+    // Renderizar notas del pedido (solo notas de la tabla comments, no customer_note)
     renderOrderNotes() {
         const container = document.getElementById('order-notes');
         
         if (!container) return;
-        // Obtener notas desde los datos del servidor o desde el cache
+        
+        // Obtener solo las notas del pedido desde serverOrderData (tabla miau_comments)
         let orderNotes = [];
         
-        // Primero intentar desde serverOrderData (para páginas con datos del servidor)
-        if (window.serverOrderData && window.serverOrderData.order_notes) {
+        if (window.serverOrderData && window.serverOrderData.order_notes && Array.isArray(window.serverOrderData.order_notes)) {
             orderNotes = window.serverOrderData.order_notes;
-        }
-        // Si no hay datos del servidor, intentar desde orderData local
-        else if (this.orderData && this.orderData.post_expcerpt) {
-            // Si es string, convertir a array; si ya es array, mantenerlo
-            if (typeof this.orderData.post_expcerpt === 'string') {
-                const excerpt = this.orderData.post_expcerpt.trim();
-                if (excerpt) {
-                    orderNotes = [{
-                        type: 'note',
-                        content: excerpt,
-                        author: 'WooCommerce',
-                        formatted_date: new Date().toLocaleDateString()
-                    }];
-                }
-            } else if (Array.isArray(this.orderData.post_expcerpt)) {
-                orderNotes = this.orderData.post_expcerpt;
-            }
         }
         
         if (!orderNotes || orderNotes.length === 0) {
             container.innerHTML = `
                 <div class="text-center text-muted py-3">
-                    <i class="fas fa-comment-slash fa-2x mb-2"></i>
-                    <p>No hay comentarios o notas para este pedido</p>
+                    <i class="fas fa-sticky-note fa-2x mb-2"></i>
+                    <p>No hay notas del pedido</p>
                 </div>
             `;
             return;

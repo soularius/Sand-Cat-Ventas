@@ -62,7 +62,8 @@ class WooCommerceOrders
             ba.address_2 as direccion_2,
             ba.city as ciudad,
             ba.state as departamento,
-            ba.country as pais
+            ba.country as pais,
+            o.customer_note as customer_note
         FROM miau_wc_orders o
         LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
         WHERE o.id = ?";
@@ -83,7 +84,7 @@ class WooCommerceOrders
         }
 
         // Obtener metadatos adicionales desde postmeta (compatibilidad legacy)
-        $metaQuery = "SELECT meta_key, meta_value FROM miau_postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title','_billing_dni','_billing_barrio')";
+        $metaQuery = "SELECT meta_key, meta_value FROM miau_postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title','_billing_dni','_billing_neighborhood')";
         $metaStmt = mysqli_prepare($this->wp_connection, $metaQuery);
         
         $meta = [
@@ -91,7 +92,7 @@ class WooCommerceOrders
             '_cart_discount' => '0', 
             '_payment_method_title' => '',
             '_billing_dni' => '',
-            '_billing_barrio' => ''
+            '_billing_neighborhood' => ''
         ];
 
         if ($metaStmt) {
@@ -110,7 +111,7 @@ class WooCommerceOrders
         $orden['descuento'] = $meta['_cart_discount'];
         $orden['metodo_pago'] = $meta['_payment_method_title'];
         $orden['dni'] = $meta['_billing_dni'];
-        $orden['barrio'] = $meta['_billing_barrio'];
+        $orden['barrio'] = $meta['_billing_neighborhood'];
 
         return $orden;
     }
@@ -895,6 +896,7 @@ class WooCommerceOrders
                     'ip_address' => null,
                     'user_agent' => 'external_db',
                     'transaction_id' => null,
+                    'customer_note' => !empty($orderNotes) ? $orderNotes : null, // 🔥 AGREGAR COMENTARIOS AQUÍ
                 ];
 
                 // Si ya existe (por algún sync), no insertamos de nuevo
@@ -979,15 +981,11 @@ class WooCommerceOrders
             $this->setOrderAttribution($postId, 'Sistema de Facturacion');
 
             /* --------------------------------------------------------------
-             * 7) Agregar comentarios como notas de la orden
+             * 7) Comentarios ahora se guardan directamente en customer_note de miau_wc_orders
+             *    (Ya se agregaron en el paso 5 - HPOS order row)
              * ------------------------------------------------------------ */
             if (!empty($orderNotes)) {
-                try {
-                    $this->addOrderNote($postId, $orderNotes, 'customer', $customerId);
-                    $debug['steps'][] = ['order_note_added' => true, 'note_content' => substr($orderNotes, 0, 100) . '...'];
-                } catch (Exception $e) {
-                    $debug['warnings'][] = 'No se pudo agregar nota de orden: ' . $e->getMessage();
-                }
+                $debug['steps'][] = ['customer_note_saved' => true, 'note_content' => substr($orderNotes, 0, 100) . '...'];
             }
 
             mysqli_commit($this->wp_connection);
@@ -1115,6 +1113,7 @@ class WooCommerceOrders
                     o.date_created_gmt AS fecha_orden,
                     o.status AS estado,
                     COALESCE(o.total_amount, 0) AS total,
+                    COALESCE(o.customer_note, '') AS customer_note,
 
                     COALESCE(NULLIF(o.billing_email,''), NULLIF(ba.email,''), '') AS email_cliente,
                     COALESCE(NULLIF(ba.phone,''), '') AS telefono_cliente,
@@ -3021,6 +3020,7 @@ class WooCommerceOrders
                     COALESCE(pm_shipping.meta_value, '0') as envio,
                     COALESCE(pm_discount.meta_value, '0') as descuento,
                     COALESCE(p.post_excerpt, '') as comentarios_excerpt,
+                    COALESCE(wco.customer_note, '') as customer_note,
                     COALESCE(GROUP_CONCAT(c.comment_content SEPARATOR '\n'), '') as comentarios_notas
                 FROM miau_posts p
                 LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
@@ -3038,6 +3038,7 @@ class WooCommerceOrders
                 LEFT JOIN miau_postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_dni'
                 LEFT JOIN miau_postmeta pm_shipping ON p.ID = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
                 LEFT JOIN miau_postmeta pm_discount ON p.ID = pm_discount.post_id AND pm_discount.meta_key = '_cart_discount'
+                LEFT JOIN miau_wc_orders wco ON p.ID = wco.id
                 LEFT JOIN miau_comments c ON p.ID = c.comment_post_ID 
                     AND c.comment_type IN ('order_note', 'order_note_private') 
                     AND c.comment_approved = '1'

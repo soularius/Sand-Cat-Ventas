@@ -162,8 +162,14 @@ $serverOrderData = [
     'fees_applied' => $order_discounts['fees'],
 
     // ✅ Notas de la orden
-    'order_notes' => $order_notes
+    'order_notes' => $order_notes,
+    
+    // ✅ Comentarios del cliente (desde customer_note de miau_wc_orders)
+    'customer_comments' => (string)($order['customer_note'] ?? '')
 ];
+
+// Debug: Log customer comments to verify they're being retrieved
+Utils::logError("DEBUG - Customer comments for order $order_id: " . json_encode($order['customer_note'] ?? 'NOT_FOUND'), 'INFO', 'detalle_pedido.php');
 
 $serverCustomerData = [
     'order_id' => (int)$order_id,
@@ -257,10 +263,11 @@ include('parts/header.php');
                         </div>
                     </div>
 
+                    <!-- Panel de Notas del Pedido -->
                     <div class="summary-panel mt-4">
                         <div class="panel-header bg-info bg-custom">
                             <h5 class="text-white">
-                                <i class="fas fa-sticky-note me-2"></i>Comentarios y Notas
+                                <i class="fas fa-sticky-note me-2"></i>Notas del Pedido
                             </h5>
                         </div>
 
@@ -268,7 +275,7 @@ include('parts/header.php');
                             <div id="order-notes">
                                 <div class="info-loading">
                                     <i class="fas fa-spinner fa-spin"></i>
-                                    <p>Cargando comentarios...</p>
+                                    <p>Cargando notas del pedido...</p>
                                 </div>
                             </div>
                         </div>

@@ -102,7 +102,7 @@ $datos_pdf = [
     'pais' => $orden['pais'],
     'barrio' => $orden['barrio'],
     'dni' => $orden['dni'],
-    'comentarios' => $orden['comentarios']
+    'comentarios' => $orden['customer_note'] ?? ''
 ];
 
 // Determinar modo de salida
