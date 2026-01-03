@@ -1,5 +1,4 @@
 jQuery(document).ready(function($) {
-    console.log('Document ready');
     // Manejar clic en botón generar factura
     $('#generate-invoice, #regenerate-invoice').on('click', function(e) {
         e.preventDefault();
@@ -157,11 +156,18 @@ jQuery(document).ready(function($) {
      */
     $(document).on('click', '#view-invoice', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         
         var $button = $(this);
         var orderId = $button.data('order-id');
         
-        // Mostrar loading
+        // Evitar múltiples clics
+        if ($button.prop('disabled') || $button.hasClass('processing')) {
+            return false;
+        }
+        
+        // Marcar como procesando
+        $button.addClass('processing');
         $button.prop('disabled', true);
         $button.text('Cargando...');
         
@@ -175,6 +181,7 @@ jQuery(document).ready(function($) {
                 order_id: orderId
             },
             success: function(response) {
+                $button.removeClass('processing');
                 $button.prop('disabled', false);
                 $button.text('Ver Factura');
                 
@@ -186,17 +193,20 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function() {
+                $button.removeClass('processing');
                 $button.prop('disabled', false);
                 $button.text('Ver Factura');
                 alert('Error de conexión al obtener el PDF.');
             }
         });
+        
+        return false;
     });
     
     /**
-     * Auto-refresh del metabox cada 30 segundos para verificar cambios
+     * Verificar estado de factura al cargar la página
      */
-    function refreshInvoiceStatus() {
+    function checkInvoiceStatusOnLoad() {
         var orderId = $('#generate-invoice, #view-invoice').data('order-id');
         if (!orderId) return;
         
@@ -218,13 +228,13 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function() {
-                // Silenciar errores de auto-refresh
+                // Silenciar errores
             }
         });
     }
     
-    // Auto-refresh cada 30 segundos
-    setInterval(refreshInvoiceStatus, 30000);
+    // Verificar estado solo al cargar la página
+    checkInvoiceStatusOnLoad();
     
     /**
      * Validar formulario antes de generar factura

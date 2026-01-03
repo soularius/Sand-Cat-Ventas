@@ -43,6 +43,7 @@ class SandCatInvoiceGenerator {
         add_action('wp_ajax_generate_sandcat_invoice', array($this, 'ajax_generate_invoice'));
         add_action('wp_ajax_get_invoice_pdf_url', array($this, 'ajax_get_invoice_pdf_url'));
         add_action('wp_ajax_stream_invoice_pdf', array($this, 'ajax_stream_invoice_pdf'));
+        add_action('wp_ajax_check_invoice_status', array($this, 'ajax_check_invoice_status'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
         
         // Hook adicional para asegurar que el script se carga
@@ -453,7 +454,7 @@ class SandCatInvoiceGenerator {
         }
         
         $order_id = intval($_POST['order_id']);
-        
+
         try {
             // Generar número de factura
             $invoice_number = $this->get_next_invoice_number();
@@ -486,6 +487,29 @@ class SandCatInvoiceGenerator {
             // Guardar registro de factura
             $save_result = $this->save_invoice_record($order_id, $invoice_number, '');
             
+            // Cambiar estado de la orden a completado automáticamente
+            $order = wc_get_order($order_id);
+            if ($order && $order->get_status() !== 'completed') {
+                $previous_status = $order->get_status();
+                $previous_status_name = wc_get_order_status_name($previous_status);
+                
+                $order->update_status('completed', __('Orden completada automáticamente después de generar factura.', 'sandcat-invoice'));
+                
+                // Agregar nota adicional con el cambio de estado
+                $order->add_order_note(sprintf(
+                    __('Estado cambiado de "%s" a "Completado" automáticamente después de generar la factura #%s.', 'sandcat-invoice'),
+                    $previous_status_name,
+                    $invoice_number
+                ));
+                
+                $this->logger->info('Order status changed to completed after invoice generation', array(
+                    'order_id' => $order_id,
+                    'invoice_number' => $invoice_number,
+                    'previous_status' => $previous_status,
+                    'new_status' => 'completed'
+                ));
+            }
+            
             wp_send_json_success(array(
                 'message' => __('Factura generada exitosamente', 'sandcat-invoice'),
                 'invoice_number' => $invoice_number,
@@ -516,7 +540,8 @@ class SandCatInvoiceGenerator {
         }
         
         // Obtener número actual
-        $result = $this->ventas_db->query("SELECT SERIE_NUMERO_FACTURA FROM configuracion LIMIT 1");
+        $result = $this->ventas_db->query("SELECT valor FROM configuracion WHERE clave = 'SERIE_NUMERO_FACTURA' LIMIT 1");
+        
         if (!$result) {
             $this->logger->error('Error querying configuracion table', array('mysql_error' => $this->ventas_db->error));
             return false;
@@ -528,11 +553,11 @@ class SandCatInvoiceGenerator {
             return false;
         }
         
-        $current_number = intval($row['SERIE_NUMERO_FACTURA']);
+        $current_number = intval($row['valor']);
         $next_number = $current_number + 1;
         
         // Incrementar número en base de datos
-        $stmt = $this->ventas_db->prepare("UPDATE configuracion SET SERIE_NUMERO_FACTURA = ?");
+        $stmt = $this->ventas_db->prepare("UPDATE configuracion SET valor = ? WHERE clave = 'SERIE_NUMERO_FACTURA'");
         
         if ($stmt === false) {
             $this->logger->error('Error preparing UPDATE statement', array('mysql_error' => $this->ventas_db->error));
@@ -608,7 +633,7 @@ class SandCatInvoiceGenerator {
                 return array('success' => false, 'error' => 'mPDF no está disponible. Ejecute: composer install en el directorio del plugin');
             }
         }
-        
+
         // Verificar nuevamente después de cargar
         if (!class_exists('\Mpdf\Mpdf')) {
             $this->logger->error('mPDF class still not available after vendor load');
@@ -918,10 +943,10 @@ class SandCatInvoiceGenerator {
     }
     
     /**
-     * Sección comentarios/observaciones (igual que EmailTemplate::processPDFTemplate)
+     * Sección comentarios/observaciones usando customer_note de miau_wc_orders
      */
     private function get_comentarios_section($order) {
-        $comentarios = $order->get_customer_note();
+        $comentarios = $this->get_customer_note_from_db($order->get_id());
         
         if (empty($comentarios)) {
             return '';
@@ -931,6 +956,54 @@ class SandCatInvoiceGenerator {
             <tr>
                 <td colspan="4" style="word-wrap: break-word; width: 180"><strong>Observaciones:</strong> ' . htmlspecialchars($comentarios) . '</td>
             </tr>';
+    }
+    
+    /**
+     * Obtener customer_note directamente de la tabla miau_wc_orders
+     */
+    private function get_customer_note_from_db($order_id) {
+        global $wpdb;
+        
+        try {
+            $table_name = $wpdb->prefix . 'wc_orders';
+            $query = $wpdb->prepare(
+                "SELECT customer_note FROM {$table_name} WHERE id = %d",
+                $order_id
+            );
+            
+            $customer_note = $wpdb->get_var($query);
+            
+            if ($customer_note !== null) {
+                $this->logger->info("Customer note found in wc_orders table", array(
+                    'order_id' => $order_id,
+                    'note_length' => strlen($customer_note)
+                ));
+                return $customer_note;
+            }
+            
+            // Fallback: intentar obtener desde postmeta si no existe en wc_orders
+            $fallback_note = get_post_meta($order_id, '_customer_note', true);
+            if (!empty($fallback_note)) {
+                $this->logger->info("Customer note found in postmeta fallback", array(
+                    'order_id' => $order_id,
+                    'note_length' => strlen($fallback_note)
+                ));
+                return $fallback_note;
+            }
+            
+            $this->logger->info("No customer note found", array('order_id' => $order_id));
+            return '';
+            
+        } catch (Exception $e) {
+            $this->logger->error("Error getting customer note from database", array(
+                'order_id' => $order_id,
+                'error' => $e->getMessage()
+            ));
+            
+            // Fallback a método original en caso de error
+            $order = wc_get_order($order_id);
+            return $order ? $order->get_customer_note() : '';
+        }
     }
     
     /**
@@ -1068,7 +1141,7 @@ class SandCatInvoiceGenerator {
     private function extract_order_data($order) {
         return array(
             'id' => $order->get_id(),
-            'fecha' => $order->get_date_created()->format('Y-m-d H:i:s'),
+            'fecha' => get_post_field('post_date', $order->get_id()),
             'nombre_completo' => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
             'email' => $order->get_billing_email(),
             'telefono' => $order->get_billing_phone(),
@@ -1082,9 +1155,59 @@ class SandCatInvoiceGenerator {
             'total_envio' => $order->get_shipping_total(),
             'total_descuento' => $order->get_total_discount(),
             'total' => $order->get_total(),
-            'dni' => $order->get_meta('_billing_dni'),
-            'barrio' => $order->get_meta('_billing_barrio')
+            'dni' => $this->get_custom_field_value($order, 'dni', 'billing'),
+            'barrio' => $this->get_custom_field_value($order, 'barrio', 'billing')
         );
+    }
+    
+    /**
+     * Obtener valor de campo personalizado con múltiples formatos de meta key
+     */
+    private function get_custom_field_value($order, $field_key, $address_type = 'billing') {
+        // Intentar diferentes formatos de meta key
+        $possible_keys = array(
+            '_' . $address_type . '_' . $field_key,  // _billing_dni
+            $address_type . '_' . $field_key,        // billing_dni
+            '_' . $field_key,                        // _dni
+            $field_key                               // dni
+        );
+        
+        foreach ($possible_keys as $meta_key) {
+            $value = $order->get_meta($meta_key, true);
+            if (!empty($value)) {
+                $this->logger->info("Custom field found", array(
+                    'field' => $field_key,
+                    'meta_key' => $meta_key,
+                    'value' => $value,
+                    'order_id' => $order->get_id()
+                ));
+                return $value;
+            }
+        }
+        
+        // Si no se encuentra, intentar obtener desde user meta si el cliente está logueado
+        $customer_id = $order->get_customer_id();
+        if ($customer_id > 0) {
+            $user_meta_key = $address_type . '_' . $field_key;
+            $value = get_user_meta($customer_id, $user_meta_key, true);
+            if (!empty($value)) {
+                $this->logger->info("Custom field found in user meta", array(
+                    'field' => $field_key,
+                    'user_meta_key' => $user_meta_key,
+                    'value' => $value,
+                    'customer_id' => $customer_id
+                ));
+                return $value;
+            }
+        }
+        
+        $this->logger->warning("Custom field not found", array(
+            'field' => $field_key,
+            'tried_keys' => $possible_keys,
+            'order_id' => $order->get_id()
+        ));
+        
+        return '';
     }
     
     /**
@@ -1376,7 +1499,7 @@ class SandCatInvoiceGenerator {
                 header('Pragma: public');
                 
                 // Generar nombre del archivo similar a pdf_generator.php
-                $filename = "Factura_" . sprintf('%010d', $invoice_number) . "_Orden_" . $order_id . ".pdf";
+                $filename = "Factura " . sprintf('%010d', $invoice_number) . ".pdf";
                 
                 // Servir PDF directamente en línea (similar a pdf_generator.php)
                 $pdf_result['mpdf_object']->Output($filename, 'I');
@@ -1393,6 +1516,141 @@ class SandCatInvoiceGenerator {
                 'error' => $e->getMessage()
             ));
             wp_die(__('Error interno del servidor.', 'sandcat-invoice'));
+        }
+    }
+    
+    /**
+     * AJAX handler para obtener URL del PDF de factura
+     */
+    public function ajax_get_invoice_pdf_url() {
+        try {
+            // Verificar nonce
+            if (!wp_verify_nonce($_POST['nonce'], 'sandcat_invoice_nonce')) {
+                wp_send_json_error(__('Error de seguridad.', 'sandcat-invoice'));
+                return;
+            }
+            
+            $order_id = intval($_POST['order_id']);
+            if (!$order_id) {
+                wp_send_json_error(__('ID de pedido inválido.', 'sandcat-invoice'));
+                return;
+            }
+            
+            // Verificar si existe factura
+            $invoice_data = $this->get_invoice_from_ventas_db($order_id);
+            if (!$invoice_data) {
+                wp_send_json_error(__('No se encontró factura para este pedido.', 'sandcat-invoice'));
+                return;
+            }
+            
+            // Generar URL para el PDF
+            $pdf_url = admin_url('admin-ajax.php') . '?' . http_build_query(array(
+                'action' => 'stream_invoice_pdf',
+                'order_id' => $order_id,
+                'nonce' => wp_create_nonce('sandcat_invoice_nonce')
+            ));
+            
+            $this->logger->info('PDF URL generated successfully', array(
+                'order_id' => $order_id,
+                'invoice_number' => $invoice_data['numero_factura']
+            ));
+            
+            wp_send_json_success(array(
+                'pdf_url' => $pdf_url,
+                'invoice_number' => $invoice_data['numero_factura']
+            ));
+            
+        } catch (Exception $e) {
+            $this->logger->error('Error in ajax_get_invoice_pdf_url', array(
+                'order_id' => $order_id ?? 0,
+                'error' => $e->getMessage()
+            ));
+            wp_send_json_error(__('Error interno del servidor.', 'sandcat-invoice'));
+        }
+    }
+    
+    /**
+     * Obtener datos de factura desde la base de datos de ventas
+     */
+    private function get_invoice_from_ventas_db($order_id) {
+        if (!$this->ventas_db) {
+            return false;
+        }
+        
+        try {
+            $stmt = $this->ventas_db->prepare("SELECT id_facturas, factura as numero_factura, fecha_creacion as fecha, id_order FROM facturas WHERE id_order = ? AND estado = 'a' LIMIT 1");
+            
+            if ($stmt === false) {
+                $this->logger->error('Error preparing SELECT statement for facturas', array('mysql_error' => $this->ventas_db->error));
+                return false;
+            }
+            
+            $stmt->bind_param('i', $order_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            if ($result && $result->num_rows > 0) {
+                $invoice_data = $result->fetch_assoc();
+                $stmt->close();
+                
+                $this->logger->info('Invoice found in ventas database', array(
+                    'order_id' => $order_id,
+                    'invoice_number' => $invoice_data['numero_factura']
+                ));
+                
+                return $invoice_data;
+            }
+            
+            $stmt->close();
+            return false;
+            
+        } catch (Exception $e) {
+            $this->logger->error('Error getting invoice from ventas database', array(
+                'order_id' => $order_id,
+                'error' => $e->getMessage()
+            ));
+            return false;
+        }
+    }
+    
+    /**
+     * AJAX handler para verificar estado de factura
+     */
+    public function ajax_check_invoice_status() {
+        try {
+            // Verificar nonce
+            if (!wp_verify_nonce($_POST['nonce'], 'sandcat_invoice_nonce')) {
+                wp_die(__('Error de seguridad.', 'sandcat-invoice'));
+            }
+            
+            $order_id = intval($_POST['order_id']);
+            if (!$order_id) {
+                wp_send_json_error(__('ID de pedido inválido.', 'sandcat-invoice'));
+                return;
+            }
+            
+            // Verificar si existe factura en la base de datos de ventas
+            $invoice_data = $this->get_invoice_from_ventas_db($order_id);
+            
+            if ($invoice_data) {
+                wp_send_json_success(array(
+                    'has_invoice' => true,
+                    'invoice_number' => $invoice_data['numero_factura'],
+                    'invoice_date' => $invoice_data['fecha'],
+                    'total' => $invoice_data['total']
+                ));
+            } else {
+                wp_send_json_success(array(
+                    'has_invoice' => false
+                ));
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->error('Error in ajax_check_invoice_status', array(
+                'order_id' => $order_id ?? 0,
+                'error' => $e->getMessage()
+            ));
+            wp_send_json_error(__('Error interno del servidor.', 'sandcat-invoice'));
         }
     }
     

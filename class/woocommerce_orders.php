@@ -2994,7 +2994,7 @@ class WooCommerceOrders
 
     /**
      * Obtener datos completos de una orden para generación de PDF
-     * Usa el enfoque legacy (postmeta) para máxima compatibilidad
+     * Usa las tablas HPOS modernas de WooCommerce para mejor rendimiento
      * @param int $orden_id - ID de la orden
      * @return array|null - Datos completos de la orden o null si no existe
      */
@@ -3003,49 +3003,32 @@ class WooCommerceOrders
         try {
             $query_orden = "
                 SELECT 
-                    p.ID as order_id,
-                    p.post_date as fecha_orden,
-                    p.post_status as estado,
-                    COALESCE(pm_total.meta_value, 0) as total,
-                    COALESCE(pm_email.meta_value, '') as email_cliente,
-                    COALESCE(pm_fname.meta_value, '') as nombre_cliente,
-                    COALESCE(pm_lname.meta_value, '') as apellido_cliente,
-                    COALESCE(pm_phone.meta_value, '') as telefono_cliente,
-                    COALESCE(pm_method.meta_value, '') as titulo_metodo_pago,
-                    COALESCE(pm_address1.meta_value, '') as direccion_1,
-                    COALESCE(pm_address2.meta_value, '') as direccion_2,
-                    COALESCE(pm_city.meta_value, '') as ciudad,
-                    COALESCE(pm_state.meta_value, '') as departamento,
-                    COALESCE(pm_country.meta_value, '') as pais,
-                    COALESCE(pm_barrio.meta_value, '') as barrio,
-                    COALESCE(pm_dni.meta_value, '') as dni,
-                    COALESCE(pm_shipping.meta_value, '0') as envio,
-                    COALESCE(pm_discount.meta_value, '0') as descuento,
-                    COALESCE(p.post_excerpt, '') as comentarios_excerpt,
-                    COALESCE(wco.customer_note, '') as customer_note,
-                    COALESCE(GROUP_CONCAT(c.comment_content SEPARATOR '\n'), '') as comentarios_notas
-                FROM miau_posts p
-                LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
-                LEFT JOIN miau_postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
-                LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
-                LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
-                LEFT JOIN miau_postmeta pm_phone ON p.ID = pm_phone.post_id AND pm_phone.meta_key = '_billing_phone'
-                LEFT JOIN miau_postmeta pm_method ON p.ID = pm_method.post_id AND pm_method.meta_key = '_payment_method_title'
-                LEFT JOIN miau_postmeta pm_address1 ON p.ID = pm_address1.post_id AND pm_address1.meta_key = '_billing_address_1'
-                LEFT JOIN miau_postmeta pm_address2 ON p.ID = pm_address2.post_id AND pm_address2.meta_key = '_billing_address_2'
-                LEFT JOIN miau_postmeta pm_city ON p.ID = pm_city.post_id AND pm_city.meta_key = '_billing_city'
-                LEFT JOIN miau_postmeta pm_state ON p.ID = pm_state.post_id AND pm_state.meta_key = '_billing_state'
-                LEFT JOIN miau_postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
-                LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_neighborhood'
-                LEFT JOIN miau_postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_dni'
-                LEFT JOIN miau_postmeta pm_shipping ON p.ID = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
-                LEFT JOIN miau_postmeta pm_discount ON p.ID = pm_discount.post_id AND pm_discount.meta_key = '_cart_discount'
-                LEFT JOIN miau_wc_orders wco ON p.ID = wco.id
-                LEFT JOIN miau_comments c ON p.ID = c.comment_post_ID 
-                    AND c.comment_type IN ('order_note', 'order_note_private') 
-                    AND c.comment_approved = '1'
-                WHERE p.ID = ? AND p.post_type = 'shop_order'
-                GROUP BY p.ID
+                    wco.id as order_id,
+                    wco.date_created_gmt as fecha_orden,
+                    wco.status as estado,
+                    COALESCE(wco.total_amount, 0) as total,
+                    COALESCE(ba.email, '') as email_cliente,
+                    COALESCE(ba.first_name, '') as nombre_cliente,
+                    COALESCE(ba.last_name, '') as apellido_cliente,
+                    COALESCE(ba.phone, '') as telefono_cliente,
+                    COALESCE(wco.payment_method_title, '') as titulo_metodo_pago,
+                    COALESCE(ba.address_1, '') as direccion_1,
+                    COALESCE(ba.address_2, '') as direccion_2,
+                    COALESCE(ba.city, '') as ciudad,
+                    COALESCE(ba.state, '') as departamento,
+                    COALESCE(ba.country, '') as pais,
+                    COALESCE(om_barrio.meta_value, '') as barrio,
+                    COALESCE(om_dni.meta_value, '') as dni,
+                    COALESCE(om_shipping.meta_value, '0') as envio,
+                    COALESCE(om_discount.meta_value, '0') as descuento,
+                    COALESCE(wco.customer_note, '') as customer_note
+                FROM miau_wc_orders wco
+                LEFT JOIN miau_wc_order_addresses ba ON wco.id = ba.order_id AND ba.address_type = 'billing'
+                LEFT JOIN miau_wc_orders_meta om_barrio ON wco.id = om_barrio.order_id AND om_barrio.meta_key = '_billing_barrio'
+                LEFT JOIN miau_wc_orders_meta om_dni ON wco.id = om_dni.order_id AND om_dni.meta_key = '_billing_dni'
+                LEFT JOIN miau_wc_orders_meta om_shipping ON wco.id = om_shipping.order_id AND om_shipping.meta_key = '_order_shipping'
+                LEFT JOIN miau_wc_orders_meta om_discount ON wco.id = om_discount.order_id AND om_discount.meta_key = '_cart_discount'
+                WHERE wco.id = ? AND wco.type = 'shop_order'
             ";
 
             $stmt = mysqli_prepare($this->wp_connection, $query_orden);
@@ -3060,11 +3043,11 @@ class WooCommerceOrders
             mysqli_stmt_close($stmt);
 
             if (!$orden) {
-                Utils::logError("Orden no encontrada para PDF: {$orden_id}", 'WARNING', 'WooCommerceOrders');
+                Utils::logError("Orden no encontrada para PDF (legacy): {$orden_id}", 'WARNING', 'WooCommerceOrders');
                 return null;
             }
 
-            Utils::logError("Datos de orden cargados para PDF - Order ID: {$orden_id}", 'INFO', 'WooCommerceOrders');
+            Utils::logError("Datos de orden legacy cargados para PDF - Order ID: {$orden_id}", 'INFO', 'WooCommerceOrders');
             return $orden;
 
         } catch (Exception $e) {

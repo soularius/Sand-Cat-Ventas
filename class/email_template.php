@@ -57,7 +57,7 @@ class EmailTemplate
             '{{envio_section}}' => $envio_section,
             '{{descuento_section}}' => $descuento_section,
             '{{logo_ventas}}' => LOGO_VENTAS,
-            '{{woocommerce_url}}' => VENTAS_URL,
+            '{{woocommerce_url}}' => URL_WOOCOMMERCE,
             '{{customer_note}}' => $data['customer_note'],
         ];
         
@@ -264,7 +264,7 @@ class EmailTemplate
         $replacements = [
             '{{factura_num}}' => $data['factura_num'],
             '{{logo_factura}}' => LOGO_FACTURA,
-            '{{woocommerce_url}}' => VENTAS_URL,
+            '{{woocommerce_url}}' => URL_WOOCOMMERCE,
             '{{fecha}}' => $data['fecha'],
             '{{factura_formateada}}' => $data['factura_formateada'],
             '{{orden_id}}' => $data['orden_id'] ?? '',
