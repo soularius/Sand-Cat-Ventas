@@ -89,10 +89,10 @@ class WooCommerceOrders
         // Obtener metadatos adicionales desde postmeta (compatibilidad legacy)
         $metaQuery = "SELECT meta_key, meta_value FROM {$this->db_prefix}postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title','_billing_dni','_billing_neighborhood')";
         $metaStmt = mysqli_prepare($this->wp_connection, $metaQuery);
-        
+
         $meta = [
             '_order_shipping' => '0',
-            '_cart_discount' => '0', 
+            '_cart_discount' => '0',
             '_payment_method_title' => '',
             '_billing_dni' => '',
             '_billing_neighborhood' => ''
@@ -102,7 +102,7 @@ class WooCommerceOrders
             mysqli_stmt_bind_param($metaStmt, 'i', $orden_id);
             mysqli_stmt_execute($metaStmt);
             $metaResult = mysqli_stmt_get_result($metaStmt);
-            
+
             while ($metaRow = mysqli_fetch_assoc($metaResult)) {
                 $meta[$metaRow['meta_key']] = $metaRow['meta_value'];
             }
@@ -241,7 +241,7 @@ class WooCommerceOrders
                 I.order_id = ? 
                 AND I.order_item_type = 'line_item'
             GROUP BY I.order_item_id";
-        
+
         $stmt = mysqli_prepare($this->wp_connection, $query_productos);
         if (!$stmt) {
             throw new Exception("Error preparando consulta de productos: " . mysqli_error($this->wp_connection));
@@ -250,21 +250,21 @@ class WooCommerceOrders
         mysqli_stmt_bind_param($stmt, "i", $orden_id);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
-        
+
         $productos_array = [];
         if ($result && mysqli_num_rows($result) > 0) {
             while ($producto = mysqli_fetch_assoc($result)) {
                 // Agregar aliases para compatibilidad con generar_pdf.php
                 $producto['total_producto'] = $producto['line_total'];
                 $producto['product_qty'] = $producto['cantidad'];
-                
+
                 // URL del producto en la tienda
                 $producto['product_url'] = URL_WOOCOMMERCE . '/?p=' . $producto['product_id'];
-                
+
                 $productos_array[] = $producto;
             }
         }
-        
+
         mysqli_stmt_close($stmt);
         return $productos_array;
     }
@@ -299,6 +299,31 @@ class WooCommerceOrders
         }
         $this->columns_cache[$table] = $cols;
         return $cols;
+    }
+
+    /**
+     * Filtra un array de datos para incluir solo columnas que existen en la tabla especificada.
+     * Útil para evitar errores SQL cuando se intenta insertar/actualizar campos inexistentes.
+     * 
+     * @param string $table Nombre de la tabla
+     * @param array $data Array de datos a filtrar (key => value)
+     * @return array Array filtrado con solo las columnas existentes
+     */
+    private function filterExistingColumns(string $table, array $data): array
+    {
+        $cols = $this->getTableColumns($table);
+        if (empty($cols)) {
+            return [];
+        }
+
+        $filtered = [];
+        foreach ($data as $key => $value) {
+            if (isset($cols[$key])) {
+                $filtered[$key] = $value;
+            }
+        }
+
+        return $filtered;
     }
 
     /**
@@ -380,7 +405,7 @@ class WooCommerceOrders
         $sets = [];
         $values = [];
         $types = '';
-        
+
         foreach ($filtered as $field => $value) {
             $sets[] = "`{$field}` = ?";
             if (is_int($value)) {
@@ -413,7 +438,7 @@ class WooCommerceOrders
 
         $result = mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
-        
+
         if (!$result) {
             throw new Exception("Execute failed ({$table}): " . mysqli_error($this->wp_connection));
         }
@@ -483,11 +508,11 @@ class WooCommerceOrders
     {
         $customer = $orderData['customer_data'] ?? [];
         $email = trim((string)($customer['_billing_email'] ?? ''));
-        
+
         if (empty($email)) {
             return null; // Sin email no podemos buscar duplicados
         }
-        
+
         // Buscar órdenes recientes (últimas 24 horas) con el mismo email
         $query = "
             SELECT wco.id 
@@ -500,21 +525,21 @@ class WooCommerceOrders
             ORDER BY wco.date_created_gmt DESC
             LIMIT 1
         ";
-        
+
         $stmt = mysqli_prepare($this->wp_connection, $query);
         if (!$stmt) {
             return null;
         }
-        
+
         mysqli_stmt_bind_param($stmt, "s", $email);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
-        
+
         if ($result && ($row = mysqli_fetch_assoc($result))) {
             mysqli_stmt_close($stmt);
             return (int)$row['id'];
         }
-        
+
         mysqli_stmt_close($stmt);
         return null;
     }
@@ -531,15 +556,422 @@ class WooCommerceOrders
         if (!$stmt) {
             return false;
         }
-        
+
         mysqli_stmt_bind_param($stmt, "i", $orderId);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         $exists = $result && mysqli_num_rows($result) > 0;
         mysqli_stmt_close($stmt);
-        
+
         return $exists;
     }
+
+    /**
+     * Recalcula impuestos y totales del pedido a nivel DB (sin WC_Order).
+     * Replica el espíritu de "calc line taxes" + "calculate_totals".
+     *
+     * Qué hace:
+     * - Actualiza taxes de cada line_item (_line_tax, _line_subtotal_tax, _line_tax_data)
+     * - Actualiza taxes del shipping item (meta 'taxes')
+     * - Regenera order_item_type = 'tax'
+     * - Actualiza postmeta totals (legacy), wc_orders (HPOS), wc_order_stats (lookups)
+     *
+     * Requisitos:
+     * - Tablas: woocommerce_order_items + woocommerce_order_itemmeta
+     * - Opcional: wc_orders, wc_orders_meta, wc_order_stats, wc_order_operational_data
+     */
+    private function rebuildOrderTaxesAndTotals(int $orderId, array $ctx, array &$debug = []): array
+    {
+        // ---- Contexto base (usa shipping/billing, lo que tengas) ----
+        $country  = (string)($ctx['country'] ?? 'CO');
+        $state    = (string)($ctx['state'] ?? '');
+        $postcode = (string)($ctx['postcode'] ?? '');
+        $city     = (string)($ctx['city'] ?? '');
+
+        // Woo suele trabajar con 2 decimales incluso si COP visualmente no los muestra
+        $decimals = (int)($ctx['decimals'] ?? 2);
+
+        // Totales “externos” (los que tú ya calculas)
+        $shippingCost = (float)($ctx['shipping_cost'] ?? 0);
+        $cartDiscount = (float)($ctx['cart_discount'] ?? 0);
+
+        // Si tu tienda no usa impuestos, puedes forzar tasa 0.
+        $forceNoTaxes = (bool)($ctx['force_no_taxes'] ?? false);
+
+        if (
+            !$this->tableExists("{$this->db_prefix}woocommerce_order_items") ||
+            !$this->tableExists("{$this->db_prefix}woocommerce_order_itemmeta")
+        ) {
+            throw new Exception("Faltan tablas woocommerce_order_items / woocommerce_order_itemmeta.");
+        }
+
+        // ---- Helpers internos ----
+        $round = function (float $n) use ($decimals): float {
+            return round($n, $decimals);
+        };
+
+        $serializeTaxData = function (array $totalByRate, array $subtotalByRate): string {
+            // _line_tax_data: ['total' => [rate_id => amount], 'subtotal' => [rate_id => amount]]
+            return serialize([
+                'total'    => $totalByRate,
+                'subtotal' => $subtotalByRate,
+            ]);
+        };
+
+        $serializeShippingTaxes = function (array $totalByRate): string {
+            // shipping meta 'taxes' suele ser serialize(['total' => [rate_id => amount]])
+            return serialize([
+                'total' => $totalByRate,
+            ]);
+        };
+
+        // Lee meta de item
+        $getItemMeta = function (int $orderItemId): array {
+            $meta = [];
+            $q = mysqli_query(
+                $this->wp_connection,
+                "SELECT meta_key, meta_value
+             FROM {$this->db_prefix}woocommerce_order_itemmeta
+             WHERE order_item_id = {$orderItemId}"
+            );
+            if ($q) {
+                while ($r = mysqli_fetch_assoc($q)) {
+                    $meta[$r['meta_key']] = $r['meta_value'];
+                }
+            }
+            return $meta;
+        };
+
+        // Upsert meta de item (simple: borra key y reinserta)
+        $setItemMeta = function (int $orderItemId, string $key, string $value): void {
+            mysqli_query(
+                $this->wp_connection,
+                "DELETE FROM {$this->db_prefix}woocommerce_order_itemmeta
+             WHERE order_item_id = {$orderItemId} AND meta_key = '" . mysqli_real_escape_string($this->wp_connection, $key) . "'"
+            );
+            $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
+                'order_item_id' => $orderItemId,
+                'meta_key'      => $key,
+                'meta_value'    => $value,
+            ]);
+        };
+
+        // ---- 1) Obtener tasas aplicables (muy simplificado, pero funcional) ----
+        // Woo guarda tasas en woocommerce_tax_rates. Seleccionamos tasas que matcheen país/estado.
+        // Si no hay tabla o force_no_taxes => tasa 0.
+        $rates = []; // rate_id => ['label'=>..., 'rate'=>float]
+        if (!$forceNoTaxes && $this->tableExists("{$this->db_prefix}woocommerce_tax_rates")) {
+            $countryEsc = mysqli_real_escape_string($this->wp_connection, $country);
+            $stateEsc   = mysqli_real_escape_string($this->wp_connection, $state);
+
+            // Match típico: country exacto y state exacto o vacío (si tu config está así).
+            $sqlRates = "
+            SELECT tax_rate_id, tax_rate, tax_rate_name
+            FROM {$this->db_prefix}woocommerce_tax_rates
+            WHERE tax_rate_country = '{$countryEsc}'
+              AND (tax_rate_state = '{$stateEsc}' OR tax_rate_state = '')
+            ORDER BY tax_rate_priority ASC, tax_rate_order ASC
+        ";
+            $qRates = mysqli_query($this->wp_connection, $sqlRates);
+            if ($qRates) {
+                while ($r = mysqli_fetch_assoc($qRates)) {
+                    $rateId = (int)$r['tax_rate_id'];
+                    $rates[$rateId] = [
+                        'label' => (string)($r['tax_rate_name'] ?? 'Tax'),
+                        'rate'  => (float)($r['tax_rate'] ?? 0), // porcentaje
+                    ];
+                }
+            }
+        }
+
+        // Si no hay tasas, dejamos vacío => impuestos 0
+        $debug['tax_rates_found'] = count($rates);
+
+        // ---- 2) Cargar items del pedido ----
+        $items = []; // cada uno: ['id'=>, 'type'=>, 'name'=>]
+        $qItems = mysqli_query(
+            $this->wp_connection,
+            "SELECT order_item_id, order_item_type, order_item_name
+         FROM {$this->db_prefix}woocommerce_order_items
+         WHERE order_id = {$orderId}"
+        );
+        if ($qItems) {
+            while ($r = mysqli_fetch_assoc($qItems)) {
+                $items[] = [
+                    'id'   => (int)$r['order_item_id'],
+                    'type' => (string)$r['order_item_type'],
+                    'name' => (string)$r['order_item_name'],
+                ];
+            }
+        }
+
+        // Detectar line_items, shipping, fees, y eliminar tax items viejos
+        $lineItems = [];
+        $shippingItems = [];
+        $feeItems = [];
+        $taxItemsOld = [];
+
+        foreach ($items as $it) {
+            if ($it['type'] === 'line_item') $lineItems[] = $it;
+            elseif ($it['type'] === 'shipping') $shippingItems[] = $it;
+            elseif ($it['type'] === 'fee') $feeItems[] = $it;
+            elseif ($it['type'] === 'tax') $taxItemsOld[] = $it;
+        }
+
+        // Borrar tax lines anteriores (como hace el recalculo)
+        foreach ($taxItemsOld as $t) {
+            $tid = (int)$t['id'];
+            mysqli_query($this->wp_connection, "DELETE FROM {$this->db_prefix}woocommerce_order_itemmeta WHERE order_item_id = {$tid}");
+            mysqli_query($this->wp_connection, "DELETE FROM {$this->db_prefix}woocommerce_order_items WHERE order_item_id = {$tid}");
+        }
+        $debug['deleted_old_tax_lines'] = count($taxItemsOld);
+
+        // ---- 3) Recalcular taxes por line item ----
+        $itemsTotal = 0.0;
+        $itemsTaxTotal = 0.0;
+
+        // Acumuladores por rate_id para luego crear líneas tax
+        $taxByRateForItems = [];     // rate_id => amount
+        $taxByRateForShip  = [];     // rate_id => amount
+
+        foreach ($lineItems as $li) {
+            $itemId = (int)$li['id'];
+            $m = $getItemMeta($itemId);
+
+            $lineTotal    = isset($m['_line_total']) ? (float)$m['_line_total'] : 0.0;
+            $lineSubtotal = isset($m['_line_subtotal']) ? (float)$m['_line_subtotal'] : $lineTotal;
+
+            $itemsTotal += $lineTotal;
+
+            // Si no hay tasas: setear todo en 0
+            if (empty($rates)) {
+                $setItemMeta($itemId, '_line_tax', '0');
+                $setItemMeta($itemId, '_line_subtotal_tax', '0');
+                $setItemMeta($itemId, '_line_tax_data', $serializeTaxData([], []));
+                continue;
+            }
+
+            $totalByRate = [];
+            $subtotalByRate = [];
+            $lineTax = 0.0;
+            $lineSubtotalTax = 0.0;
+
+            foreach ($rates as $rateId => $rateInfo) {
+                $pct = (float)$rateInfo['rate']; // ej 19.0000
+                $taxTotal = $round($lineTotal * ($pct / 100));
+                $taxSub   = $round($lineSubtotal * ($pct / 100));
+
+                if ($taxTotal != 0.0) {
+                    $totalByRate[(string)$rateId] = (string)$taxTotal;
+                    $taxByRateForItems[$rateId] = ($taxByRateForItems[$rateId] ?? 0) + $taxTotal;
+                }
+                if ($taxSub != 0.0) {
+                    $subtotalByRate[(string)$rateId] = (string)$taxSub;
+                }
+
+                $lineTax += $taxTotal;
+                $lineSubtotalTax += $taxSub;
+            }
+
+            $itemsTaxTotal += $lineTax;
+
+            $setItemMeta($itemId, '_line_tax', (string)$round($lineTax));
+            $setItemMeta($itemId, '_line_subtotal_tax', (string)$round($lineSubtotalTax));
+            $setItemMeta($itemId, '_line_tax_data', $serializeTaxData($totalByRate, $subtotalByRate));
+        }
+
+        // ---- 4) Recalcular taxes de envío (shipping item) ----
+        $shippingTaxTotal = 0.0;
+
+        foreach ($shippingItems as $si) {
+            $shipItemId = (int)$si['id'];
+
+            if (empty($rates) || $shippingCost <= 0) {
+                // Woo espera serialize(['total'=>[]]) usualmente
+                $setItemMeta($shipItemId, 'taxes', $serializeShippingTaxes([]));
+                continue;
+            }
+
+            $totalByRate = [];
+            $shipTax = 0.0;
+
+            foreach ($rates as $rateId => $rateInfo) {
+                $pct = (float)$rateInfo['rate'];
+                $tax = $round($shippingCost * ($pct / 100));
+                if ($tax != 0.0) {
+                    $totalByRate[(string)$rateId] = (string)$tax;
+                    $taxByRateForShip[$rateId] = ($taxByRateForShip[$rateId] ?? 0) + $tax;
+                }
+                $shipTax += $tax;
+            }
+
+            $shippingTaxTotal += $shipTax;
+            $setItemMeta($shipItemId, 'taxes', $serializeShippingTaxes($totalByRate));
+        }
+
+        // ---- 5) Fees (descuento como fee negativo) ----
+        $feesTotal = 0.0;
+        foreach ($feeItems as $fi) {
+            $mid = $getItemMeta((int)$fi['id']);
+            // en fee normalmente Woo usa _line_total
+            $feeLineTotal = isset($mid['_line_total']) ? (float)$mid['_line_total'] : 0.0;
+            $feesTotal += $feeLineTotal;
+        }
+
+        // ---- 6) Crear tax lines (order_item_type='tax') por rate ----
+        if (!empty($rates)) {
+            // Union de rates usados por items y shipping
+            $allRateIds = array_unique(array_merge(array_keys($taxByRateForItems), array_keys($taxByRateForShip)));
+
+            foreach ($allRateIds as $rateId) {
+                $rateId = (int)$rateId;
+                $label  = $rates[$rateId]['label'] ?? 'Tax';
+
+                $taxAmount      = $round((float)($taxByRateForItems[$rateId] ?? 0));
+                $shipTaxAmount  = $round((float)($taxByRateForShip[$rateId] ?? 0));
+
+                // Si no hay nada para este rate, skip
+                if ($taxAmount == 0.0 && $shipTaxAmount == 0.0) continue;
+
+                $taxItemId = $this->insertRow("{$this->db_prefix}woocommerce_order_items", [
+                    'order_item_name' => $label,
+                    'order_item_type' => 'tax',
+                    'order_id'        => $orderId,
+                ]);
+
+                // Metas típicas de tax line
+                $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
+                    'order_item_id' => $taxItemId,
+                    'meta_key'      => 'rate_id',
+                    'meta_value'    => (string)$rateId,
+                ]);
+                $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
+                    'order_item_id' => $taxItemId,
+                    'meta_key'      => 'label',
+                    'meta_value'    => $label,
+                ]);
+                $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
+                    'order_item_id' => $taxItemId,
+                    'meta_key'      => 'compound',
+                    'meta_value'    => '0',
+                ]);
+                $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
+                    'order_item_id' => $taxItemId,
+                    'meta_key'      => 'tax_amount',
+                    'meta_value'    => (string)$taxAmount,
+                ]);
+                $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
+                    'order_item_id' => $taxItemId,
+                    'meta_key'      => 'shipping_tax_amount',
+                    'meta_value'    => (string)$shipTaxAmount,
+                ]);
+            }
+        }
+
+        // ---- 7) Totales finales del pedido ----
+        $orderTaxTotal = $round($itemsTaxTotal + $shippingTaxTotal);
+
+        // Regla: total = itemsTotal + shippingCost + feesTotal + taxTotal
+        // Si tú representas descuento como fee negativo, ya queda incluido en feesTotal.
+        // Si además traes cartDiscount separado, NO lo vuelvas a restar aquí.
+        $computedTotal = $round($itemsTotal + $shippingCost + $feesTotal + $orderTaxTotal);
+
+        $debug['computed'] = [
+            'items_total' => $itemsTotal,
+            'fees_total'  => $feesTotal,
+            'shipping'    => $shippingCost,
+            'items_tax'   => $itemsTaxTotal,
+            'ship_tax'    => $shippingTaxTotal,
+            'order_tax'   => $orderTaxTotal,
+            'order_total' => $computedTotal,
+        ];
+
+        // ---- 8) Persistir totales en postmeta (legacy) ----
+        // (No borres TODO el postmeta aquí, solo upsert de claves de totales)
+        $upsertPostMeta = function (string $key, string $value) use ($orderId): void {
+            $k = mysqli_real_escape_string($this->wp_connection, $key);
+            mysqli_query(
+                $this->wp_connection,
+                "DELETE FROM {$this->db_prefix}postmeta WHERE post_id = {$orderId} AND meta_key = '{$k}'"
+            );
+            $this->insertRow("{$this->db_prefix}postmeta", [
+                'post_id'     => $orderId,
+                'meta_key'    => $key,
+                'meta_value'  => $value,
+            ], true);
+        };
+
+        $upsertPostMeta('_order_shipping', (string)$round($shippingCost));
+        $upsertPostMeta('_cart_discount',  (string)$round($cartDiscount));
+        $upsertPostMeta('_order_tax',      (string)$round($itemsTaxTotal));
+        $upsertPostMeta('_order_shipping_tax', (string)$round($shippingTaxTotal));
+        $upsertPostMeta('_cart_tax',       (string)$round($itemsTaxTotal));
+        $upsertPostMeta('_shipping_tax',   (string)$round($shippingTaxTotal));
+        $upsertPostMeta('_order_total',    (string)$computedTotal);
+
+        // ---- 9) Persistir totales en HPOS (wc_orders) ----
+        if ($this->tableExists("{$this->db_prefix}wc_orders")) {
+            $this->updateRowByWhere("{$this->db_prefix}wc_orders", [
+                'total_amount'          => $computedTotal,
+                'tax_amount'            => $round($itemsTaxTotal),      // items tax
+                'shipping_tax_amount'   => $round($shippingTaxTotal),
+                'shipping_total_amount' => $round($shippingCost),
+                'discount_total_amount' => $round($cartDiscount),
+            ], "id = {$orderId}");
+        }
+
+        // ---- 10) Lookups (wc_order_stats) ----
+        if ($this->tableExists("{$this->db_prefix}wc_order_stats")) {
+            // net_total = itemsTotal + feesTotal (sin shipping, sin taxes)
+            // OJO: si fee negativo (descuento), aquí resta.
+            $netTotal = $round($itemsTotal + $feesTotal);
+
+            $this->updateRowByWhere("{$this->db_prefix}wc_order_stats", [
+                'total_sales'    => (float)$computedTotal,
+                'tax_total'      => (float)$orderTaxTotal,
+                'shipping_total' => (float)$round($shippingCost),
+                'net_total'      => (float)$netTotal,
+            ], "order_id = {$orderId}");
+        }
+
+        // ---- 11) Operational data (si existe) ----
+        if ($this->tableExists("{$this->db_prefix}wc_order_operational_data")) {
+            // Esta tabla varía por versión, por eso filtramos columnas existentes si ya tienes helper.
+            $data = [
+                'order_id'              => $orderId,
+                'shipping_total_amount' => (float)$round($shippingCost),
+                'discount_total_amount' => (float)$round($cartDiscount),
+                'shipping_tax_amount'   => (float)$round($shippingTaxTotal),
+                'discount_tax_amount'   => 0.0,
+                'cart_tax_amount'       => (float)$round($itemsTaxTotal),
+                'total_amount'          => (float)$computedTotal,
+                'prices_include_tax'    => 0,
+            ];
+
+            if (method_exists($this, 'filterExistingColumns')) {
+                $data = $this->filterExistingColumns("{$this->db_prefix}wc_order_operational_data", $data);
+            }
+
+            $exists = mysqli_query(
+                $this->wp_connection,
+                "SELECT order_id FROM {$this->db_prefix}wc_order_operational_data WHERE order_id = {$orderId} LIMIT 1"
+            );
+
+            if ($exists && mysqli_num_rows($exists) > 0) {
+                $this->updateRowByWhere("{$this->db_prefix}wc_order_operational_data", $data, "order_id = {$orderId}");
+            } else {
+                $this->insertRow("{$this->db_prefix}wc_order_operational_data", $data);
+            }
+        }
+
+        return [
+            'computed_total'       => $computedTotal,
+            'tax_total'            => $orderTaxTotal,
+            'items_tax_total'      => $round($itemsTaxTotal),
+            'shipping_tax_total'   => $round($shippingTaxTotal),
+        ];
+    }
+
 
     /**
      * Actualiza una orden existente con nuevos datos - Actualización completa igual que creación
@@ -551,16 +983,16 @@ class WooCommerceOrders
     public function updateExistingOrder(int $orderId, array $orderData, array &$debug): array
     {
         try {
-            $customer = $orderData['customer_data'] ?? [];
-            $form = $orderData['form_data'] ?? [];
-            $products = $orderData['products'] ?? [];
+            $customer  = $orderData['customer_data'] ?? [];
+            $form      = $orderData['form_data'] ?? [];
+            $products  = $orderData['products'] ?? [];
 
-            // 🔥 CRÍTICO: Procesar cliente usando clase dedicada
+            // 1) Cliente
             $customerResult = $this->customerManager->processCustomer($customer);
-            $customerId = $customerResult['user_id'];
+            $customerId = (int)$customerResult['user_id'];
             $debug['steps'][] = ['customer_updated' => $customerId];
 
-            // Normalizar valores igual que en creación
+            // 2) Normalización
             $firstName = (string)($customer['nombre1'] ?? $customer['_shipping_first_name'] ?? '');
             $lastName  = (string)($customer['nombre2'] ?? $customer['_shipping_last_name'] ?? '');
             $email     = (string)($customer['_billing_email'] ?? '');
@@ -572,325 +1004,440 @@ class WooCommerceOrders
             $dni       = (string)($customer['dni'] ?? $customer['billing_id'] ?? '');
             $barrio    = (string)($customer['_billing_neighborhood'] ?? '');
 
-            $shippingCost = $this->parseMoney($form['_order_shipping'] ?? $form['_order_shipping_value'] ?? $orderData['_order_shipping'] ?? 0);
-            $cartDiscount = $this->parseMoney($form['_cart_discount'] ?? $orderData['_cart_discount'] ?? 0);
-            $paymentTitle = (string)($form['_payment_method_title'] ?? $orderData['_payment_method_title'] ?? '');
+            $shippingCost  = $this->parseMoney($form['_order_shipping'] ?? $form['_order_shipping_value'] ?? $orderData['_order_shipping'] ?? 0);
+            $cartDiscount  = $this->parseMoney($form['_cart_discount'] ?? $orderData['_cart_discount'] ?? 0);
+            $paymentTitle  = (string)($form['_payment_method_title'] ?? $orderData['_payment_method_title'] ?? '');
             $paymentMethod = (string)($form['_payment_method'] ?? '');
-            $orderNotes = (string)($form['post_expcerpt'] ?? '');
+            $orderNotes    = (string)($form['post_expcerpt'] ?? '');
 
-            // Tiempos
+            // 3) Tiempos
             date_default_timezone_set('America/Bogota');
             $nowLocal = date('Y-m-d H:i:s');
             $nowGmt   = gmdate('Y-m-d H:i:s');
 
-            // Calcular totales igual que en creación
+            // 4) Totales
             $itemsSubtotal = 0;
-            $itemsTotal = 0;
+            $itemsTotal    = 0;
+            $itemsQty      = 0;
+
             foreach ($products as $p) {
                 $qty = (int)($p['quantity'] ?? 0);
                 if ($qty < 1) continue;
+
+                $itemsQty += $qty;
+
                 $regular = (int)($p['regular_price'] ?? $p['price'] ?? 0);
-                $price = (int)(($p['sale_price'] !== null && $p['sale_price'] !== '') ? $p['sale_price'] : ($p['price'] ?? $regular));
+                $price   = (int)(($p['sale_price'] !== null && $p['sale_price'] !== '') ? $p['sale_price'] : ($p['price'] ?? $regular));
+
                 $itemsSubtotal += ($regular * $qty);
-                $itemsTotal += ($price * $qty);
+                $itemsTotal    += ($price * $qty);
             }
+
             $finalTotal = max(0, ($itemsTotal + $shippingCost - $cartDiscount));
+            $netTotal   = max(0, ($itemsTotal - $cartDiscount)); // ✅ net_total SIN envío
 
+            // 5) Estados (pending primero, completed al final)
             $hposStatusReference = $this->detectHPOSStatusFormat();
-            $statusPosts = 'wc-completed';
-            $statusHPOS = $this->normalizeStatus('completed', $hposStatusReference);
 
-            // Transacción para actualización completa
+            $postsPending = 'wc-pending';
+            $hposPending  = $this->normalizeStatus('pending', $hposStatusReference);
+
+            $postsFinal = 'wc-completed';
+            $hposFinal  = $this->normalizeStatus('completed', $hposStatusReference);
+
+            // --- Transacción ---
             mysqli_begin_transaction($this->wp_connection);
 
-            /* 1) Actualizar posts */
-            $postUpdateData = [
-                'post_title' => "Pedido &ndash; $nowLocal",
-                'post_content' => '',
-                'post_status' => $statusPosts,
-                'post_date' => $nowLocal,
-                'post_date_gmt' => $nowGmt,
-                'post_modified' => $nowLocal,
+            /**
+             * STEP A) Poner en PENDING (solo estado)
+             * Importante: NO marcar paid_date aquí.
+             */
+            $this->updateRowByWhere("{$this->db_prefix}posts", [
+                'post_title'        => "Pedido &ndash; $nowLocal",
+                'post_status'       => $postsPending,
+                'post_modified'     => $nowLocal,
                 'post_modified_gmt' => $nowGmt,
-                'post_excerpt' => $orderNotes
-            ];
-            $this->updateRowByWhere("{$this->db_prefix}posts", $postUpdateData, "ID = $orderId");
-            $debug['steps'][] = ['updated_posts' => $orderId];
+                'post_excerpt'      => $orderNotes,
+            ], "ID = $orderId");
+            $debug['steps'][] = ['posts_to_pending' => $orderId];
 
-            /* 2) Actualizar postmeta completo */
-            // Primero eliminar meta existente para evitar duplicados
+            if ($this->tableExists("{$this->db_prefix}wc_orders")) {
+                $this->updateRowByWhere("{$this->db_prefix}wc_orders", [
+                    'status'           => $hposPending,
+                    'date_updated_gmt' => $nowGmt,
+                ], "id = $orderId");
+                $debug['steps'][] = ['hpos_to_pending' => $orderId];
+            }
+
+            /**
+             * STEP B) Reescribir postmeta (legacy) completo
+             * OJO: no pongas _paid_date todavía.
+             */
             mysqli_query($this->wp_connection, "DELETE FROM {$this->db_prefix}postmeta WHERE post_id = $orderId");
-            
+
             $metaPairs = [
                 '_customer_user' => (string)$customerId,
+
                 '_shipping_first_name' => $firstName,
-                '_shipping_last_name' => $lastName,
-                '_billing_first_name' => $firstName,
-                '_billing_last_name' => $lastName,
-                'billing_id' => $dni,
-                '_billing_id' => $dni,
-                '_billing_dni' => $dni,
-                '_billing_email' => $email,
-                '_billing_phone' => $phone,
+                '_shipping_last_name'  => $lastName,
+                '_billing_first_name'  => $firstName,
+                '_billing_last_name'   => $lastName,
+
+                'billing_id'           => $dni,
+                '_billing_id'          => $dni,
+                '_billing_dni'         => $dni,
+
+                '_billing_email'       => $email,
+                '_billing_phone'       => $phone,
                 '_billing_neighborhood' => $barrio,
                 'billing_neighborhood' => $barrio,
-                '_shipping_address_1' => $addr1,
-                '_shipping_address_2' => $addr2,
-                '_billing_address_1' => $addr1,
-                '_billing_address_2' => $addr2,
-                '_shipping_city' => $city,
-                '_billing_city' => $city,
-                '_shipping_state' => $state,
-                '_billing_state' => $state,
-                '_shipping_country' => 'CO',
-                '_billing_country' => 'CO',
-                '_order_shipping' => (string)$shippingCost,
-                '_cart_discount' => (string)$cartDiscount,
+
+                '_shipping_address_1'  => $addr1,
+                '_shipping_address_2'  => $addr2,
+                '_billing_address_1'   => $addr1,
+                '_billing_address_2'   => $addr2,
+
+                '_shipping_city'       => $city,
+                '_billing_city'        => $city,
+                '_shipping_state'      => $state,
+                '_billing_state'       => $state,
+                '_shipping_country'    => 'CO',
+                '_billing_country'     => 'CO',
+
+                '_order_shipping'      => (string)$shippingCost,
+                '_cart_discount'       => (string)$cartDiscount,
                 '_payment_method_title' => $paymentTitle,
-                '_payment_method' => $paymentMethod,
-                '_order_total' => (string)$finalTotal,
-                '_order_subtotal' => (string)$itemsSubtotal,
-                '_order_currency' => 'COP',
-                '_paid_date' => $nowLocal,
-                '_recorded_sales' => 'yes',
+                '_payment_method'      => $paymentMethod,
+
+                '_order_total'         => (string)$finalTotal,
+                '_order_subtotal'      => (string)$itemsSubtotal,
+                '_order_currency'      => 'COP',
+
+                // '_paid_date' => $nowLocal, // ❌ NO aquí
+                '_recorded_sales'      => 'yes',
                 '_order_stock_reduced' => 'yes',
-                '_created_via' => 'external_db',
-                '_order_key' => 'wc_order_' . bin2hex(random_bytes(8)),
-                '_prices_include_tax' => 'no',
-                '_order_version' => '8.0.0',
+                '_created_via'         => 'external_db',
+
+                // Mantén el order_key si quieres, pero idealmente NO regenerarlo en updates.
+                // Si lo regeneras, te puede romper links / tracking.
+                // '_order_key' => 'wc_order_' . bin2hex(random_bytes(8)),
+
+                '_prices_include_tax'  => 'no',
+                '_order_version'       => '8.0.0',
             ];
 
             foreach ($metaPairs as $k => $v) {
                 if (trim((string)$k) === '') continue;
                 $this->insertRow("{$this->db_prefix}postmeta", [
-                    'post_id' => $orderId,
-                    'meta_key' => $k,
-                    'meta_value' => ($v === null ? '' : (string)$v),
+                    'post_id'     => $orderId,
+                    'meta_key'    => $k,
+                    'meta_value'  => ($v === null ? '' : (string)$v),
                 ], true);
             }
-            $debug['steps'][] = ['updated_postmeta' => count($metaPairs)];
+            $debug['steps'][] = ['postmeta_rewritten' => count($metaPairs)];
 
-            /* 3) Actualizar direcciones HPOS */
+            /**
+             * STEP C) Direcciones HPOS
+             */
             if ($this->tableExists("{$this->db_prefix}wc_order_addresses")) {
-                // Eliminar direcciones existentes
                 mysqli_query($this->wp_connection, "DELETE FROM {$this->db_prefix}wc_order_addresses WHERE order_id = $orderId");
-                
+
                 $stateHPOS = str_starts_with($state, 'CO-') ? $state : ('CO-' . $state);
-                
-                // Insertar direcciones actualizadas
+
                 $this->insertRow("{$this->db_prefix}wc_order_addresses", [
-                    'order_id' => $orderId,
-                    'address_type' => 'billing',
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'company' => null,
-                    'address_1' => $addr1,
-                    'address_2' => $addr2,
-                    'city' => $city,
-                    'state' => $stateHPOS,
-                    'postcode' => null,
-                    'country' => 'CO',
-                    'email' => $email,
-                    'phone' => $phone
+                    'order_id'      => $orderId,
+                    'address_type'  => 'billing',
+                    'first_name'    => $firstName,
+                    'last_name'     => $lastName,
+                    'company'       => null,
+                    'address_1'     => $addr1,
+                    'address_2'     => $addr2,
+                    'city'          => $city,
+                    'state'         => $stateHPOS,
+                    'postcode'      => null,
+                    'country'       => 'CO',
+                    'email'         => $email,
+                    'phone'         => $phone
                 ]);
-                
+
                 $this->insertRow("{$this->db_prefix}wc_order_addresses", [
-                    'order_id' => $orderId,
-                    'address_type' => 'shipping',
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'company' => null,
-                    'address_1' => $addr1,
-                    'address_2' => $addr2,
-                    'city' => $city,
-                    'state' => $stateHPOS,
-                    'postcode' => null,
-                    'country' => 'CO',
-                    'email' => null,
-                    'phone' => null
+                    'order_id'      => $orderId,
+                    'address_type'  => 'shipping',
+                    'first_name'    => $firstName,
+                    'last_name'     => $lastName,
+                    'company'       => null,
+                    'address_1'     => $addr1,
+                    'address_2'     => $addr2,
+                    'city'          => $city,
+                    'state'         => $stateHPOS,
+                    'postcode'      => null,
+                    'country'       => 'CO',
+                    'email'         => null,
+                    'phone'         => null
                 ]);
-                $debug['steps'][] = ['updated_addresses' => 2];
+
+                $debug['steps'][] = ['hpos_addresses' => 2];
             }
 
-            /* 4) Actualizar items */
+            /**
+             * STEP D) Items (line_item / shipping / fee)
+             */
             if ($this->tableExists("{$this->db_prefix}woocommerce_order_items") && $this->tableExists("{$this->db_prefix}woocommerce_order_itemmeta")) {
-                // Eliminar items existentes
-                mysqli_query($this->wp_connection, "DELETE FROM {$this->db_prefix}woocommerce_order_itemmeta WHERE order_item_id IN (SELECT order_item_id FROM {$this->db_prefix}woocommerce_order_items WHERE order_id = $orderId)");
+                mysqli_query(
+                    $this->wp_connection,
+                    "DELETE FROM {$this->db_prefix}woocommerce_order_itemmeta
+                 WHERE order_item_id IN (
+                    SELECT order_item_id FROM {$this->db_prefix}woocommerce_order_items WHERE order_id = $orderId
+                 )"
+                );
                 mysqli_query($this->wp_connection, "DELETE FROM {$this->db_prefix}woocommerce_order_items WHERE order_id = $orderId");
-                
-                // Insertar items actualizados
+
+                // Line items
                 foreach ($products as $product) {
                     $qty = (int)($product['quantity'] ?? 0);
                     if ($qty < 1) continue;
-                    
-                    $productId = (int)($product['id'] ?? 0);
+
+                    $productId    = (int)($product['id'] ?? 0);
                     $productTitle = (string)($product['title'] ?? 'Producto');
+
                     $regular = (int)($product['regular_price'] ?? $product['price'] ?? 0);
-                    $price = (int)(($product['sale_price'] !== null && $product['sale_price'] !== '') ? $product['sale_price'] : ($product['price'] ?? $regular));
-                    
+                    $price   = (int)(($product['sale_price'] !== null && $product['sale_price'] !== '') ? $product['sale_price'] : ($product['price'] ?? $regular));
+
                     $lineSubtotal = $regular * $qty;
-                    $lineTotal = $price * $qty;
-                    
+                    $lineTotal    = $price * $qty;
+
                     $itemId = $this->insertRow("{$this->db_prefix}woocommerce_order_items", [
                         'order_item_name' => $productTitle,
                         'order_item_type' => 'line_item',
-                        'order_id' => $orderId,
+                        'order_id'        => $orderId,
                     ]);
-                    
+
                     $itemMeta = [
-                        '_product_id' => $productId,
-                        '_variation_id' => 0,
-                        '_qty' => $qty,
-                        '_line_subtotal' => $lineSubtotal,
-                        '_line_total' => $lineTotal,
-                        '_line_subtotal_tax' => 0,
-                        '_line_tax' => 0,
-                        '_line_tax_data' => 'a:2:{s:5:"total";a:0:{}s:8:"subtotal";a:0:{}}',
+                        '_product_id'         => $productId,
+                        '_variation_id'       => 0,
+                        '_qty'                => $qty,
+                        '_line_subtotal'      => $lineSubtotal,
+                        '_line_total'         => $lineTotal,
+                        '_line_subtotal_tax'  => 0,
+                        '_line_tax'           => 0,
+                        '_line_tax_data'      => 'a:2:{s:5:"total";a:0:{}s:8:"subtotal";a:0:{}}',
                     ];
-                    
+
                     foreach ($itemMeta as $mk => $mv) {
                         $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
                             'order_item_id' => $itemId,
-                            'meta_key' => $mk,
-                            'meta_value' => (string)$mv,
+                            'meta_key'      => $mk,
+                            'meta_value'    => (string)$mv,
                         ]);
                     }
                 }
-                
-                // Agregar item de shipping si hay costo
+
+                // Shipping item (✅ meta limpio: cost + taxes)
                 if ($shippingCost > 0) {
                     $shipItemId = $this->insertRow("{$this->db_prefix}woocommerce_order_items", [
                         'order_item_name' => 'Envío',
                         'order_item_type' => 'shipping',
-                        'order_id' => $orderId,
+                        'order_id'        => $orderId,
                     ]);
 
                     $shipMeta = [
-                        'method_id' => 'flat_rate',
+                        'method_id'   => 'flat_rate',
                         'instance_id' => '0',
-                        'cost' => (string)$shippingCost,
-                        'total' => (string)$shippingCost,
-                        'taxes' => $this->serializeEmptyTaxes(),
+                        'cost'        => (string)$shippingCost,
+                        'taxes'       => $this->serializeEmptyTaxes(),
                     ];
 
                     foreach ($shipMeta as $mk => $mv) {
                         $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
                             'order_item_id' => $shipItemId,
-                            'meta_key' => $mk,
-                            'meta_value' => $mv,
+                            'meta_key'      => $mk,
+                            'meta_value'    => $mv,
                         ]);
                     }
-                    $debug['steps'][] = ['added_shipping_item' => $shippingCost];
+
+                    $debug['steps'][] = ['shipping_item' => $shippingCost];
                 }
-                
-                // Agregar item de descuento si hay descuento del carrito
+
+                // Discount as fee
                 if ($cartDiscount > 0) {
                     $feeItemId = $this->insertRow("{$this->db_prefix}woocommerce_order_items", [
                         'order_item_name' => 'Descuento',
                         'order_item_type' => 'fee',
-                        'order_id' => $orderId,
+                        'order_id'        => $orderId,
                     ]);
 
                     $feeMeta = [
-                        '_tax_class' => '',
-                        '_line_subtotal' => '-' . (string)$cartDiscount,
-                        '_line_total' => '-' . (string)$cartDiscount,
+                        '_tax_class'         => '',
+                        '_line_subtotal'     => '-' . (string)$cartDiscount,
+                        '_line_total'        => '-' . (string)$cartDiscount,
                         '_line_subtotal_tax' => '0',
-                        '_line_tax' => '0',
-                        '_line_tax_data' => $this->serializeEmptyTaxes(),
+                        '_line_tax'          => '0',
+                        '_line_tax_data'     => $this->serializeEmptyTaxes(),
                     ];
 
                     foreach ($feeMeta as $mk => $mv) {
                         $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
                             'order_item_id' => $feeItemId,
-                            'meta_key' => $mk,
-                            'meta_value' => $mv,
+                            'meta_key'      => $mk,
+                            'meta_value'    => $mv,
                         ]);
                     }
-                    $debug['steps'][] = ['added_discount_item' => $cartDiscount];
+
+                    $debug['steps'][] = ['discount_fee' => $cartDiscount];
                 }
-                
-                $debug['steps'][] = ['updated_items' => count($products)];
+
+                $debug['steps'][] = ['items_rewritten' => true];
             }
 
-            /* 5) Actualizar HPOS order */
+            /**
+             * STEP E) HPOS order + meta (todavía en pending, pero con totales correctos)
+             */
             if ($this->tableExists("{$this->db_prefix}wc_orders")) {
-                $hposData = [
-                    'status' => $statusHPOS,
-                    'currency' => 'COP',
-                    'type' => 'shop_order',
-                    'parent_order_id' => 0,
-                    'date_created_gmt' => $nowGmt,
-                    'date_updated_gmt' => $nowGmt,
-                    'customer_id' => $customerId,
-                    'billing_email' => $email,
-                    'total_amount' => $finalTotal,
-                    'tax_amount' => 0,
+                $this->updateRowByWhere("{$this->db_prefix}wc_orders", [
+                    'status'                => $hposPending, // ✅ sigue pending aquí
+                    'currency'              => 'COP',
+                    'type'                  => 'shop_order',
+                    'parent_order_id'       => 0,
+                    'date_updated_gmt'      => $nowGmt,
+                    'customer_id'           => $customerId,
+                    'billing_email'         => $email,
+                    'total_amount'          => $finalTotal,
+                    'tax_amount'            => 0,
                     'shipping_total_amount' => $shippingCost,
                     'discount_total_amount' => $cartDiscount,
-                    'discount_tax_amount' => 0,
-                    'shipping_tax_amount' => 0,
-                    'payment_method' => $paymentMethod,
-                    'payment_method_title' => $paymentTitle,
-                    'customer_note' => $orderNotes,
-                ];
-                
-                $this->updateRowByWhere("{$this->db_prefix}wc_orders", $hposData, "id = $orderId");
-                $debug['steps'][] = ['updated_hpos_order' => $orderId];
+                    'discount_tax_amount'   => 0,
+                    'shipping_tax_amount'   => 0,
+                    'payment_method'        => $paymentMethod,
+                    'payment_method_title'  => $paymentTitle,
+                    'customer_note'         => $orderNotes,
+                ], "id = $orderId");
+                $debug['steps'][] = ['hpos_totals_updated' => true];
             }
 
-            /* 6) Actualizar wc_orders_meta completo */
             if ($this->tableExists("{$this->db_prefix}wc_orders_meta")) {
-                // Eliminar meta existente
                 mysqli_query($this->wp_connection, "DELETE FROM {$this->db_prefix}wc_orders_meta WHERE order_id = $orderId");
-                
+
                 $meta = [
-                    '_created_via' => 'external_db',
-                    '_order_currency' => 'COP',
-                    '_payment_method' => $paymentMethod,
-                    '_payment_method_title' => $paymentTitle,
-                    '_order_shipping' => (string)$shippingCost,
-                    '_cart_discount' => (string)$cartDiscount,
-                    '_order_total' => (string)$finalTotal,
-                    '_order_subtotal' => (string)$itemsSubtotal,
-                    '_customer_user' => (string)$customerId,
-                    '_billing_email' => $email,
-                    '_billing_phone' => $phone,
-                    '_billing_address_index' => $addr1 . ' ' . $addr2,
-                    '_billing_barrio' => $barrio,
-                    '_billing_dni' => $dni,
-                    '_shipping_address_index' => $addr1 . ' ' . $addr2,
-                    '_shipping_barrio' => $barrio,
-                    '_shipping_dni' => $dni,
-                    '_wc_order_attribution_source_type' => 'utm',
-                    '_wc_order_attribution_utm_source' => 'Sistema de Facturacion',
-                    '_order_key' => 'wc_order_' . bin2hex(random_bytes(8)),
-                    '_prices_include_tax' => 'no',
-                    '_edit_lock' => time() . ':1',
+                    '_created_via'           => 'external_db',
+                    '_order_currency'        => 'COP',
+                    '_payment_method'        => $paymentMethod,
+                    '_payment_method_title'  => $paymentTitle,
+                    '_order_shipping'        => (string)$shippingCost,
+                    '_cart_discount'         => (string)$cartDiscount,
+                    '_order_total'           => (string)$finalTotal,
+                    '_order_subtotal'        => (string)$itemsSubtotal,
+                    '_customer_user'         => (string)$customerId,
+                    '_billing_email'         => $email,
+                    '_billing_phone'         => $phone,
+                    '_billing_barrio'        => $barrio,
+                    '_billing_dni'           => $dni,
+                    '_shipping_barrio'       => $barrio,
+                    '_shipping_dni'          => $dni,
+                    '_prices_include_tax'    => 'no',
+                    '_edit_lock'             => time() . ':1',
                 ];
 
                 foreach ($meta as $k => $v) {
                     $this->insertRow("{$this->db_prefix}wc_orders_meta", [
-                        'order_id' => $orderId,
-                        'meta_key' => $k,
+                        'order_id'   => $orderId,
+                        'meta_key'   => $k,
                         'meta_value' => (string)$v,
                     ]);
                 }
-                $debug['steps'][] = ['updated_hpos_meta' => count($meta)];
+
+                $debug['steps'][] = ['hpos_meta_rewritten' => count($meta)];
+            }
+
+            /**
+             * STEP F) Stats (pending, con totales correctos)
+             * OJO: date_paid null en pending.
+             */
+            if ($this->tableExists("{$this->db_prefix}wc_order_stats")) {
+                $statsData = [
+                    'order_id'          => $orderId,
+                    'parent_id'         => 0,
+                    'date_created'      => $nowLocal,
+                    'date_created_gmt'  => $nowGmt,
+                    'date_paid'         => null,              // ✅ pending => no pagado
+                    'date_completed'    => null,
+                    'num_items_sold'    => $itemsQty,
+                    'total_sales'       => (float)$finalTotal, // ✅ total final
+                    'tax_total'         => 0,
+                    'shipping_total'    => (float)$shippingCost,
+                    'net_total'         => (float)$netTotal,   // ✅ neto sin envío
+                    'returning_customer' => 0,
+                    'status'            => $hposPending,
+                    'customer_id'       => $customerId,
+                ];
+
+                $checkStats = mysqli_query($this->wp_connection, "SELECT order_id FROM {$this->db_prefix}wc_order_stats WHERE order_id = $orderId LIMIT 1");
+                if ($checkStats && mysqli_num_rows($checkStats) > 0) {
+                    $this->updateRowByWhere("{$this->db_prefix}wc_order_stats", $statsData, "order_id = $orderId");
+                } else {
+                    $this->insertRow("{$this->db_prefix}wc_order_stats", $statsData);
+                }
+
+                $debug['steps'][] = ['stats_pending_updated' => true];
+            }
+
+            $recalc = $this->rebuildOrderTaxesAndTotals($orderId, [
+                'country'        => 'CO',
+                'state'          => $state,       // ej: "CO-SAN" o "SAN" según tu estándar
+                'city'           => $city,
+                'postcode'       => '',
+                'shipping_cost'  => $shippingCost,
+                'cart_discount'  => $cartDiscount,
+                'decimals'       => 2,
+
+                // Si Colombia en tu tienda no usa taxes, pon true y listo:
+                // 'force_no_taxes' => true,
+            ], $debug);
+
+            /**
+             * STEP G) Estado final: COMPLETED
+             * Aquí sí marcamos pago (paid_date / date_paid) y dejamos status final.
+             */
+            $this->updateRowByWhere("{$this->db_prefix}posts", [
+                'post_status'       => $postsFinal,
+                'post_modified'     => $nowLocal,
+                'post_modified_gmt' => $nowGmt,
+            ], "ID = $orderId");
+            $debug['steps'][] = ['posts_to_completed' => $orderId];
+
+            if ($this->tableExists("{$this->db_prefix}wc_orders")) {
+                $this->updateRowByWhere("{$this->db_prefix}wc_orders", [
+                    'status'           => $hposFinal,
+                    'date_updated_gmt' => $nowGmt,
+                ], "id = $orderId");
+                $debug['steps'][] = ['hpos_to_completed' => $orderId];
+            }
+
+            // marcar pago SOLO al final
+            $this->insertRow("{$this->db_prefix}postmeta", [
+                'post_id'     => $orderId,
+                'meta_key'    => '_paid_date',
+                'meta_value'  => $nowLocal,
+            ], true);
+
+            if ($this->tableExists("{$this->db_prefix}wc_order_stats")) {
+                $this->updateRowByWhere("{$this->db_prefix}wc_order_stats", [
+                    'status'     => $hposFinal,
+                    'date_paid'  => $nowLocal,
+                ], "order_id = $orderId");
+                $debug['steps'][] = ['stats_to_completed' => true];
             }
 
             mysqli_commit($this->wp_connection);
-            
+
             return [
                 'success' => true,
-                'total' => $finalTotal
+                'total'   => $finalTotal
             ];
-            
         } catch (Exception $e) {
             mysqli_rollback($this->wp_connection);
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage()
             ];
         }
     }
@@ -922,7 +1469,7 @@ class WooCommerceOrders
         $existingOrderId = $this->findExistingOrder($orderData);
         if ($existingOrderId) {
             $debug['steps'][] = ['existing_order_found' => $existingOrderId];
-            
+
             // Actualizar orden existente en lugar de crear nueva
             $updateResult = $this->updateExistingOrder($existingOrderId, $orderData, $debug);
             if ($updateResult['success']) {
@@ -950,7 +1497,7 @@ class WooCommerceOrders
             $customerResult = $this->customerManager->processCustomer($customer);
             $customerId = $customerResult['user_id'];
             $wasCreated = $customerResult['created'];
-            
+
             $debug['steps'][] = [
                 'customer_processed' => true,
                 'user_id' => $customerId,
@@ -1054,7 +1601,7 @@ class WooCommerceOrders
             $metaPairs = [
                 // 🔥 CRÍTICO: Campo que vincula pedido con usuario
                 '_customer_user'       => (string)$customerId,
-                
+
                 '_shipping_first_name' => $firstName,
                 '_shipping_last_name'  => $lastName,
                 '_billing_first_name'  => $firstName,
@@ -1064,7 +1611,7 @@ class WooCommerceOrders
                 '_billing_dni'         => $dni,
                 '_billing_email'       => $email,
                 '_billing_phone'       => $phone,
-                '_billing_neighborhood'=> $barrio,
+                '_billing_neighborhood' => $barrio,
                 'billing_neighborhood' => $barrio,
                 '_shipping_address_1'  => $addr1,
                 '_shipping_address_2'  => $addr2,
@@ -1079,7 +1626,7 @@ class WooCommerceOrders
 
                 '_order_shipping'      => (string)$shippingCost,
                 '_cart_discount'       => (string)$cartDiscount,
-                '_payment_method_title'=> $paymentTitle,
+                '_payment_method_title' => $paymentTitle,
 
                 // Si lo tienes, guarda también el slug
                 '_payment_method'      => $paymentMethod,
@@ -1092,7 +1639,7 @@ class WooCommerceOrders
                 '_recorded_sales'      => 'yes',
                 '_order_stock_reduced' => 'yes',
                 '_created_via'         => 'external_db',
-                
+
                 // Campos adicionales para compatibilidad WooCommerce
                 '_order_key'           => 'wc_order_' . bin2hex(random_bytes(8)),
                 '_prices_include_tax'  => 'no',
@@ -1215,26 +1762,26 @@ class WooCommerceOrders
                         // Calcular descuentos a nivel de producto
                         $productDiscount = ($lineSubtotal - $lineTotal); // Diferencia entre precio regular y precio final
                         $gross = $lineTotal; // revenue por item después de descuentos
-                        
+
                         // Consultar si el producto tiene IVA configurado
                         $taxAmount = 0;
                         $taxStatusQuery = "SELECT meta_value FROM {$this->db_prefix}postmeta WHERE post_id = {$parentProductId} AND meta_key = '_tax_status' LIMIT 1";
                         $taxStatusResult = mysqli_query($this->wp_connection, $taxStatusQuery);
-                        
+
                         if ($taxStatusResult && ($taxRow = mysqli_fetch_assoc($taxStatusResult))) {
                             $taxStatus = $taxRow['meta_value'] ?? 'none';
-                            
+
                             // Si el producto es taxable, calcular IVA
                             if ($taxStatus === 'taxable') {
                                 $taxRate = (float)($_ENV['TAX_RATE'] ?? 19); // Default 19% si no está en .env
                                 $taxAmount = ($gross * $taxRate) / 100;
                             }
                         }
-                        
+
                         // Calcular shipping amount proporcional por producto
                         $totalItemsValue = $itemsTotal; // Total de todos los productos
                         $productShippingAmount = $totalItemsValue > 0 ? ($shippingCost * $gross) / $totalItemsValue : 0;
-                        
+
                         $this->insertRow("{$this->db_prefix}wc_order_product_lookup", [
                             'order_item_id' => $itemId,            // ✅ CRÍTICO
                             'order_id'      => $postId,
@@ -1271,6 +1818,8 @@ class WooCommerceOrders
                     'instance_id' => '0',
                     'cost' => (string)$shippingCost,
                     'total' => (string)$shippingCost,
+                    '_line_total' => (string)$shippingCost,
+                    '_line_subtotal' => (string)$shippingCost,
                     'taxes' => $this->serializeEmptyTaxes(),
                 ];
 
@@ -1428,7 +1977,6 @@ class WooCommerceOrders
                         $debug['warnings'][] = "No se pudo insertar {$this->db_prefix}wc_order_operational_data: " . $e->getMessage();
                     }
                 }
-
             } else {
                 $debug['warnings'][] = "{$this->db_prefix}wc_orders no existe: el pedido NO aparecerá en listados HPOS";
             }
@@ -1462,7 +2010,6 @@ class WooCommerceOrders
                 'total' => $finalTotal,
                 'debug' => $debug,
             ];
-
         } catch (Exception $e) {
             mysqli_rollback($this->wp_connection);
             return [
@@ -1614,18 +2161,23 @@ class WooCommerceOrders
 
                 // ✅ DNI: tú guardas varios keys, devolvemos el primero que exista
                 $row['dni_cliente'] = $this->getLegacyMetaFirst($order_id, [
-                    '_billing_dni', 'billing_id', '_billing_id'
+                    '_billing_dni',
+                    'billing_id',
+                    '_billing_id'
                 ]);
 
                 // ✅ Barrio: tu sistema guarda _billing_neighborhood (NO _billing_barrio)
                 $row['barrio'] = $this->getLegacyMetaFirst($order_id, [
-                    '_billing_neighborhood', 'billing_neighborhood',
-                    '_billing_barrio', 'billing_barrio' // por si algún pedido viejo lo tiene así
+                    '_billing_neighborhood',
+                    'billing_neighborhood',
+                    '_billing_barrio',
+                    'billing_barrio' // por si algún pedido viejo lo tiene así
                 ]);
 
                 // ✅ Departamento: preferimos el legacy (más "humano"), si no, el HPOS
                 $row['departamento'] = $this->getLegacyMetaFirst($order_id, [
-                    '_billing_state', '_shipping_state'
+                    '_billing_state',
+                    '_shipping_state'
                 ]);
                 if (trim((string)$row['departamento']) === '') {
                     $row['departamento'] = (string)($row['departamento_hpos'] ?? '');
@@ -1633,7 +2185,8 @@ class WooCommerceOrders
 
                 // ✅ País: preferimos legacy, si no, HPOS
                 $row['pais'] = $this->getLegacyMetaFirst($order_id, [
-                    '_billing_country', '_shipping_country'
+                    '_billing_country',
+                    '_shipping_country'
                 ]);
                 if (trim((string)$row['pais']) === '') {
                     $row['pais'] = (string)($row['pais_hpos'] ?? '');
@@ -1903,39 +2456,39 @@ class WooCommerceOrders
             $row['subtotal_linea'] = (float)($row['subtotal_linea'] ?? 0);
             $row['product_id'] = (int)($row['product_id'] ?? 0);
             $row['variation_id'] = (int)($row['variation_id'] ?? 0);
-            
+
             // Determinar el nombre del producto a mostrar
             if (!empty($row['variation_id']) && $row['variation_id'] > 0) {
                 // Es una variación - usar nombre de la variación o del item
                 $row['product_name'] = $row['variation_name'] ?: $row['nombre_producto'];
                 $row['sku'] = $row['variation_sku'] ?: $row['parent_sku'] ?: '';
-                
+
                 // Usar precios de la variación si están disponibles
                 $row['regular_price'] = (float)($row['variation_regular_price'] ?: $row['parent_regular_price'] ?: 0);
                 $row['sale_price'] = (float)($row['variation_sale_price'] ?: $row['parent_sale_price'] ?: 0);
-                
+
                 // Determinar imagen: priorizar imagen de variación, fallback a producto padre
                 $thumbnail_id = $row['variation_thumbnail_id'] ?: $row['parent_thumbnail_id'] ?: 0;
             } else {
                 // Es un producto simple - usar nombre del producto padre
                 $row['product_name'] = $row['parent_name'] ?: $row['nombre_producto'];
                 $row['sku'] = $row['parent_sku'] ?: '';
-                
+
                 // Usar precios del producto padre
                 $row['regular_price'] = (float)($row['parent_regular_price'] ?: 0);
                 $row['sale_price'] = (float)($row['parent_sale_price'] ?: 0);
-                
+
                 // Usar imagen del producto padre
                 $thumbnail_id = $row['parent_thumbnail_id'] ?: 0;
             }
-            
+
             // Obtener URL de la imagen
             $row['image_id'] = (int)$thumbnail_id;
             $row['image_url'] = $this->getImageUrl($thumbnail_id);
-            
+
             // Calcular precio unitario actual del pedido
             $row['unit_price'] = $row['cantidad'] > 0 ? $row['total_linea'] / $row['cantidad'] : 0;
-            
+
             // Determinar si hay descuento
             // Un producto tiene descuento si:
             // 1. Tiene sale_price > 0 Y sale_price < regular_price
@@ -1943,17 +2496,17 @@ class WooCommerceOrders
             $has_product_discount = ($row['sale_price'] > 0 && $row['sale_price'] < $row['regular_price']);
             $has_order_discount = ($row['subtotal_linea'] > $row['total_linea']);
             $row['has_discount'] = $has_product_discount || $has_order_discount;
-            
-            
+
+
             // Agregar campos adicionales para compatibilidad con ventas.php
             $row['_regular_price'] = $row['regular_price'];
             $row['_sale_price'] = $row['sale_price'];
-            
+
             // Asegurar que tenemos un nombre de producto
             if (empty($row['product_name'])) {
                 $row['product_name'] = $row['nombre_producto'] ?: 'Producto sin nombre';
             }
-            
+
             // Mapear campos para compatibilidad con get_order_details.php
             $row['order_item_name'] = $row['product_name'];
             $row['product_qty'] = $row['cantidad'];
@@ -1971,13 +2524,14 @@ class WooCommerceOrders
      * Obtener URL de imagen desde WordPress
      * Siguiendo el patrón de woocommerce_products.php
      */
-    private function getImageUrl($thumbnail_id) {
+    private function getImageUrl($thumbnail_id)
+    {
         if (empty($thumbnail_id) || $thumbnail_id <= 0) {
-            return URL_WOOCOMMERCE .'/wp-content/uploads/woocommerce-placeholder.webp';
+            return URL_WOOCOMMERCE . '/wp-content/uploads/woocommerce-placeholder.webp';
         }
-        
+
         $thumbnail_id = intval($thumbnail_id);
-        
+
         // Obtener la URL de la imagen desde wp_posts y wp_postmeta
         $query = "
             SELECT 
@@ -1988,20 +2542,20 @@ class WooCommerceOrders
             WHERE p.ID = $thumbnail_id 
             AND p.post_type = 'attachment'
         ";
-        
+
         $result = mysqli_query($this->wp_connection, $query);
         if (!$result || mysqli_num_rows($result) == 0) {
             return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
         }
-        
+
         $row = mysqli_fetch_assoc($result);
         mysqli_free_result($result);
-        
+
         // Si tenemos la URL directa, usarla
         if (!empty($row['image_url'])) {
             return $row['image_url'];
         }
-        
+
         // Si no, intentar construir la URL desde los metadatos
         if (!empty($row['attachment_metadata'])) {
             // Intentar deserializar los metadatos
@@ -2012,7 +2566,7 @@ class WooCommerceOrders
                 return $upload_dir . $metadata['file'];
             }
         }
-        
+
         return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
     }
 
@@ -2063,7 +2617,8 @@ class WooCommerceOrders
     }
 
 
-    private function rowExists(string $table, string $whereSql): bool {
+    private function rowExists(string $table, string $whereSql): bool
+    {
         if (!$this->tableExists($table)) return false;
         $r = mysqli_query($this->wp_connection, "SELECT 1 FROM {$table} WHERE {$whereSql} LIMIT 1");
         return ($r && mysqli_num_rows($r) > 0);
@@ -2072,7 +2627,8 @@ class WooCommerceOrders
     /**
      * UPSERT operacional HPOS
      */
-    private function upsertOperationalData(int $orderId, string $nowGmt, int $shippingCost, int $cartDiscount, int $customerId = 0): void {
+    private function upsertOperationalData(int $orderId, string $nowGmt, int $shippingCost, int $cartDiscount, int $customerId = 0): void
+    {
         if (!$this->tableExists("{$this->db_prefix}wc_order_operational_data")) return;
 
         // ⚠️ OJO: usar EXACTAMENTE los nombres de columnas que tu DESCRIBE mostró
@@ -2107,7 +2663,8 @@ class WooCommerceOrders
     /**
      * UPSERT stats HPOS
      */
-    private function upsertOrderStats(int $orderId, string $nowLocal, string $nowGmt, string $status, int $itemsQty, int $shippingCost, int $finalTotal, int $customerId = 0): void {
+    private function upsertOrderStats(int $orderId, string $nowLocal, string $nowGmt, string $status, int $itemsQty, int $shippingCost, int $finalTotal, int $customerId = 0): void
+    {
         if (!$this->tableExists("{$this->db_prefix}wc_order_stats")) return;
 
         $stats = [
@@ -2165,11 +2722,12 @@ class WooCommerceOrders
     /**
      * Método simple para probar conexión y obtener órdenes básicas
      */
-    public function getSimpleOrders($limit = 5) {
+    public function getSimpleOrders($limit = 5)
+    {
         // Primero intentar con HPOS
         $query = "SELECT * FROM {$this->db_prefix}wc_orders LIMIT $limit";
         $result = mysqli_query($this->wp_connection, $query);
-        
+
         if ($result && mysqli_num_rows($result) > 0) {
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
@@ -2177,11 +2735,11 @@ class WooCommerceOrders
             }
             return ['source' => 'HPOS', 'data' => $orders];
         }
-        
+
         // Si no funciona HPOS, intentar con posts tradicional
         $query = "SELECT ID, post_date, post_status, post_type FROM {$this->db_prefix}posts WHERE post_type = 'shop_order' LIMIT $limit";
         $result = mysqli_query($this->wp_connection, $query);
-        
+
         if ($result && mysqli_num_rows($result) > 0) {
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
@@ -2189,20 +2747,21 @@ class WooCommerceOrders
             }
             return ['source' => 'Posts', 'data' => $orders];
         }
-        
+
         return ['source' => 'None', 'data' => [], 'error' => mysqli_error($this->wp_connection)];
     }
 
-    
+
     /**
      * Mostrar las consultas SQL para probar manualmente
      */
-    public function showQueries() {
+    public function showQueries()
+    {
         $queries = [];
-        
+
         // Consulta para verificar tablas
         $queries['verificar_tablas'] = "SHOW TABLES LIKE '{$this->db_prefix}%';";
-        
+
         // Consulta HPOS principal (todas las órdenes)
         $queries['hpos_orders'] = "
                                 SELECT 
@@ -2223,10 +2782,10 @@ class WooCommerceOrders
                                 WHERE o.type = 'shop_order'
                                 ORDER BY o.date_created_gmt DESC
                                 LIMIT 10;";
-        
+
         // Consulta simple HPOS
         $queries['hpos_simple'] = "SELECT * FROM {$this->db_prefix}wc_orders WHERE type = 'shop_order' LIMIT 5;";
-        
+
         // Consulta para obtener todos los estados disponibles
         $queries['estados_disponibles'] = "
                                 SELECT DISTINCT 
@@ -2234,7 +2793,7 @@ class WooCommerceOrders
                                 FROM {$this->db_prefix}wc_orders o
                                 WHERE o.type = 'shop_order'
                                 ORDER BY o.status;";
-        
+
         // Consulta posts tradicional
         $queries['posts_orders'] = "
                                 SELECT 
@@ -2250,22 +2809,23 @@ class WooCommerceOrders
                                 AND p.post_status IN ('wc-processing', 'wc-on-hold', 'wc-completed')
                                 ORDER BY p.post_date DESC
                                 LIMIT 5;";
-        
+
         // Consulta simple posts
         $queries['posts_simple'] = "SELECT ID, post_date, post_status, post_type FROM {$this->db_prefix}posts WHERE post_type = 'shop_order' LIMIT 5;";
-        
+
         // Verificar estructura de tablas
         $queries['describe_hpos'] = "DESCRIBE {$this->db_prefix}wc_orders;";
         $queries['describe_addresses'] = "DESCRIBE {$this->db_prefix}wc_order_addresses;";
         $queries['describe_posts'] = "DESCRIBE {$this->db_prefix}posts;";
-        
+
         return $queries;
     }
 
     /**
      * Obtener todos los estados disponibles en las órdenes
      */
-    public function getAllOrderStatuses() {
+    public function getAllOrderStatuses()
+    {
         $query = "
             SELECT DISTINCT 
                 o.status as estado,
@@ -2275,13 +2835,13 @@ class WooCommerceOrders
             GROUP BY o.status
             ORDER BY cantidad DESC
         ";
-        
+
         $result = mysqli_query($this->wp_connection, $query);
-        
+
         if (!$result) {
             return ['error' => mysqli_error($this->wp_connection)];
         }
-        
+
         $estados = [];
         while ($row = mysqli_fetch_assoc($result)) {
             $estados[] = [
@@ -2290,22 +2850,23 @@ class WooCommerceOrders
                 'etiqueta' => $this->getStatusLabel($row['estado'])
             ];
         }
-        
+
         return $estados;
     }
-    
-     
+
+
     /**
      * Buscar órdenes por cliente, email o ID
      */
-    public function searchOrders($search_term, $status = 'all', $limit = 50) {
+    public function searchOrders($search_term, $status = 'all', $limit = 50)
+    {
         $search_term = mysqli_real_escape_string($this->wp_connection, $search_term);
-        
+
         $status_condition = '';
         if ($status !== 'all') {
             $status_condition = "AND o.status = '$status'";
         }
-        
+
         $query = "
             SELECT 
                 o.id AS order_id,
@@ -2334,39 +2895,40 @@ class WooCommerceOrders
             ORDER BY o.date_created_gmt DESC
             LIMIT $limit
         ";
-        
+
         $result = mysqli_query($this->wp_connection, $query);
-        
+
         if (!$result) {
             die("Error en búsqueda de órdenes: " . mysqli_error($this->wp_connection));
         }
-        
+
         $orders = [];
         while ($row = mysqli_fetch_assoc($result)) {
             $row['total'] = floatval($row['total'] ?? 0);
             $row['nombre_completo'] = trim(($row['nombre_cliente'] ?? '') . ' ' . ($row['apellido_cliente'] ?? ''));
             $row['estado_legible'] = $this->getStatusLabel($row['estado']);
             $row['fecha_formateada'] = date('d/m/Y H:i', strtotime($row['fecha_orden']));
-            
+
             // Asegurar que todos los campos existan y usar el email más completo
             $row['email_cliente'] = $row['email_completo'] ?: $row['email_cliente'];
             $row['telefono_cliente'] = $row['telefono_cliente'] ?? '';
-            
+
             $orders[] = $row;
         }
-        
+
         return $orders;
     }
-    
+
     /**
      * Obtener todas las órdenes de WooCommerce
      */
-    public function getAllOrders($status = 'all', $limit = 100, $offset = 0) {
+    public function getAllOrders($status = 'all', $limit = 100, $offset = 0)
+    {
         $status_condition = '';
         if ($status !== 'all') {
             $status_condition = "AND o.status = '$status'";
         }
-        
+
         $query = "
             SELECT 
                 o.id AS order_id,
@@ -2388,54 +2950,55 @@ class WooCommerceOrders
             ORDER BY o.date_created_gmt DESC
             LIMIT $limit OFFSET $offset
         ";
-        
+
         // DEBUG: Mostrar la consulta que se va a ejecutar
         if (isset($_GET['debug_sql'])) {
             echo "<pre>CONSULTA SQL:\n" . $query . "\n</pre>";
         }
-        
+
         $result = mysqli_query($this->wp_connection, $query);
-        
+
         if (!$result) {
             die("Error en consulta de órdenes: " . mysqli_error($this->wp_connection));
         }
-        
+
         // DEBUG: Verificar si hay resultados
         $num_rows = mysqli_num_rows($result);
         if (isset($_GET['debug_sql'])) {
             echo "<pre>NÚMERO DE FILAS ENCONTRADAS: " . $num_rows . "\n</pre>";
         }
-        
+
         $orders = [];
         while ($row = mysqli_fetch_assoc($result)) {
             // DEBUG: Mostrar datos crudos de la primera fila
             if (isset($_GET['debug_sql']) && count($orders) == 0) {
             }
-            
+
             // Formatear datos para compatibilidad
             $row['total'] = floatval($row['total'] ?? 0);
             $row['nombre_completo'] = trim(($row['nombre_cliente'] ?? '') . ' ' . ($row['apellido_cliente'] ?? ''));
             $row['estado_legible'] = $this->getStatusLabel($row['estado']);
             $row['fecha_formateada'] = date('d/m/Y H:i', strtotime($row['fecha_orden']));
-            
+
             // Asegurar que todos los campos existan y usar el email más completo
             $row['email_cliente'] = $row['email_completo'] ?: $row['email_cliente'];
             $row['telefono_cliente'] = $row['telefono_cliente'] ?? '';
             $row['direccion_cliente'] = '';
             $row['ciudad_cliente'] = '';
-            
+
             $orders[] = $row;
-        }       
-        
+        }
+
         return $orders;
     }
 
     /**
      * Obtener estadísticas de órdenes
      */
-    public function getOrderStats($days = 30) {
+    public function getOrderStats($days = 30)
+    {
         $date_from = date('Y-m-d', strtotime("-$days days"));
-        
+
         $query = "
             SELECT 
                 o.status as estado,
@@ -2447,22 +3010,22 @@ class WooCommerceOrders
             GROUP BY o.status
             ORDER BY cantidad DESC
         ";
-        
+
         $result = mysqli_query($this->wp_connection, $query);
-        
+
         if (!$result) {
             die("Error al obtener estadísticas: " . mysqli_error($this->wp_connection));
         }
-        
+
         $stats = [];
         while ($row = mysqli_fetch_assoc($result)) {
             $row['cantidad'] = intval($row['cantidad']);
             $row['total_ventas'] = floatval($row['total_ventas']);
             $row['estado_legible'] = $this->getStatusLabel($row['estado']);
-            
+
             $stats[] = $row;
         }
-        
+
         return $stats;
     }
 
@@ -2480,7 +3043,7 @@ class WooCommerceOrders
             'fees' => [],
             'total_discount' => 0
         ];
-        
+
         // 1) Descuento desde _cart_discount en postmeta
         $query_cart = "
             SELECT meta_value as cart_discount
@@ -2491,12 +3054,12 @@ class WooCommerceOrders
             AND meta_value != ''
             LIMIT 1
         ";
-        
+
         $result = mysqli_query($this->wp_connection, $query_cart);
         if ($result && ($row = mysqli_fetch_assoc($result))) {
             $discounts['cart_discount'] = abs((float)$row['cart_discount']);
         }
-        
+
         // 2) Descuentos desde ítems (cupones y fees negativos)
         if ($this->tableExists("{$this->db_prefix}woocommerce_order_items")) {
             $query_items = "
@@ -2512,12 +3075,12 @@ class WooCommerceOrders
                 AND oi.order_item_type IN ('coupon', 'fee')
                 GROUP BY oi.order_item_id, oi.order_item_name, oi.order_item_type
             ";
-            
+
             $result = mysqli_query($this->wp_connection, $query_items);
             if ($result) {
                 while ($row = mysqli_fetch_assoc($result)) {
                     $amount = abs((float)$row['item_total']);
-                    
+
                     if ($row['order_item_type'] === 'coupon') {
                         $discounts['coupons'][] = [
                             'name' => $row['order_item_name'],
@@ -2532,20 +3095,20 @@ class WooCommerceOrders
                 }
             }
         }
-        
+
         // 3) Calcular descuento total
         $total = $discounts['cart_discount'];
-        
+
         foreach ($discounts['coupons'] as $coupon) {
             $total += $coupon['amount'];
         }
-        
+
         foreach ($discounts['fees'] as $fee) {
             $total += $fee['amount'];
         }
-        
+
         $discounts['total_discount'] = $total;
-        
+
         return $discounts;
     }
 
@@ -2571,7 +3134,7 @@ class WooCommerceOrders
         $this->insertRow($table, [
             $idColumn   => $orderId,
             'meta_key'  => $metaKey,
-            'meta_value'=> $metaValue,
+            'meta_value' => $metaValue,
         ], false);
     }
 
@@ -2605,30 +3168,30 @@ class WooCommerceOrders
         try {
             // Sanitizar datos
             $order_id = (int)$order_id;
-            
+
             // Obtener conexión a la base de datos de ventas para tabla facturas
             $ventas_connection = DatabaseConfig::getVentasConnection();
-            
+
             // 1. Generar número de factura usando SERIE_NUMERO_FACTURA
             $invoice_number = Utils::getNextInvoiceNumber();
-            
+
             // Verificar que el número no exista (por seguridad)
             if (Utils::invoiceNumberExists($invoice_number)) {
                 Utils::logError("Número de factura $invoice_number ya existe, generando nuevo número", 'WARNING', 'WooCommerceOrders');
                 $invoice_number = Utils::getNextInvoiceNumber();
             }
-            
+
             $invoice_number_escaped = mysqli_real_escape_string($ventas_connection, $invoice_number);
-            
+
             // 2. Insertar en tabla facturas (base de datos ventas)
             $query_factura = "INSERT INTO facturas (id_order, factura, estado) VALUES ('$order_id', '$invoice_number_escaped', 'a')";
             if (!mysqli_query($ventas_connection, $query_factura)) {
                 throw new Exception("Error insertando factura: " . mysqli_error($ventas_connection));
             }
-            
+
             // Iniciar transacción en WordPress para las actualizaciones de WooCommerce
             mysqli_autocommit($this->wp_connection, false);
-            
+
             // Obtener estado actual del pedido antes de cambiarlo
             $query_current_status = "SELECT post_status FROM {$this->db_prefix}posts WHERE ID = '$order_id'";
             $result_status = mysqli_query($this->wp_connection, $query_current_status);
@@ -2636,13 +3199,13 @@ class WooCommerceOrders
             if ($result_status && $row = mysqli_fetch_assoc($result_status)) {
                 $current_status = $row['post_status'];
             }
-            
+
             // 2. Actualizar estado del pedido a completado
             $query_post = "UPDATE {$this->db_prefix}posts SET post_status = 'wc-completed' WHERE ID = '$order_id'";
             if (!mysqli_query($this->wp_connection, $query_post)) {
                 throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
             }
-            
+
             // 2.1. Agregar nota al pedido sobre el cambio de estado (solo si cambió)
             if ($current_status !== 'wc-completed') {
                 $status_names = [
@@ -2654,47 +3217,46 @@ class WooCommerceOrders
                     'wc-refunded' => 'Reembolsado',
                     'wc-failed' => 'Fallido'
                 ];
-                
+
                 $current_status_name = $status_names[$current_status] ?? $current_status;
                 $note_content = "Estado del pedido cambiado de '$current_status_name' a 'Completado'. Factura #$invoice_number generada en sistema de ventas.";
-                
+
                 // Usar el método existente para agregar la nota
                 $this->addOrderNote($order_id, $note_content, 'customer', 0);
             }
-            
+
             // 3. Actualizar estadísticas de WooCommerce
             $query_stats = "UPDATE {$this->db_prefix}wc_order_stats SET status = 'wc-completed' WHERE order_id = '$order_id'";
             mysqli_query($this->wp_connection, $query_stats); // No crítico si falla
-            
+
             // 4. Actualizar HPOS si existe
             $query_hpos = "UPDATE {$this->db_prefix}wc_orders SET status = 'wc-completed' WHERE id = '$order_id'";
             mysqli_query($this->wp_connection, $query_hpos); // No crítico si falla
-            
+
             // Confirmar transacción de WordPress
             mysqli_commit($this->wp_connection);
             mysqli_autocommit($this->wp_connection, true);
-            
+
             // Cerrar conexión de ventas
             mysqli_close($ventas_connection);
-            
+
             Utils::logError("Pedido #$order_id completado exitosamente con factura #$invoice_number", 'INFO', 'WooCommerceOrders');
             return [
                 'success' => true,
                 'invoice_number' => $invoice_number
             ];
-            
         } catch (Exception $e) {
             // Revertir transacción de WordPress si estaba activa
             if (isset($this->wp_connection)) {
                 mysqli_rollback($this->wp_connection);
                 mysqli_autocommit($this->wp_connection, true);
             }
-            
+
             // Cerrar conexión de ventas si existe
             if (isset($ventas_connection)) {
                 mysqli_close($ventas_connection);
             }
-            
+
             Utils::logError("Error en completeOrder: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return [
                 'success' => false,
@@ -2702,7 +3264,7 @@ class WooCommerceOrders
             ];
         }
     }
-    
+
     /**
      * Cancelar pedido y restaurar stock
      * @param int $order_id ID del pedido
@@ -2712,47 +3274,46 @@ class WooCommerceOrders
     {
         try {
             $order_id = (int)$order_id;
-            
+
             // Iniciar transacción
             mysqli_autocommit($this->wp_connection, false);
-            
+
             // 1. Actualizar estado del pedido a cancelado
             $query_post = "UPDATE {$this->db_prefix}posts SET post_status = 'wc-cancelled' WHERE ID = '$order_id'";
             if (!mysqli_query($this->wp_connection, $query_post)) {
                 throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
             }
-            
+
             // 2. Actualizar estadísticas de WooCommerce
             $query_stats = "UPDATE {$this->db_prefix}wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$order_id'";
             mysqli_query($this->wp_connection, $query_stats);
-            
+
             // 3. Actualizar HPOS si existe
             $query_hpos = "UPDATE {$this->db_prefix}wc_orders SET status = 'wc-cancelled' WHERE id = '$order_id'";
             mysqli_query($this->wp_connection, $query_hpos);
-            
+
             // 4. Marcar factura como inactiva si existe
             $query_factura = "UPDATE facturas SET estado = 'i' WHERE id_order = '$order_id'";
             mysqli_query($this->wp_connection, $query_factura);
-            
+
             // 5. Restaurar stock de productos
             $this->restoreOrderStock($order_id);
-            
+
             // Confirmar transacción
             mysqli_commit($this->wp_connection);
             mysqli_autocommit($this->wp_connection, true);
-            
+
             return true;
-            
         } catch (Exception $e) {
             // Revertir transacción
             mysqli_rollback($this->wp_connection);
             mysqli_autocommit($this->wp_connection, true);
-            
+
             Utils::logError("Error en cancelOrder: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return false;
         }
     }
-    
+
     /**
      * Procesar pedido (cambiar a processing)
      * @param int $order_id ID del pedido
@@ -2762,40 +3323,39 @@ class WooCommerceOrders
     {
         try {
             $order_id = (int)$order_id;
-            
+
             // Iniciar transacción
             mysqli_autocommit($this->wp_connection, false);
-            
+
             // 1. Actualizar estado del pedido a processing
             $query_post = "UPDATE {$this->db_prefix}posts SET post_status = 'wc-processing' WHERE ID = '$order_id'";
             if (!mysqli_query($this->wp_connection, $query_post)) {
                 throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
             }
-            
+
             // 2. Actualizar estadísticas de WooCommerce
             $query_stats = "UPDATE {$this->db_prefix}wc_order_stats SET status = 'wc-processing' WHERE order_id = '$order_id'";
             mysqli_query($this->wp_connection, $query_stats);
-            
+
             // 3. Actualizar HPOS si existe
             $query_hpos = "UPDATE {$this->db_prefix}wc_orders SET status = 'wc-processing' WHERE id = '$order_id'";
             mysqli_query($this->wp_connection, $query_hpos);
-            
+
             // Confirmar transacción
             mysqli_commit($this->wp_connection);
             mysqli_autocommit($this->wp_connection, true);
-            
+
             return true;
-            
         } catch (Exception $e) {
             // Revertir transacción
             mysqli_rollback($this->wp_connection);
             mysqli_autocommit($this->wp_connection, true);
-            
+
             Utils::logError("Error en processOrder: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return false;
         }
     }
-    
+
     /**
      * Restaurar stock de productos de un pedido cancelado
      * @param int $order_id ID del pedido
@@ -2817,38 +3377,37 @@ class WooCommerceOrders
                 GROUP BY order_item_id
             ) IM ON IM.order_item_id = I.order_item_id
             WHERE I.order_id = '$order_id' AND I.order_item_type = 'line_item'";
-            
+
             $result = mysqli_query($this->wp_connection, $query_products);
-            
+
             while ($row = mysqli_fetch_assoc($result)) {
                 $product_id = (int)$row['product_id'];
                 $product_qty = (int)$row['product_qty'];
-                
+
                 if ($product_id > 0 && $product_qty > 0) {
                     // Obtener stock actual
                     $query_stock = "SELECT meta_value FROM {$this->db_prefix}postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'";
                     $stock_result = mysqli_query($this->wp_connection, $query_stock);
                     $stock_row = mysqli_fetch_assoc($stock_result);
-                    
+
                     if ($stock_row) {
                         $current_stock = (int)$stock_row['meta_value'];
                         $new_stock = $current_stock + $product_qty;
-                        
+
                         // Actualizar stock
                         $query_update_stock = "UPDATE {$this->db_prefix}postmeta SET meta_value = '$new_stock' WHERE post_id = '$product_id' AND meta_key = '_stock'";
                         mysqli_query($this->wp_connection, $query_update_stock);
-                        
+
                         // Actualizar estado del stock si es mayor a 0
                         if ($new_stock > 0) {
                             $query_stock_status = "UPDATE {$this->db_prefix}postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
                             mysqli_query($this->wp_connection, $query_stock_status);
                         }
-                        
+
                         Utils::logError("Stock restaurado - Producto: $product_id, Cantidad: +$product_qty, Nuevo stock: $new_stock", 'INFO', 'WooCommerceOrders');
                     }
                 }
             }
-            
         } catch (Exception $e) {
             Utils::logError("Error restaurando stock: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
         }
@@ -2867,12 +3426,12 @@ class WooCommerceOrders
             $page = max(1, (int)$page);
             $per_page = max(1, min(100, (int)$per_page)); // Máximo 100 por página
             $offset = ($page - 1) * $per_page;
-            
+
             // Primero obtener IDs de órdenes que tienen facturas (activas o canceladas) del sistema de ventas
             $ventas_connection = DatabaseConfig::getVentasConnection();
             $query_facturas = "SELECT id_order FROM facturas WHERE estado IN ('a', 'c')";
             $facturas_result = mysqli_query($ventas_connection, $query_facturas);
-            
+
             $facturas_ids = [];
             if ($facturas_result) {
                 while ($row_fact = mysqli_fetch_assoc($facturas_result)) {
@@ -2881,27 +3440,27 @@ class WooCommerceOrders
                 mysqli_free_result($facturas_result);
             }
             mysqli_close($ventas_connection);
-            
+
             // Crear cláusula NOT IN para excluir órdenes ya facturadas
             $not_in_clause = '';
             if (!empty($facturas_ids)) {
                 $ids_string = implode(',', $facturas_ids);
                 $not_in_clause = "AND o.id NOT IN ($ids_string)";
             }
-            
+
             // Consulta para contar órdenes pendientes de facturación
             $count_query = "SELECT COUNT(*) as total
             FROM {$this->db_prefix}wc_orders o
             WHERE o.status IN ('wc-completed', 'wc-processing')
             AND o.type = 'shop_order'
             $not_in_clause";
-            
+
             $count_result = mysqli_query($this->wp_connection, $count_query);
             $total_records = 0;
             if ($count_result && $count_row = mysqli_fetch_assoc($count_result)) {
                 $total_records = (int)$count_row['total'];
             }
-            
+
             // Consulta principal para órdenes pendientes de facturación
             $query = "SELECT 
                 o.id as ID,
@@ -2917,14 +3476,14 @@ class WooCommerceOrders
             $not_in_clause
             ORDER BY o.id DESC
             LIMIT $per_page OFFSET $offset";
-            
+
             $result = mysqli_query($this->wp_connection, $query);
-            
+
             if (!$result) {
                 Utils::logError("Error en getPendingOrders: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
                 return ['data' => [], 'pagination' => []];
             }
-            
+
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
                 // Agregar información de que está pendiente de facturación
@@ -2932,7 +3491,7 @@ class WooCommerceOrders
                 $row['has_invoice'] = false;
                 $orders[] = $row;
             }
-            
+
             // Calcular información de paginación
             $total_pages = ceil($total_records / $per_page);
             $pagination = [
@@ -2947,20 +3506,19 @@ class WooCommerceOrders
                 'start_record' => $total_records > 0 ? $offset + 1 : 0,
                 'end_record' => min($offset + $per_page, $total_records)
             ];
-            
+
             Utils::logError("Pedidos pendientes de facturación obtenidos: " . count($orders) . " de $total_records (página $page de $total_pages)", 'INFO', 'WooCommerceOrders');
-            
+
             return [
                 'data' => $orders,
                 'pagination' => $pagination
             ];
-            
         } catch (Exception $e) {
             Utils::logError("Error en getPendingOrders: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return [];
         }
     }
-    
+
     /**
      * Obtener pedidos facturados en un rango de fechas
      * @param string $date_from Fecha desde (Y-m-d)
@@ -2977,13 +3535,13 @@ class WooCommerceOrders
             $ventas_connection = DatabaseConfig::getVentasConnection();
             $query_facturas = "SELECT id_order, factura, estado FROM facturas WHERE estado IN ('a', 'c')";
             $facturas_result = mysqli_query($ventas_connection, $query_facturas);
-            
+
             if (!$facturas_result) {
                 Utils::logError("Error obteniendo facturas: " . mysqli_error($ventas_connection), 'ERROR', 'WooCommerceOrders');
                 mysqli_close($ventas_connection);
                 return ['data' => [], 'pagination' => []];
             }
-            
+
             $facturas_ids = [];
             $facturas_map = []; // Mapeo de order_id => factura_number
             $facturas_estado = []; // Mapeo de order_id => estado_factura
@@ -2995,38 +3553,38 @@ class WooCommerceOrders
             }
             mysqli_free_result($facturas_result);
             mysqli_close($ventas_connection);
-            
+
             // Si no hay facturas, retornar array vacío
             if (empty($facturas_ids)) {
                 Utils::logError("No hay facturas activas", 'INFO', 'WooCommerceOrders');
                 return ['data' => [], 'pagination' => []];
             }
-            
+
             // Validar parámetros de paginación
             $page = max(1, (int)$page);
             $per_page = max(1, min(100, (int)$per_page)); // Máximo 100 por página
             $offset = ($page - 1) * $per_page;
-            
+
             // Sanitizar fechas
             $date_from = mysqli_real_escape_string($this->wp_connection, $date_from);
             $date_to = mysqli_real_escape_string($this->wp_connection, $date_to);
-            
+
             // Crear string de IDs para la consulta
             $ids_string = implode(',', $facturas_ids);
-            
+
             // Consulta para contar total de registros usando HPOS ({$this->db_prefix}wc_orders)
             // CORREGIDO: Eliminar filtro de fecha restrictivo para mostrar todas las órdenes facturadas
             $count_query = "SELECT COUNT(*) as total
             FROM {$this->db_prefix}wc_orders o
             WHERE o.id IN ($ids_string) 
             AND o.type = 'shop_order'";
-            
+
             $count_result = mysqli_query($this->wp_connection, $count_query);
             $total_records = 0;
             if ($count_result && $count_row = mysqli_fetch_assoc($count_result)) {
                 $total_records = (int)$count_row['total'];
             }
-            
+
             // Consulta principal usando HPOS ({$this->db_prefix}wc_orders) con JOINs optimizados
             // CORREGIDO: Eliminar filtro de fecha restrictivo para mostrar todas las órdenes facturadas
             $query = "SELECT 
@@ -3042,14 +3600,14 @@ class WooCommerceOrders
             AND o.type = 'shop_order'
             ORDER BY o.id DESC
             LIMIT $per_page OFFSET $offset";
-            
+
             $result = mysqli_query($this->wp_connection, $query);
-            
+
             if (!$result) {
                 Utils::logError("Error en getInvoicedOrders: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
                 return ['data' => [], 'pagination' => []];
             }
-            
+
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
                 // Agregar número de factura y estado al registro
@@ -3058,7 +3616,7 @@ class WooCommerceOrders
                 $row['factura_estado'] = $facturas_estado[$order_id] ?? 'a';
                 $orders[] = $row;
             }
-            
+
             // Calcular información de paginación
             $total_pages = ceil($total_records / $per_page);
             $pagination = [
@@ -3073,20 +3631,19 @@ class WooCommerceOrders
                 'start_record' => $total_records > 0 ? $offset + 1 : 0,
                 'end_record' => min($offset + $per_page, $total_records)
             ];
-            
+
             Utils::logError("Pedidos facturados obtenidos: " . count($orders) . " de $total_records (página $page de $total_pages, desde $date_from hasta $date_to)", 'INFO', 'WooCommerceOrders');
-            
+
             return [
                 'data' => $orders,
                 'pagination' => $pagination
             ];
-            
         } catch (Exception $e) {
             Utils::logError("Error en getInvoicedOrders: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return ['data' => [], 'pagination' => []];
         }
     }
-    
+
     /**
      * Verificar si una orden tiene factura activa
      * @param int $order_id ID del pedido
@@ -3096,38 +3653,37 @@ class WooCommerceOrders
     {
         try {
             $order_id = (int)$order_id;
-            
+
             // Usar conexión de ventassc para tabla facturas
             $ventas_connection = DatabaseConfig::getVentasConnection();
             $query = "SELECT COUNT(*) as count FROM facturas WHERE id_order = ? AND estado IN ('a', 'c')";
             $stmt = mysqli_prepare($ventas_connection, $query);
-            
+
             if (!$stmt) {
                 Utils::logError("Error preparando consulta hasInvoice: " . mysqli_error($ventas_connection), 'ERROR', 'WooCommerceOrders');
                 mysqli_close($ventas_connection);
                 return false;
             }
-            
+
             mysqli_stmt_bind_param($stmt, 'i', $order_id);
             mysqli_stmt_execute($stmt);
             $result = mysqli_stmt_get_result($stmt);
-            
+
             $has_invoice = false;
             if ($result && $row = mysqli_fetch_assoc($result)) {
                 $has_invoice = (int)$row['count'] > 0;
                 Utils::logError("Verificación factura orden #{$order_id}: " . ($has_invoice ? 'FACTURADA' : 'SIN FACTURAR'), 'DEBUG', 'WooCommerceOrders');
             }
-            
+
             mysqli_stmt_close($stmt);
             mysqli_close($ventas_connection);
             return $has_invoice;
-            
         } catch (Exception $e) {
             Utils::logError("Error en hasInvoice para orden #{$order_id}: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return false;
         }
     }
-    
+
     /**
      * Obtener todas las órdenes con estado de facturación
      * @param int $page Página actual (empezando en 1)
@@ -3141,22 +3697,22 @@ class WooCommerceOrders
             $page = max(1, (int)$page);
             $per_page = max(1, min(100, (int)$per_page)); // Máximo 100 por página
             $offset = ($page - 1) * $per_page;
-            
+
             // NOTA: Verificaremos el estado de facturación de cada orden individualmente
             // usando el método hasInvoice que consulta la base de datos de ventas
-            
+
             // Consulta para contar total de registros usando HPOS ({$this->db_prefix}wc_orders)
             $count_query = "SELECT COUNT(*) as total
             FROM {$this->db_prefix}wc_orders o
             WHERE o.status IN ('wc-processing', 'wc-completed', 'wc-on-hold', 'wc-pending', 'wc-cancelled', 'wc-refunded', 'wc-failed')
             AND o.type = 'shop_order'";
-            
+
             $count_result = mysqli_query($this->wp_connection, $count_query);
             $total_records = 0;
             if ($count_result && $count_row = mysqli_fetch_assoc($count_result)) {
                 $total_records = (int)$count_row['total'];
             }
-            
+
             // Consulta principal usando HPOS ({$this->db_prefix}wc_orders) con JOINs optimizados
             $query = "SELECT 
                 o.id as ID,
@@ -3171,30 +3727,30 @@ class WooCommerceOrders
             AND o.type = 'shop_order'
             ORDER BY o.id DESC
             LIMIT $per_page OFFSET $offset";
-            
+
             $result = mysqli_query($this->wp_connection, $query);
-            
+
             if (!$result) {
                 Utils::logError("Error en getAllOrdersWithInvoiceStatus: " . mysqli_error($this->wp_connection), 'ERROR', 'WooCommerceOrders');
                 return ['data' => [], 'pagination' => []];
             }
-            
+
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
                 $order_id = (int)$row['ID'];
-                
+
                 // Verificar si esta orden tiene factura consultando directamente la base de datos de ventas
                 $row['has_invoice'] = $this->hasInvoice($order_id);
                 $row['invoice_status'] = $row['has_invoice'] ? 'Facturado' : 'Sin Facturar';
-                
+
                 // Formatear datos
                 $row['valor'] = (float)($row['valor'] ?? 0);
                 $row['estado_legible'] = $this->getStatusLabel($row['post_status']);
                 $row['fecha_formateada'] = date('d/m/Y H:i', strtotime($row['post_date']));
-                
+
                 $orders[] = $row;
             }
-            
+
             // Calcular información de paginación
             $total_pages = ceil($total_records / $per_page);
             $pagination = [
@@ -3209,25 +3765,24 @@ class WooCommerceOrders
                 'start_record' => $total_records > 0 ? $offset + 1 : 0,
                 'end_record' => min($offset + $per_page, $total_records)
             ];
-            
+
             // Contar órdenes facturadas y sin facturar
             $facturadas_count = array_sum(array_column($orders, 'has_invoice'));
             $sin_facturar_count = count($orders) - $facturadas_count;
-            
+
             Utils::logError("Total órdenes procesadas: " . count($orders) . " - Facturadas: $facturadas_count, Sin facturar: $sin_facturar_count", 'INFO', 'WooCommerceOrders');
-            
+
             return [
                 'data' => $orders,
                 'pagination' => $pagination
             ];
-            
         } catch (Exception $e) {
             Utils::logError("Error en getAllOrdersWithInvoiceStatus: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             Utils::logError("Stack trace: " . $e->getTraceAsString(), 'ERROR', 'WooCommerceOrders');
             return ['data' => [], 'pagination' => []];
         }
     }
-    
+
     /**
      * Obtener estado actual de una orden
      * @param int $order_id ID del pedido
@@ -3239,19 +3794,18 @@ class WooCommerceOrders
             $order_id = (int)$order_id;
             $query = "SELECT post_status FROM {$this->db_prefix}posts WHERE ID = '$order_id' AND post_type = 'shop_order'";
             $result = mysqli_query($this->wp_connection, $query);
-            
+
             if ($result && $row = mysqli_fetch_assoc($result)) {
                 return $row['post_status'];
             }
-            
+
             return '';
-            
         } catch (Exception $e) {
             Utils::logError("Error en getOrderStatus: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return '';
         }
     }
-    
+
     /**
      * Obtener detalles completos de una orden para modal
      * @param int $order_id ID del pedido
@@ -3261,7 +3815,7 @@ class WooCommerceOrders
     {
         try {
             $order_id = (int)$order_id;
-            
+
             // Obtener datos básicos de la orden
             $query = "SELECT 
                 p.ID,
@@ -3301,21 +3855,20 @@ class WooCommerceOrders
             LEFT JOIN {$this->db_prefix}wc_orders wco ON p.ID = wco.id
             LEFT JOIN {$this->db_prefix}wc_order_stats os ON p.ID = os.order_id
             WHERE p.ID = '$order_id'";
-            
+
             $result = mysqli_query($this->wp_connection, $query);
-            
+
             if (!$result || !($order_data = mysqli_fetch_assoc($result))) {
                 return [];
             }
-            
+
             // Obtener productos de la orden
             $order_data['items'] = $this->getOrderItems($order_id);
-            
+
             // Verificar si tiene factura
             $order_data['has_invoice'] = $this->hasInvoice($order_id);
-            
+
             return $order_data;
-            
         } catch (Exception $e) {
             Utils::logError("Error en getOrderDetails: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return [];
@@ -3384,7 +3937,6 @@ class WooCommerceOrders
 
             mysqli_stmt_close($stmt);
             return $notes;
-
         } catch (Exception $e) {
             Utils::logError("Error obteniendo notas de orden: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return [];
@@ -3419,7 +3971,7 @@ class WooCommerceOrders
 
             // Determinar el tipo de comentario según WooCommerce
             $comment_type = ($note_type === 'customer') ? 'order_note' : 'order_note_private';
-            
+
             // Insertar la nota como comentario
             $comment_data = [
                 'comment_post_ID' => $order_id,
@@ -3455,7 +4007,6 @@ class WooCommerceOrders
             }
 
             return false;
-
         } catch (Exception $e) {
             Utils::logError("Error agregando nota de orden: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return false;
@@ -3519,7 +4070,6 @@ class WooCommerceOrders
 
             Utils::logError("Datos de orden legacy cargados para PDF - Order ID: {$orden_id}", 'INFO', 'WooCommerceOrders');
             return $orden;
-
         } catch (Exception $e) {
             Utils::logError("Error obteniendo datos de orden para PDF: " . $e->getMessage(), 'ERROR', 'WooCommerceOrders');
             return null;

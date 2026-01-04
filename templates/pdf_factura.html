@@ -24,38 +24,10 @@
             color: #8b8b8b;
             font-weight: 400;
         }
-        .box-cancelada {
-            position: absolute;
-            top: 8%;
-            background: rgba(204, 115, 115, 0.72);
-            border: 3px solid #530c0cff;
-            padding: 5px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            color: #530c0cff;
-            z-index: 1000;
-            width: 95%;
-            max-width: 400px;
-            left: 0px;
-        }
-        .cancelada-text {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-        .cancelada-numero {
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-        .cancelada-fecha {
-            font-size: 16px;
-        }
     </style>
 </head>
 <body>
-    <div class="box-cancelada">
-        {{cancelada_overlay}}
-    </div>
+    {{cancelada_overlay}}
     <table border="0" style="table-layout: fixed; width: 180">
         <tr align="center">
             <td colspan="4" style="text-align: center"><img src="{{logo_factura}}" width="130"></td>
