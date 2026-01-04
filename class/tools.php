@@ -184,6 +184,9 @@ class Utils {
      * Función para logging de errores
      */
     public static function logError($message, $level = 'ERROR', $file = '') {
+        if(!self::isDebugMode()){
+            return;
+        }
         $timestamp = date('Y-m-d H:i:s');
         $logMessage = "[$timestamp] [$level] $message";
         
@@ -825,6 +828,13 @@ class Utils {
             self::logError("Error verificando existencia de factura $invoice_number: " . $e->getMessage(), 'ERROR', 'Utils::invoiceNumberExists');
             return false;
         }
+    }
+
+    public static function isDebugMode(){
+        if(DEBUG_MODE === 'true'){
+            return true;
+        } 
+        return false;
     }
 }
 ?>

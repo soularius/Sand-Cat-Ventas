@@ -71,7 +71,9 @@ jQuery(document).ready(function($) {
                 
                 $('#invoice-result').html(errorHtml);
                 
-                console.error('Error AJAX:', xhr.responseText);
+                if (DEBUG_MODE) {
+                    console.error('Error AJAX:', xhr.responseText);
+                }
             }
         });
     });

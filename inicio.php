@@ -231,7 +231,6 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
                 // LIMPIAR DATOS DE CLIENTE AL BUSCAR (localStorage y sesión)
                 if (typeof clearCustomerDataOnSearch === 'function') {
                     clearCustomerDataOnSearch();
-                    console.log('Datos de cliente limpiados de localStorage');
                 }
 
                 // Limpiar datos de sesión PHP también
@@ -243,10 +242,11 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
                         clear_type: 'customer_only'
                     },
                     success: function(response) {
-                        console.log('Datos de cliente limpiados de sesión PHP:', response);
                     },
-                    error: function(xhr, status, error) {
-                        console.error('Error limpiando sesión PHP:', xhr.responseText);
+                    error: function(xhr, status, error) {                        
+                        if(DEBUG_MODE){
+                            console.error('Error limpiando sesión PHP:', xhr.responseText);
+                        }
                     }
                 });
 
@@ -277,11 +277,11 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
                                     billing_id: documento
                                 },
                                 success: function(sessionResponse) {
-                                    console.log('Datos del cliente guardados en sesión:', sessionResponse);
                                 },
                                 error: function(xhr, status, error) {
-                                    console.error('Error guardando en sesión PHP:', xhr.responseText);
-                                    // Continuar aunque falle el guardado en sesión
+                                    if(DEBUG_MODE){
+                                        console.error('Error guardando en sesión PHP:', xhr.responseText);
+                                    }
                                 }
                             });
 

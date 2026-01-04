@@ -358,11 +358,11 @@ include("parts/header.php");
             try {
                 data = JSON.parse(raw);
             } catch (e) {
-                console.error('Error parsing localStorage data:', e);
+                if (DEBUG_MODE) {
+                    console.error('Error parsing localStorage data:', e);
+                }
                 return;
             }
-
-            console.log('Hidratando datos desde localStorage:', data);
 
             // ✅ Solo hidratar si el server vino vacío
             const setIfEmpty = (id, value) => {
@@ -393,15 +393,18 @@ include("parts/header.php");
                     .then(response => response.json())
                     .then(result => {
                         if (result.success) {
-                            console.log('State converted via AJAX:', stateCode, '→', result.name);
                             setIfEmpty('sum_state', result.name);
                         } else {
-                            console.warn('State not found via AJAX:', stateCode);
+                            if (DEBUG_MODE) {
+                                console.warn('State not found via AJAX:', stateCode);
+                            }
                             setIfEmpty('sum_state', stateCode);
                         }
                     })
                     .catch(error => {
-                        console.error('Error fetching state name:', error);
+                        if (DEBUG_MODE) {
+                            console.error('Error fetching state name:', error);
+                        }
                         setIfEmpty('sum_state', stateCode);
                     });
             }
@@ -411,21 +414,16 @@ include("parts/header.php");
 
             // Formatear envío si existe
             const shippingValue = data._order_shipping_value || data._order_shipping || '';
-            console.log('Shipping value from localStorage:', shippingValue);
 
             if (shippingValue) {
                 const cleanShipping = String(shippingValue).replace(/[^\d]/g, '');
-                console.log('Clean shipping:', cleanShipping);
 
                 if (cleanShipping && cleanShipping !== '0') {
                     const numericShipping = parseInt(cleanShipping);
                     const formattedShipping = '$' + numericShipping.toLocaleString('es-CO');
-                    console.log('Formatted shipping:', formattedShipping);
                     setIfEmpty('sum_shipping', formattedShipping);
                 }
             }
-
-            console.log('Hidratación completada');
         });
     </script>
 

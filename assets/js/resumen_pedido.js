@@ -6,23 +6,23 @@ class OrderSummary {
         this.formData = null;
         this.init();
     }
-    
+
     init() {
         // Initialize server data for customer comments support
         this.initializeServerData();
-        
+
         // Importante: cargar primero formData, ya que renderOrderDetails depende de esto
         this.loadFormData();
         this.loadOrderData();
         this.loadCustomerData();
     }
-    
+
     // Initialize server data for customer comments support
     initializeServerData() {
         if (!window.serverOrderData) {
             window.serverOrderData = {};
         }
-        
+
         // Add customer comments from localStorage or session data if available
         try {
             const storedOrderData = localStorage.getItem('orderData');
@@ -34,7 +34,7 @@ class OrderSummary {
                     window.serverOrderData.customer_comments = orderData.post_excerpt;
                 }
             }
-            
+
             // Also check for customer_note field
             const storedCustomerData = localStorage.getItem('customerData');
             if (storedCustomerData) {
@@ -46,7 +46,9 @@ class OrderSummary {
                 }
             }
         } catch (e) {
-            console.log('No stored customer comments found');
+            if (DEBUG_MODE) {
+                console.error('No stored customer comments found');
+            }
         }
     }
 
@@ -57,9 +59,9 @@ class OrderSummary {
             if (window.serverFormData) {
                 this.formData = window.serverFormData;
             } else {
-            this.formData = (window.VentasUtils && window.VentasUtils.getFormData)
-                ? window.VentasUtils.getFormData()
-                : null;
+                this.formData = (window.VentasUtils && window.VentasUtils.getFormData)
+                    ? window.VentasUtils.getFormData()
+                    : null;
             }
         } catch (e) {
             this.formData = null;
@@ -75,7 +77,7 @@ class OrderSummary {
             // no-op
         }
     }
-    
+
     // Cargar datos del pedido desde localStorage
     loadOrderData() {
         try {
@@ -107,21 +109,18 @@ class OrderSummary {
                 }, 2000);
             }
         } catch (e) {
-            console.error('Error cargando datos del pedido:', e);
+            if (DEBUG_MODE) {
+                console.error('Error cargando datos del pedido:', e);
+            }
             this.showError('Error cargando datos del pedido');
         }
     }
-    
+
     // Cargar datos del cliente desde localStorage
     loadCustomerData() {
         try {
-            console.log('[DEBUG] loadCustomerData() iniciado');
-            console.log('[DEBUG] window.serverCustomerData:', window.serverCustomerData);
-            console.log('[DEBUG] window.VentasUtils:', window.VentasUtils);
-            
             // Soporte para datos inyectados por el servidor
             if (window.serverCustomerData) {
-                console.log('[DEBUG] Usando serverCustomerData:', window.serverCustomerData);
                 this.customerData = window.serverCustomerData;
                 this.renderCustomerInfo();
                 return;
@@ -130,46 +129,47 @@ class OrderSummary {
             const storedData = (window.VentasUtils && window.VentasUtils.getCustomerData)
                 ? window.VentasUtils.getCustomerData()
                 : null;
-            
-            console.log('[DEBUG] storedData from VentasUtils:', storedData);
-            
+
             if (storedData) {
-                console.log('[DEBUG] Usando storedData:', storedData);
                 this.customerData = storedData;
                 this.renderCustomerInfo();
             } else {
-                console.log('[DEBUG] No hay datos del cliente, renderizando información básica');
+                if (DEBUG_MODE) {
+                    console.warn('[DEBUG] No hay datos del cliente, renderizando información básica');
+                }
                 // Si no hay datos del cliente, mostrar información básica
                 this.renderBasicCustomerInfo();
             }
         } catch (e) {
-            console.error('Error cargando datos del cliente:', e);
+            if (DEBUG_MODE) {
+                console.error('Error cargando datos del cliente:', e);
+            }
             this.renderBasicCustomerInfo();
         }
     }
-    
+
     // Renderizar resumen del pedido
     renderOrderSummary() {
         if (!this.orderData || !this.orderData.products) {
             this.showError('No hay productos en el pedido');
             return;
         }
-        
+
         // Actualizar contador de productos
         document.getElementById('products-count').textContent = "×" + this.orderData.total_items + " Item" + (this.orderData.total_items > 1 ? 's' : '');
-        
+
         // Renderizar productos
         this.renderProducts();
-        
+
         // Renderizar total
         this.renderOrderTotal();
-        
+
         // Renderizar detalles del pedido
         this.renderOrderDetails();
-        
+
         // Renderizar notas del pedido
         this.renderOrderNotes();
-        
+
         // Habilitar botón de crear pedido (si existe en la página)
         const createBtn = document.getElementById('create-order-btn');
         if (createBtn) {
@@ -185,12 +185,12 @@ class OrderSummary {
             }
         }
     }
-    
+
     // Renderizar productos
     renderProducts() {
         const container = document.getElementById('products-summary');
         const products = this.orderData.products;
-        
+
         if (!products || products.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -200,9 +200,9 @@ class OrderSummary {
             `;
             return;
         }
-        
+
         let html = '<div class="row">';
-        
+
         products.forEach((product) => {
             const qty = parseInt(product.quantity || 0, 10);
             const regularPrice = (product.regular_price !== null && product.regular_price !== undefined) ? Number(product.regular_price) : 0;
@@ -213,7 +213,7 @@ class OrderSummary {
             const imageUrl = product.image_url || '';
 
             const safeTitle = (product.title || '').toString().replace(/'/g, "\\'").replace(/\"/g, '\\"');
-            
+
             // Construir permalink si no existe
             let permalink = product.permalink || '';
             if (!permalink || permalink === '#') {
@@ -225,7 +225,7 @@ class OrderSummary {
                     permalink = '#';
                 }
             }
-            
+
             const safePermalink = permalink.toString().replace(/'/g, "\\'").replace(/\"/g, '\\"');
 
             html += `
@@ -297,11 +297,11 @@ class OrderSummary {
                 </div>
             `;
         });
-        
+
         html += '</div>';
         container.innerHTML = html;
     }
-    
+
     // Renderizar total del pedido
     renderOrderTotal() {
         const container = document.getElementById('order-total');
@@ -326,7 +326,7 @@ class OrderSummary {
                         ? this.orderData._order_shipping
                         : 0)));
         const shippingCost = parseMoney(shippingRaw);
-        
+
         // Calcular totales (normalizando COP)
         let subtotal = 0;
         let totalDiscount = 0;
@@ -352,9 +352,9 @@ class OrderSummary {
                 totalDiscount += ((safeRegular - salePrice) * quantity);
             }
         });
-        
+
         const finalTotal = (subtotal - totalDiscount) + shippingCost;
-        
+
         let html = `
             <div class="order-totals">
                 <div class="total-line">
@@ -364,7 +364,7 @@ class OrderSummary {
                     <span class="value text-draft fs-6">$${subtotal.toLocaleString('es-CO')}</span>
                 </div>
         `;
-        
+
         if (totalDiscount > 0) {
             html += `
                 <div class="total-line discount-line">
@@ -386,7 +386,7 @@ class OrderSummary {
                 </div>
             `;
         }
-        
+
         html += `
                 <hr class="total-separator">
                 <div class="total-line final-total">
@@ -413,25 +413,25 @@ class OrderSummary {
                 </div>
             </div>
         `;
-        
+
         container.innerHTML = html;
     }
-    
+
     // Renderizar información del cliente
     renderCustomerInfo() {
         const container = document.getElementById('customer-info');
-        
+
         if (!this.customerData) {
             this.renderBasicCustomerInfo();
             return;
         }
-        
+
         const customer = this.customerData;
 
         const stateName = (window.VentasUtils && window.VentasUtils.getColombiaStateName)
             ? window.VentasUtils.getColombiaStateName(customer._shipping_state)
             : (customer._shipping_state || '');
-        
+
         const html = `
             <div class="customer-details">
                 <div class="customer-name">
@@ -466,14 +466,14 @@ class OrderSummary {
                 </div>
             </div>
         `;
-        
+
         container.innerHTML = html;
     }
-    
+
     // Renderizar información básica del cliente
     renderBasicCustomerInfo() {
         const container = document.getElementById('customer-info');
-        
+
         container.innerHTML = `
             <div class="customer-placeholder">
                 <div class="placeholder-icon">
@@ -484,7 +484,7 @@ class OrderSummary {
             </div>
         `;
     }
-    
+
     // Renderizar detalles del pedido
     renderOrderDetails() {
         const container = document.getElementById('order-details');
@@ -512,29 +512,18 @@ class OrderSummary {
 
         // Obtener comentarios del cliente desde múltiples fuentes
         let customerComments = '';
-        
+
         if (window.serverOrderData && window.serverOrderData.customer_comments) {
             customerComments = window.serverOrderData.customer_comments;
-            console.log('Customer comments from serverOrderData:', customerComments);
         } else if (this.orderData && this.orderData.customer_comments) {
             customerComments = this.orderData.customer_comments;
-            console.log('Customer comments from orderData.customer_comments:', customerComments);
         } else if (this.orderData && this.orderData.post_expcerpt) {
             customerComments = this.orderData.post_expcerpt;
-            console.log('Customer comments from orderData.post_expcerpt:', customerComments);
         } else {
-            console.log('No customer comments found');
+            if (DEBUG_MODE) {
+                console.warn('No customer comments found');
+            }
         }
-
-        console.log('[OrderSummary] order details sources:', {
-            hasFormData: !!this.formData,
-            hasOrderData: !!this.orderData,
-            hasCustomerData: !!this.customerData,
-            orderShippingRaw,
-            cartDiscountRaw,
-            paymentMethodTitle,
-            customerComments
-        });
 
         const parseMoney = (value) => {
             if (value === null || value === undefined) return null;
@@ -637,20 +626,20 @@ class OrderSummary {
 
         container.innerHTML = html;
     }
-    
+
     // Renderizar notas del pedido (solo notas de la tabla comments, no customer_note)
     renderOrderNotes() {
         const container = document.getElementById('order-notes');
-        
+
         if (!container) return;
-        
+
         // Obtener solo las notas del pedido desde serverOrderData (tabla miau_comments)
         let orderNotes = [];
-        
+
         if (window.serverOrderData && window.serverOrderData.order_notes && Array.isArray(window.serverOrderData.order_notes)) {
             orderNotes = window.serverOrderData.order_notes;
         }
-        
+
         if (!orderNotes || orderNotes.length === 0) {
             container.innerHTML = `
                 <div class="text-center text-muted py-3">
@@ -660,13 +649,13 @@ class OrderSummary {
             `;
             return;
         }
-        
+
         let notesHtml = '';
         orderNotes.forEach(note => {
             const noteTypeIcon = note.type === 'customer' ? 'fas fa-user' : 'fas fa-lock';
             const noteTypeLabel = note.type === 'customer' ? 'Visible al cliente' : 'Nota privada';
             const noteTypeClass = note.type === 'customer' ? 'text-success' : 'text-warning';
-            
+
             notesHtml += `
                 <div class="order-note-item mb-3 p-3 border rounded">
                     <div class="d-flex justify-content-between align-items-start mb-2 flex-column">
@@ -686,14 +675,14 @@ class OrderSummary {
                 </div>
             `;
         });
-        
+
         container.innerHTML = notesHtml;
     }
-    
+
     // Mostrar error
     showError(message) {
         const containers = ['customer-info', 'products-summary', 'order-total', 'order-details'];
-        
+
         containers.forEach(containerId => {
             const container = document.getElementById(containerId);
             if (container) {
@@ -706,7 +695,7 @@ class OrderSummary {
             }
         });
     }
-    
+
     // Mostrar notificación
     showNotification(message, type = 'success') {
         const toast = document.createElement('div');
@@ -716,9 +705,9 @@ class OrderSummary {
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
-        
+
         document.body.appendChild(toast);
-        
+
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
@@ -755,9 +744,9 @@ function showToastNotification(message, type = 'success') {
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
-    
+
     document.body.appendChild(toast);
-    
+
     // Auto-remove after 3 seconds
     setTimeout(() => {
         if (toast.parentNode) {
@@ -774,7 +763,7 @@ function showToastNotification(message, type = 'success') {
 // Instancia global
 let orderSummary;
 
-$(document).ready(function() {
+$(document).ready(function () {
     // Inicializar resumen de pedido
     orderSummary = new OrderSummary();
 });
@@ -815,11 +804,11 @@ function createFinalOrder() {
         orderSummary.showNotification('No hay productos para crear el pedido', 'warning');
         return;
     }
-    
+
     // Mostrar modal de carga
     const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
     loadingModal.show();
-    
+
     // Preparar datos para envío
     const orderData = {
         order_id: orderSummary.orderData.order_id,
@@ -830,7 +819,7 @@ function createFinalOrder() {
         form_data: orderSummary.formData,
         timestamp: new Date().toISOString()
     };
-    
+
     // Enviar datos al servidor
     $.ajax({
         type: 'POST',
@@ -841,31 +830,33 @@ function createFinalOrder() {
         dataType: 'json',
         timeout: 30000
     })
-    .done(function(response) {
-        loadingModal.hide();
-        
-        if (response.success) {
-            // Limpiar localStorage completamente al crear pedido
-            if (typeof window.cleanVentasLocalStorage === 'function') {
-                window.cleanVentasLocalStorage('C');
-            }
+        .done(function (response) {
+            loadingModal.hide();
 
-            // Redirigir al paso 5 (Detalle del Pedido)
-            if (response.order_id) {
-                window.location.href = 'detalle_pedido.php?id-orden=' + encodeURIComponent(response.order_id);
-                return;
-            }
+            if (response.success) {
+                // Limpiar localStorage completamente al crear pedido
+                if (typeof window.cleanVentasLocalStorage === 'function') {
+                    window.cleanVentasLocalStorage('C');
+                }
 
-            orderSummary.showNotification('Pedido creado, pero no se recibió el ID de la orden.', 'warning');
-        } else {
-            orderSummary.showNotification(response.message || 'Error creando el pedido', 'danger');
-        }
-    })
-    .fail(function(xhr, status, error) {
-        loadingModal.hide();
-        console.error('Error creando pedido:', status, error);
-        orderSummary.showNotification('Error de conexión. Por favor intenta de nuevo.', 'danger');
-    });
+                // Redirigir al paso 5 (Detalle del Pedido)
+                if (response.order_id) {
+                    window.location.href = 'detalle_pedido.php?id-orden=' + encodeURIComponent(response.order_id);
+                    return;
+                }
+
+                orderSummary.showNotification('Pedido creado, pero no se recibió el ID de la orden.', 'warning');
+            } else {
+                orderSummary.showNotification(response.message || 'Error creando el pedido', 'danger');
+            }
+        })
+        .fail(function (xhr, status, error) {
+            loadingModal.hide();
+            if (DEBUG_MODE) {
+                console.error('Error creando pedido:', status, error);
+            }
+            orderSummary.showNotification('Error de conexión. Por favor intenta de nuevo.', 'danger');
+        });
 }
 
 // Ir a lista de pedidos
@@ -879,6 +870,6 @@ function createNewOrder() {
     localStorage.removeItem('ventas_cart_products');
     localStorage.removeItem('ventas_order_summary');
     localStorage.removeItem('ventas_customer_data');
-    
+
     window.location.href = 'inicio.php';
 }

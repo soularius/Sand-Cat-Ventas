@@ -89,5 +89,6 @@
     <!-- Make PHP constants available to JavaScript globally -->
     <script>
         const URL_WOOCOMMERCE = '<?php echo URL_WOOCOMMERCE; ?>';
+        const DEBUG_MODE = <?php echo json_encode(Utils::isDebugMode()); ?>;
     </script>
 </head>

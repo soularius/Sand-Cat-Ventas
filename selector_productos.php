@@ -330,7 +330,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error AJAX:', error);
+                        if (DEBUG_MODE) {
+                            console.error('Error AJAX:', error);
+                        }
                         showError('Error de conexión al buscar productos');
                     }
                 });
@@ -365,12 +367,16 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                             displayProducts(response.products);
                             updateResultsCount(response.total);
                         } else {
-                            console.error('Category search error:', response.error);
+                            if (DEBUG_MODE) {
+                                console.error('Category search error:', response.error);
+                            }
                             showError('Error al cargar productos de la categoría: ' + response.error);
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error AJAX:', error);
+                        if (DEBUG_MODE) {
+                            console.error('Error AJAX:', error);
+                        }
                         showError('Error de conexión al cargar productos de la categoría');
                     }
                 });
@@ -737,14 +743,18 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                                 `);
                             });
                         } else {
-                            console.error('Error loading categories:', response.message);
+                            if (DEBUG_MODE) {
+                                console.error('Error loading categories:', response.message);
+                            }
                             // Mostrar mensaje de error en el select
                             $('#categoryFilter').find('option:not(:first)').remove();
                             $('#categoryFilter').append('<option value="" disabled>Error cargando categorías</option>');
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('AJAX error loading categories:', error);
+                        if (DEBUG_MODE) {
+                            console.error('AJAX error loading categories:', error);
+                        }
                         $('#categoryFilter').find('option:not(:first)').remove();
                         $('#categoryFilter').append('<option value="" disabled>Error de conexión</option>');
                     }
@@ -783,14 +793,17 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                         if (response.success && response.customer) {
                             // Guardar datos del cliente globalmente
                             window.customerInfo = response.customer;
-                            console.log('Customer data loaded:', response.customer);
                         } else {
-                            console.log('No customer data found for order:', orderId);
+                            if (DEBUG_MODE) {
+                                console.error('No customer data found for order:', orderId);
+                            }
                             window.customerInfo = null;
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error loading customer data:', error);
+                        if (DEBUG_MODE) {
+                            console.error('Error loading customer data:', error);
+                        }
                         window.customerInfo = null;
                     }
                 });
@@ -805,14 +818,14 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
 
         // Función para compartir enlace del producto
         function shareProductLink(productUrl, productTitle) {
-            console.log('Sharing product link:', productUrl, productTitle);
-
             // Intentar copiar al portapapeles
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(productUrl).then(() => {
                     showNotification(`Enlace de "${productTitle}" copiado al portapapeles`, 'success');
                 }).catch(err => {
-                    console.error('Error copying to clipboard:', err);
+                    if (DEBUG_MODE) {
+                        console.error('Error copying to clipboard:', err);
+                    }
                     fallbackCopyToClipboard(productUrl, productTitle);
                 });
             } else {
@@ -840,7 +853,9 @@ $_order_id = Utils::captureValue('_order_id', 'POST', '');
                     showNotification('No se pudo copiar el enlace. Inténtalo manualmente.', 'warning');
                 }
             } catch (err) {
-                console.error('Fallback copy failed:', err);
+                if (DEBUG_MODE) {
+                    console.error('Fallback copy failed:', err);
+                }
                 showNotification('No se pudo copiar el enlace. Inténtalo manualmente.', 'warning');
             }
 

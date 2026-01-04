@@ -575,11 +575,11 @@ include("parts/header.php");
 
         // Función para agregar producto a venta usando localStorage
         function agregarAVenta(productId) {
-          console.log('agregarAVenta called with productId:', productId);
-
           // Verificar que el carrito esté inicializado
           if (typeof cart === 'undefined' || !cart) {
-            console.error('Cart not initialized');
+            if (DEBUG_MODE) {
+              console.error('Cart not initialized');
+            }
             showNotification('Error: Sistema de carrito no inicializado', 'error');
             return;
           }
@@ -587,7 +587,9 @@ include("parts/header.php");
           // Buscar el producto en la tabla actual
           const productRow = document.querySelector(`tr[data-product-id="${productId}"]`);
           if (!productRow) {
-            console.error('Product row not found for ID:', productId);
+            if (DEBUG_MODE) {
+              console.error('Product row not found for ID:', productId);
+            }
             showNotification('Error: Producto no encontrado', 'error');
             return;
           }
@@ -595,18 +597,17 @@ include("parts/header.php");
           // Extraer datos del producto desde la fila de la tabla
           const productData = extractProductDataFromRow(productRow, productId);
           if (!productData) {
-            console.error('Could not extract product data');
+            if (DEBUG_MODE) {
+              console.error('Could not extract product data');
+            }
             showNotification('Error: No se pudieron obtener los datos del producto', 'error');
             return;
           }
-
-          console.log('Product data extracted:', productData);
 
           // Agregar al carrito
           const cartKey = cart.addProduct(productData, 1);
 
           if (cartKey) {
-            console.log('Product added to cart with key:', cartKey);
             // Actualizar el botón para mostrar que fue agregado
             const button = productRow.querySelector('.btn-success');
             if (button) {
@@ -632,7 +633,9 @@ include("parts/header.php");
             const cells = row.querySelectorAll('td');
 
             if (cells.length < 6) {
-              console.error('Not enough cells in product row');
+              if (DEBUG_MODE) {
+                console.error('Not enough cells in product row');
+              }
               return null;
             }
 
@@ -708,7 +711,9 @@ include("parts/header.php");
               permalink: nombreLink ? nombreLink.href : '#'
             };
           } catch (error) {
-            console.error('Error extracting product data:', error);
+            if (DEBUG_MODE) {
+              console.error('Error extracting product data:', error);
+            }
             return null;
           }
         }

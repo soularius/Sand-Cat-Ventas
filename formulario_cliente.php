@@ -187,12 +187,15 @@ include("parts/header.php");
             echo "    if (window.buildOrderCache) {\n";
             echo "        const success = window.buildOrderCache(orderData);\n";
             echo "        if (success) {\n";
-            echo "            console.log('Cache de orden reconstruida para edición - ID: {$order_data['ID']}');\n";
             echo "        } else {\n";
-            echo "            console.error('Error reconstruyendo cache de orden');\n";
+            if(DEBUG_MODE){
+                echo "            console.error('Error reconstruyendo cache de orden');\n";
+            }
             echo "        }\n";
             echo "    } else {\n";
-            echo "        console.error('Función buildOrderCache no disponible');\n";
+            if(DEBUG_MODE){
+                echo "        console.error('Función buildOrderCache no disponible');\n";
+            }
             echo "    }\n";
             echo "});\n";
             echo "</script>\n";
@@ -489,7 +492,6 @@ include("parts/header.php");
             $('#_shipping_state').on('change', function() {
                 // Evitar ejecuciones múltiples
                 if (cityLoadingInProgress) {
-                    console.log('Carga de ciudades ya en progreso, saltando...');
                     return;
                 }
                 cityLoadingInProgress = true;
@@ -504,7 +506,6 @@ include("parts/header.php");
                     const editModeCity = '<?php echo addslashes($ciudad); ?>';
                     if (!currentCity || currentCity === '') {
                         currentCity = editModeCity;
-                        console.log('Usando ciudad del modo edición:', editModeCity);
                     }
                 <?php endif; ?>
 
@@ -530,8 +531,6 @@ include("parts/header.php");
 
                                 // Usar la ciudad objetivo si está definida, sino la actual
                                 const targetCity = window.targetCityToRestore || currentCity;
-                                console.log('Ciudad objetivo a restaurar:', targetCity);
-
                                 response.data.forEach(function(ciudad) {
                                     const isSelected = (targetCity &&
                                         (ciudad.name.toLowerCase() === targetCity.toLowerCase() ||
@@ -540,7 +539,6 @@ include("parts/header.php");
                                     if (isSelected) {
                                         cityFound = true;
                                         citySelect.append(`<option value="${ciudad.name}" selected>${ciudad.name}</option>`);
-                                        console.log('✅ Ciudad restaurada desde opciones:', ciudad.name);
                                     } else {
                                         citySelect.append(`<option value="${ciudad.name}">${ciudad.name}</option>`);
                                     }
@@ -549,8 +547,7 @@ include("parts/header.php");
                                 // Si no se encontró la ciudad en las opciones, pero hay una ciudad objetivo
                                 // (por ejemplo, desde datos del cliente o persistencia), agregarla como opción
                                 if (!cityFound && targetCity && targetCity !== '') {
-                                    citySelect.append(`<option value="${targetCity}" selected>${targetCity}</option>`);
-                                    console.log('✅ Ciudad objetivo agregada como opción:', targetCity);
+                                    citySelect.append(`<option value="${targetCity}" selected>${targetCity}</option>`); 
                                     cityFound = true;
                                 }
 
@@ -587,11 +584,6 @@ include("parts/header.php");
                     const clientCity = '<?php echo addslashes($ciudad); ?>';
                     const clientState = '<?php echo addslashes($departamento); ?>';
 
-                    console.log('Datos del cliente detectados:', {
-                        ciudad: clientCity,
-                        departamento: clientState
-                    });
-
                     // Si hay datos del cliente, asegurar que estén seleccionados
                     if (clientState) {
                         $('#_shipping_state').val(clientState);
@@ -602,7 +594,6 @@ include("parts/header.php");
                         const citySelect = $('#_shipping_city');
                         if (citySelect.find(`option[value="${clientCity}"]`).length === 0) {
                             citySelect.append(`<option value="${clientCity}" selected>${clientCity}</option>`);
-                            console.log('Ciudad del cliente agregada temporalmente:', clientCity);
                         } else {
                             citySelect.val(clientCity);
                         }
@@ -615,19 +606,13 @@ include("parts/header.php");
 
             // Carga inicial única: solo al final después de que la persistencia termine
             setTimeout(function() {
-                if (!initialLoadCompleted && $('#_shipping_state').val()) {
-                    console.log('Carga inicial única de ciudades');
-                    
+                if (!initialLoadCompleted && $('#_shipping_state').val()) {                    
                     // Verificar si hay ciudad guardada en persistencia para usar como objetivo
                     try {
                         const savedData = localStorage.getItem('ventas_wizard_form_data');
                         if (savedData) {
                             const formData = JSON.parse(savedData);
                             const savedCity = formData._shipping_city;
-                            if (savedCity) {
-                                console.log('Ciudad de persistencia para carga inicial:', savedCity);
-                                window.targetCityToRestore = savedCity;
-                            }
                         }
                     } catch (e) {
                         console.warn('Error leyendo persistencia en carga inicial:', e);
@@ -659,8 +644,6 @@ include("parts/header.php");
                 } catch (e) {}
             });
 
-            console.log('Persistencia inicializada para:', form.id);
-
             // Verificar si hay datos cargados desde sesión PHP
             <?php if (!empty($session_billing_id)): ?>
                 // Mostrar notificación de datos cargados desde sesión
@@ -684,4 +667,5 @@ include("parts/header.php");
     </script>
 </body>
 
+</html>
 </html>

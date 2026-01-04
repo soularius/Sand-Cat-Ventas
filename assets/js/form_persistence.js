@@ -14,7 +14,7 @@ class FormPersistence {
         this.storageKey = storageKey;
         this.form = document.getElementById(formId);
         this.excludeFields = ['_token', 'csrf_token']; // Campos a excluir
-        
+
         if (this.form) {
             this.init();
         }
@@ -23,25 +23,23 @@ class FormPersistence {
     init() {
         // Cargar datos guardados al inicializar
         this.loadFormData();
-        
+
         // Guardar datos automáticamente en cambios
         this.attachAutoSave();
-        
+
         // Limpiar al enviar formulario
         this.attachFormSubmit();
-        
-        console.log('FormPersistence inicializado para:', this.formId);
     }
-    
+
     /**
      * Guardar datos del formulario en localStorage
      */
     saveFormData() {
         if (!this.form) return;
-        
+
         const formData = {};
         const elements = this.form.elements;
-        
+
         for (let element of elements) {
             if (this.shouldSaveField(element)) {
                 const value = this.getFieldValue(element);
@@ -50,85 +48,83 @@ class FormPersistence {
                 }
             }
         }
-        
+
         // Agregar timestamp para control de expiración
         formData._timestamp = Date.now();
         formData._step = this.getCurrentStep();
-        
+
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(formData));
-            console.log('Datos guardados:', Object.keys(formData).length, 'campos');
         } catch (e) {
-            console.warn('Error guardando en localStorage:', e);
+            if (DEBUG_MODE) {
+                console.warn('Error guardando en localStorage:', e);
+            }
         }
     }
-    
+
     /**
      * Cargar datos del formulario desde localStorage
      */
     loadFormData() {
-        console.log('Cargando datos desde localStorage para:', this.formId);
         try {
             const savedData = localStorage.getItem(this.storageKey);
             if (!savedData) return;
-            
+
             const formData = JSON.parse(savedData);
-            
+
             // Verificar si los datos no han expirado (24 horas)
             const maxAge = 24 * 60 * 60 * 1000; // 24 horas
             if (formData._timestamp && (Date.now() - formData._timestamp) > maxAge) {
                 this.clearFormData();
                 return;
             }
-            
+
             let fieldsLoaded = 0;
-            
+
             // Restaurar valores en los campos
             for (const [fieldName, value] of Object.entries(formData)) {
                 // ✅ Solo ignorar metadata real (NO ignorar _billing_email etc.)
                 const metaKeys = ['_timestamp', '_step', '_sourceForm'];
                 if (metaKeys.includes(fieldName)) continue;
-                
+
                 const element = this.form.elements[fieldName];
                 if (element && this.shouldSaveField(element)) {
-                    console.log('Restaurando campo:', fieldName, 'valor:', value);
                     this.setFieldValue(element, value);
                     fieldsLoaded++;
                 }
             }
-            
+
             if (fieldsLoaded > 0) {
-                console.log('Datos restaurados:', fieldsLoaded, 'campos');
                 // Obtener DNI para la notificación
                 const dni = formData.billing_id || '';
                 this.showRestoreNotification(dni);
             }
-            
+
         } catch (e) {
             console.warn('Error cargando desde localStorage:', e);
             this.clearFormData();
         }
     }
-    
+
     /**
      * Determinar si un campo debe guardarse
      */
     shouldSaveField(element) {
         // Excluir campos específicos
         if (this.excludeFields.includes(element.name)) return false;
-        
+
         // Excluir campos sin nombre
         if (!element.name) return false;
-        
+
         // Excluir botones y submits
         if (['button', 'submit', 'reset'].includes(element.type)) return false;
-        
+
         // Excluir campos readonly (como país fijo)
         if (element.readOnly) return false;
-        
+
         return true;
     }
-    
+
     /**
      * Obtener valor del campo según su tipo
      */
@@ -144,7 +140,7 @@ class FormPersistence {
                 return element.value;
         }
     }
-    
+
     /**
      * Establecer valor del campo según su tipo
      */
@@ -167,7 +163,7 @@ class FormPersistence {
                 break;
             default:
                 element.value = value;
-                
+
                 // Trigger events para campos especiales
                 if (element.id === '_order_shipping') {
                     // Formatear moneda si es el campo de envío
@@ -175,7 +171,7 @@ class FormPersistence {
                         formatCurrency(element);
                     }
                 }
-                
+
                 // Manejo especial para selects dependientes (departamento/ciudad)
                 if (element.tagName === 'SELECT') {
                     if (element.id === '_shipping_state') {
@@ -183,7 +179,7 @@ class FormPersistence {
                         // para permitir que se carguen las ciudades
                         setTimeout(() => {
                             element.dispatchEvent(new Event('change', { bubbles: true }));
-                            
+
                             // ✅ DESPUÉS de cargar ciudades, restaurar la ciudad guardada
                             setTimeout(() => {
                                 this.restoreCityFromStorage();
@@ -191,7 +187,6 @@ class FormPersistence {
                         }, 50);
                     } else if (element.id === '_shipping_city') {
                         // Para la ciudad, guardar el valor para restaurar después
-                        console.log('Ciudad guardada para restaurar después:', value);
                         this.pendingCityValue = value;
                         // No seleccionar ahora, esperar a que se carguen las opciones
                         return;
@@ -203,33 +198,32 @@ class FormPersistence {
                 break;
         }
     }
-    
+
     /**
      * Restaurar ciudad después de cargar opciones del departamento
      */
     restoreCityFromStorage() {
         if (!this.pendingCityValue) return;
-        
+
         const cityElement = document.getElementById('_shipping_city');
         if (!cityElement) return;
-        
-        console.log('Intentando restaurar ciudad:', this.pendingCityValue);
-        
+
         // Buscar la opción en el select
         const targetOption = Array.from(cityElement.options).find(
             option => option.value === this.pendingCityValue
         );
-        
+
         if (targetOption) {
             cityElement.value = this.pendingCityValue;
-            console.log('✅ Ciudad restaurada exitosamente:', this.pendingCityValue);
         } else {
-            console.warn('❌ Ciudad no encontrada en opciones:', this.pendingCityValue);
             // Listar opciones disponibles para debug
             const availableOptions = Array.from(cityElement.options).map(opt => opt.value);
-            console.log('Opciones disponibles:', availableOptions);
+            if (DEBUG_MODE) {
+                console.warn('❌ Ciudad no encontrada en opciones:', this.pendingCityValue);
+                console.warn('Opciones disponibles:', availableOptions);
+            }
         }
-        
+
         // Limpiar el valor pendiente
         this.pendingCityValue = null;
     }
@@ -245,14 +239,14 @@ class FormPersistence {
         }
         return 1;
     }
-    
+
     /**
      * Adjuntar eventos de auto-guardado
      */
     attachAutoSave() {
         // Eventos para auto-guardado
         const events = ['input', 'change', 'blur'];
-        
+
         events.forEach(eventType => {
             this.form.addEventListener(eventType, (e) => {
                 if (this.shouldSaveField(e.target)) {
@@ -264,35 +258,38 @@ class FormPersistence {
                 }
             });
         });
-        
+
         // Guardado al cambiar de página (beforeunload)
         window.addEventListener('beforeunload', () => {
             this.saveFormData();
         });
     }
-    
+
     /**
      * Adjuntar evento de envío de formulario
      */
     attachFormSubmit() {
         this.form.addEventListener('submit', () => {
             // No limpiar inmediatamente, esperar confirmación de éxito
-            console.log('Formulario enviado, datos mantenidos para recuperación');
+            if (DEBUG_MODE) {
+                console.warn('Formulario enviado, datos mantenidos para recuperación');
+            }
         });
     }
-    
+
     /**
      * Limpiar datos guardados
      */
     clearFormData() {
         try {
             localStorage.removeItem(this.storageKey);
-            console.log('Datos de formulario limpiados');
         } catch (e) {
-            console.warn('Error limpiando localStorage:', e);
+            if (DEBUG_MODE) {
+                console.error('Error limpiando localStorage:', e);
+            }
         }
     }
-    
+
     /**
      * Limpiar datos específicos (por ejemplo, solo datos de cliente)
      */
@@ -300,9 +297,9 @@ class FormPersistence {
         try {
             const savedData = localStorage.getItem(this.storageKey);
             if (!savedData) return;
-            
+
             const formData = JSON.parse(savedData);
-            
+
             // Campos de cliente a limpiar
             const customerFields = [
                 '_billing_id', '_billing_email', '_billing_phone',
@@ -310,19 +307,24 @@ class FormPersistence {
                 '_shipping_address_1', '_shipping_address_2',
                 '_shipping_city', '_shipping_state', '_shipping_barrio'
             ];
-            
+
             customerFields.forEach(field => {
                 delete formData[field];
             });
-            
+
             localStorage.setItem(this.storageKey, JSON.stringify(formData));
-            console.log('Datos de cliente limpiados, otros datos mantenidos');
-            
+
+            if (DEBUG_MODE) {
+                console.warn('Datos de cliente limpiados, otros datos mantenidos');
+            }
+
         } catch (e) {
-            console.warn('Error limpiando datos de cliente:', e);
+            if (DEBUG_MODE) {
+                console.error('Error limpiando datos de cliente:', e);
+            }
         }
     }
-    
+
     /**
      * Mostrar notificación de datos restaurados
      */
@@ -341,9 +343,9 @@ class FormPersistence {
                 <button type="button" class="btn-close ms-2" data-bs-dismiss="alert"></button>
             </div>
         `;
-        
+
         document.body.appendChild(notification);
-        
+
         // Auto-remover después de 4 segundos
         setTimeout(() => {
             if (notification.parentNode) {
@@ -351,7 +353,7 @@ class FormPersistence {
             }
         }, 4000);
     }
-    
+
     /**
      * Obtener estadísticas de datos guardados
      */
@@ -359,12 +361,12 @@ class FormPersistence {
         try {
             const savedData = localStorage.getItem(this.storageKey);
             if (!savedData) return null;
-            
+
             const formData = JSON.parse(savedData);
             const fieldCount = Object.keys(formData).filter(key => !key.startsWith('_')).length;
             const timestamp = formData._timestamp ? new Date(formData._timestamp) : null;
             const step = formData._step || 'Desconocido';
-            
+
             return {
                 fieldCount,
                 timestamp,
@@ -382,7 +384,7 @@ class FormPersistence {
 /**
  * Inicializar persistencia para formulario específico
  */
-window.initFormPersistence = function(formId) {
+window.initFormPersistence = function (formId) {
     const desiredKey = arguments[1] || 'ventas_form_data';
     if (!window.formPersistenceInstance) {
         window.formPersistenceInstance = new FormPersistence(formId, desiredKey);
@@ -400,7 +402,7 @@ window.initFormPersistence = function(formId) {
 /**
  * Limpiar datos al buscar cliente (llamar desde inicio.php)
  */
-window.clearCustomerDataOnSearch = function() {
+window.clearCustomerDataOnSearch = function () {
     if (window.formPersistenceInstance) {
         window.formPersistenceInstance.clearCustomerData();
     }
@@ -409,7 +411,7 @@ window.clearCustomerDataOnSearch = function() {
 /**
  * Limpiar todos los datos (llamar al completar venta)
  */
-window.clearAllFormData = function() {
+window.clearAllFormData = function () {
     if (window.formPersistenceInstance) {
         window.formPersistenceInstance.clearFormData();
     }
@@ -418,7 +420,7 @@ window.clearAllFormData = function() {
 /**
  * Obtener estadísticas de almacenamiento
  */
-window.getFormStorageStats = function() {
+window.getFormStorageStats = function () {
     if (window.formPersistenceInstance) {
         return window.formPersistenceInstance.getStorageStats();
     }
@@ -426,10 +428,10 @@ window.getFormStorageStats = function() {
 };
 
 // Auto-inicialización para formularios comunes
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Buscar formularios principales
     const commonFormIds = ['form_venta', 'datos_cliente_form', 'productos_form'];
-    
+
     for (const formId of commonFormIds) {
         const form = document.getElementById(formId);
         if (form) {
@@ -437,7 +439,7 @@ document.addEventListener('DOMContentLoaded', function() {
             break; // Solo inicializar el primer formulario encontrado
         }
     }
-    
+
     // Si no se encuentra formulario específico, buscar el primer formulario de la página
     if (!window.formPersistenceInstance) {
         const firstForm = document.querySelector('form');
@@ -446,5 +448,3 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
-
-console.log('Sistema de Persistencia de Formularios cargado');

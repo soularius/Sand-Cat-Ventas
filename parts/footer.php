@@ -171,34 +171,28 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 // Inicializar carrito flotante cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
-    <?php if ($clear_cart_cache): ?>    
-    // Limpiar TODA la cache - localStorage completo
-    console.log('Limpiando toda la cache del navegador - usuario no logueado');
+    <?php if ($clear_cart_cache): ?>
     
     // Método 1: Limpiar todo localStorage
     if (typeof(Storage) !== "undefined" && localStorage) {
         localStorage.clear();
-        console.log('localStorage completamente limpiado');
     }
     
     // Método 2: Limpiar todo sessionStorage
     if (typeof(Storage) !== "undefined" && sessionStorage) {
         sessionStorage.clear();
-        console.log('sessionStorage completamente limpiado');
     }
     
     // Método 3: Limpiar cookies relacionadas al carrito
     document.cookie.split(";").forEach(function(c) { 
         document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
     });
-    console.log('Cookies limpiadas');
     
     // Si el objeto cart ya existe, limpiarlo también
     setTimeout(() => {
         if (typeof cart !== 'undefined' && cart && typeof cart.clearCart === 'function') {
             cart.cart = {}; // Limpiar directamente el objeto
             cart.updateCartDisplay(); // Actualizar la visualización
-            console.log('Cache del carrito limpiado completamente');
         }
     }, 50);
     <?php endif; ?>

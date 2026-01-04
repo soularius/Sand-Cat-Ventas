@@ -711,7 +711,9 @@ include("parts/header.php");
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    if (DEBUG_MODE) {
+                        console.error('Error:', error);
+                    }
                     valueField.value = originalValue;
                     showAlert('danger', 'Error al subir el archivo.');
                 })
@@ -1066,7 +1068,9 @@ include("parts/header.php");
         function updateConfigInTable(clave, tipo, valor) {
             const existingRow = document.querySelector(`tr[data-config-key="${clave}"]`);
             if (!existingRow) {
-                console.error('No se encontró la fila para actualizar:', clave);
+                if (DEBUG_MODE) {
+                    console.error('No se encontró la fila para actualizar:', clave);
+                }
                 return;
             }
 
@@ -1270,7 +1274,9 @@ include("parts/header.php");
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    if (DEBUG_MODE) {
+                        console.error('Error:', error);
+                    }
                     showAlert('danger', 'Error al eliminar la configuración.');
                 })
                 .finally(() => {
@@ -1363,7 +1369,9 @@ include("parts/header.php");
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    if (DEBUG_MODE) {
+                        console.error('Error:', error);
+                    }
                     showAlert('danger', 'Error al procesar la solicitud.');
                 });
         }

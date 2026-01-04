@@ -120,16 +120,16 @@ if (isset($_POST['fin_pedido'])) {
 // Procesar cancelación de factura
 if (isset($_POST['cancelar_factura']) && isset($_POST['orden_id'])) {
   $orden_id = Utils::sanitizeInput($_POST['orden_id']);
-  
+
   try {
     // Actualizar estado de factura a 'c' (cancelada) en la tabla facturas
     $query_cancel_factura = "UPDATE facturas SET estado = 'c' WHERE id_order = ? AND estado = 'a'";
     $stmt = mysqli_prepare($sandycat, $query_cancel_factura);
-    
+
     if ($stmt) {
       mysqli_stmt_bind_param($stmt, "i", $orden_id);
       $result = mysqli_stmt_execute($stmt);
-      
+
       if ($result && mysqli_stmt_affected_rows($stmt) > 0) {
         Utils::logError("Factura cancelada exitosamente para orden: $orden_id", 'INFO', 'ventas.php');
         $carga = '<script>
@@ -145,7 +145,7 @@ if (isset($_POST['cancelar_factura']) && isset($_POST['orden_id'])) {
                     });
                   </script>';
       }
-      
+
       mysqli_stmt_close($stmt);
     } else {
       Utils::logError("Error preparando consulta para cancelar factura: " . mysqli_error($sandycat), 'ERROR', 'ventas.php');
@@ -499,7 +499,7 @@ include("parts/header.php");
                         </td>
                         <td class="text-center">
                           <?php if ($has_invoice): ?>
-                            <?php 
+                            <?php
                             // Verificar el estado de la factura
                             $factura_estado = $row_pendientes['factura_estado'] ?? 'a';
                             if ($factura_estado === 'c'): ?>
@@ -746,7 +746,7 @@ include("parts/header.php");
                           <?php echo $alert_badge; ?>
                         </td>
                         <td class="text-center">
-                          <?php 
+                          <?php
                           // Verificar el estado de la factura
                           $factura_estado = $row_pendientesf['factura_estado'] ?? 'a';
                           if ($factura_estado === 'c'): ?>
@@ -1196,106 +1196,108 @@ include("parts/header.php");
       input.name = 'id-orden';
       input.value = orderId;
 
-    form.appendChild(input);
-    document.body.appendChild(form);
-    form.submit();
-  }
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+    }
 
-  // Función para cerrar el modal
-  function closeOrderModal() {
-    $('#orderDetailsModal').modal('hide');
-  }
+    // Función para cerrar el modal
+    function closeOrderModal() {
+      $('#orderDetailsModal').modal('hide');
+    }
 
-  // Función para mostrar alertas de error
-  function showErrorAlert(message, container = 'body') {
-    const alertHtml = `
+    // Función para mostrar alertas de error
+    function showErrorAlert(message, container = 'body') {
+      const alertHtml = `
       <div class="alert alert-danger alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; max-width: 400px;" role="alert">
         <i class="fas fa-exclamation-triangle me-2"></i>
         <strong>Error:</strong> ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     `;
-    
-    // Agregar la alerta al contenedor especificado
-    $(container).append(alertHtml);
-    
-    // Auto-remover después de 5 segundos
-    setTimeout(() => {
-      $('.alert-danger').fadeOut(500, function() {
-        $(this).remove();
-      });
-    }, 5000);
-  }
 
-  // Función para mostrar alertas de éxito
-  function showSuccessAlert(message, container = 'body') {
-    const alertHtml = `
+      // Agregar la alerta al contenedor especificado
+      $(container).append(alertHtml);
+
+      // Auto-remover después de 5 segundos
+      setTimeout(() => {
+        $('.alert-danger').fadeOut(500, function() {
+          $(this).remove();
+        });
+      }, 5000);
+    }
+
+    // Función para mostrar alertas de éxito
+    function showSuccessAlert(message, container = 'body') {
+      const alertHtml = `
       <div class="alert alert-success alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; max-width: 400px;" role="alert">
         <i class="fas fa-check-circle me-2"></i>
         <strong>Éxito:</strong> ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     `;
-    
-    // Agregar la alerta al contenedor especificado
-    $(container).append(alertHtml);
-    
-    // Auto-remover después de 5 segundos
-    setTimeout(() => {
-      $('.alert-success').fadeOut(500, function() {
-        $(this).remove();
-      });
-    }, 5000);
-  }
 
-  // Función para mostrar alertas de advertencia
-  function showWarningAlert(message, container = 'body') {
-    const alertHtml = `
+      // Agregar la alerta al contenedor especificado
+      $(container).append(alertHtml);
+
+      // Auto-remover después de 5 segundos
+      setTimeout(() => {
+        $('.alert-success').fadeOut(500, function() {
+          $(this).remove();
+        });
+      }, 5000);
+    }
+
+    // Función para mostrar alertas de advertencia
+    function showWarningAlert(message, container = 'body') {
+      const alertHtml = `
       <div class="alert alert-warning alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; max-width: 400px;" role="alert">
         <i class="fas fa-exclamation-triangle me-2"></i>
         <strong>Advertencia:</strong> ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     `;
-    
-    // Agregar la alerta al contenedor especificado
-    $(container).append(alertHtml);
-    
-    // Auto-remover después de 5 segundos
-    setTimeout(() => {
-      $('.alert-warning').fadeOut(500, function() {
-        $(this).remove();
-      });
-    }, 5000);
-  }
 
-  // Función para editar pedido desde el modal de detalles
-  function editOrderFromModal() {
-    // Obtener el ID del pedido del modal actual
-    const orderId = document.getElementById('modal-order-id').textContent;
+      // Agregar la alerta al contenedor especificado
+      $(container).append(alertHtml);
 
-    if (orderId) {
-      // Cerrar el modal de detalles primero
-      $('#orderDetailsModal').modal('hide');
-
-      // Llamar a la función de edición existente
+      // Auto-remover después de 5 segundos
       setTimeout(() => {
-        editOrder(orderId);
-      }, 300); // Pequeño delay para que se cierre el modal anterior
-    } else {
-      console.error('No se pudo obtener el ID del pedido para editar');
-      showErrorAlert('No se pudo obtener el ID del pedido para editar');
+        $('.alert-warning').fadeOut(500, function() {
+          $(this).remove();
+        });
+      }, 5000);
     }
-  }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('btn-view-detail');
+    // Función para editar pedido desde el modal de detalles
+    function editOrderFromModal() {
+      // Obtener el ID del pedido del modal actual
+      const orderId = document.getElementById('modal-order-id').textContent;
 
-    if (!btn) return;
+      if (orderId) {
+        // Cerrar el modal de detalles primero
+        $('#orderDetailsModal').modal('hide');
 
-    btn.addEventListener('click', (e) => {
-      e.preventDefault(); // evita que agregue #
-      openOrderDetail(); // abre la url real
+        // Llamar a la función de edición existente
+        setTimeout(() => {
+          editOrder(orderId);
+        }, 300); // Pequeño delay para que se cierre el modal anterior
+      } else {
+        if (DEBUG_MODE) {
+          console.warn('No se pudo obtener el ID del pedido para editar');
+        }
+        showErrorAlert('No se pudo obtener el ID del pedido para editar');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('btn-view-detail');
+
+      if (!btn) return;
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault(); // evita que agregue #
+        openOrderDetail(); // abre la url real
         e.preventDefault(); // ✅ evita que agregue #
         openOrderDetail(); // ✅ abre la url real
       });
@@ -1303,11 +1305,12 @@ include("parts/header.php");
 
     function openOrderDetail() {
       const orderId = $('#modal-order-id').text().trim();
-      console.log('Order ID from modal:', orderId);
 
       if (!orderId) {
-        console.error('No order ID found in modal');
-        alert('Error: No se pudo obtener el ID del pedido');
+        if (DEBUG_MODE) {
+          console.warn('No order ID found in modal');
+        }
+        showErrorAlert('Error: No se pudo obtener el ID del pedido');
         return;
       }
 
@@ -1316,8 +1319,6 @@ include("parts/header.php");
 
       // ✅ Construye query correcto
       const url = `${baseUrl}/detalle_pedido.php?id-orden=${encodeURIComponent(orderId)}&common=true`;
-
-      console.log('Constructed URL:', url);
       window.open(url, '_blank', 'noopener'); // noopener por seguridad
     }
 
@@ -1372,7 +1373,6 @@ include("parts/header.php");
         dataType: 'json',
         timeout: 10000, // 10 segundos timeout
         success: function(response) {
-          console.log('AJAX Success:', response);
           if (response.success) {
             displayOrderDetails(response.data);
           } else {
@@ -1385,12 +1385,13 @@ include("parts/header.php");
           }
         },
         error: function(xhr, status, error) {
-          console.log('AJAX Error:', {
-            xhr: xhr,
-            status: status,
-            error: error
-          });
-          console.log('Response Text:', xhr.responseText);
+          if (DEBUG_MODE) {
+            console.error('AJAX Error:', {
+              xhr: xhr,
+              status: status,
+              error: error
+            });
+          }
 
           let errorMessage = 'Error de conexión desconocido';
 
@@ -1476,10 +1477,6 @@ include("parts/header.php");
 
     // Función para mostrar detalles del pedido en el modal
     function displayOrderDetails(orderData) {
-      console.log('Order Data received:', orderData);
-      console.log('Post Status:', orderData.post_status);
-      console.log('Has Invoice:', orderData.has_invoice);
-
       // Procesar estado del pedido
       const status = orderData.post_status || 'wc-processing';
       const statusBadge = getStatusBadge(status);
@@ -1502,11 +1499,6 @@ include("parts/header.php");
         // Sin factura
         invoiceBadge = '<span class="badge bg-warning bg-custom"><i class="fas fa-clock"></i> Pendiente</span>';
       }
-
-      console.log('Final Status:', status);
-      console.log('Final HasInvoice:', hasInvoice);
-      console.log('Status Badge HTML:', statusBadge);
-      console.log('Invoice Badge HTML:', invoiceBadge);
 
       let itemsHtml = '';
       if (orderData.items && orderData.items.length > 0) {
@@ -1746,10 +1738,10 @@ include("parts/header.php");
 
     // Función para imprimir factura PDF del pedido
     function printOrderDetails() {
-      
+
       const orderId = document.getElementById('modal-order-id').textContent;
       const facturaNum = document.getElementById('number-facturado').textContent;
-      
+
       if (!orderId || !facturaNum) {
         showErrorAlert('No se puede generar la factura. Faltan datos del pedido.');
         return;
@@ -1758,18 +1750,18 @@ include("parts/header.php");
       // Generar PDF y abrir para imprimir
       const url = `generar_pdf.php?orden=${encodeURIComponent(orderId)}&factura=${encodeURIComponent(facturaNum)}&print=1`;
       const printWindow = window.open(url, '_blank');
-      
+
       if (!printWindow) {
         showErrorAlert('Por favor, permite las ventanas emergentes para imprimir la factura.');
         return;
       }
-      
+
       // Imprimir automáticamente cuando se cargue el PDF
       printWindow.onload = function() {
         printWindow.print();
       };
     }
-    
+
     $(document).ready(function() {
       $("#busca").on("keyup", function() {
         var value = $(this).val().toLowerCase();
@@ -1882,7 +1874,7 @@ include("parts/header.php");
       // Mostrar el modal de confirmación
       $('#cancel-invoice-order-id').text(orderId);
       $('#cancelInvoiceModal').modal('show');
-      
+
       // Configurar el botón de confirmación
       $('#btnConfirmarCancelacion').off('click').on('click', function() {
         // Crear formulario para enviar la cancelación
@@ -1890,20 +1882,20 @@ include("parts/header.php");
           method: 'POST',
           action: window.location.href
         });
-        
+
         // Agregar campos hidden
         form.append($('<input>', {
           type: 'hidden',
           name: 'cancelar_factura',
           value: '1'
         }));
-        
+
         form.append($('<input>', {
           type: 'hidden',
           name: 'orden_id',
           value: orderId
         }));
-        
+
         // Agregar el formulario al DOM y enviarlo
         $('body').append(form);
         form.submit();
@@ -1913,4 +1905,5 @@ include("parts/header.php");
 
   <?php include("parts/footer.php"); ?>
 </body>
+
 </html>
