@@ -8,10 +8,46 @@ class OrderSummary {
     }
     
     init() {
+        // Initialize server data for customer comments support
+        this.initializeServerData();
+        
         // Importante: cargar primero formData, ya que renderOrderDetails depende de esto
         this.loadFormData();
         this.loadOrderData();
         this.loadCustomerData();
+    }
+    
+    // Initialize server data for customer comments support
+    initializeServerData() {
+        if (!window.serverOrderData) {
+            window.serverOrderData = {};
+        }
+        
+        // Add customer comments from localStorage or session data if available
+        try {
+            const storedOrderData = localStorage.getItem('orderData');
+            if (storedOrderData) {
+                const orderData = JSON.parse(storedOrderData);
+                if (orderData.customer_comments) {
+                    window.serverOrderData.customer_comments = orderData.customer_comments;
+                } else if (orderData.post_excerpt) {
+                    window.serverOrderData.customer_comments = orderData.post_excerpt;
+                }
+            }
+            
+            // Also check for customer_note field
+            const storedCustomerData = localStorage.getItem('customerData');
+            if (storedCustomerData) {
+                const customerData = JSON.parse(storedCustomerData);
+                if (customerData.customer_note && !window.serverOrderData.customer_comments) {
+                    window.serverOrderData.customer_comments = customerData.customer_note;
+                } else if (customerData.post_excerpt && !window.serverOrderData.customer_comments) {
+                    window.serverOrderData.customer_comments = customerData.post_excerpt;
+                }
+            }
+        } catch (e) {
+            console.log('No stored customer comments found');
+        }
     }
 
     // Cargar datos del formulario (persistencia) desde localStorage
@@ -464,10 +500,22 @@ class OrderSummary {
         const cartDiscountRaw = (this.formData && this.formData._cart_discount)
             ? this.formData._cart_discount
             : ((this.orderData && this.orderData._cart_discount) ? this.orderData._cart_discount : '');
-        // Obtener comentarios del cliente desde customer_note
-        const customerComments = (this.orderData && this.orderData.customer_comments) 
-            ? this.orderData.customer_comments 
-            : '';
+
+        // Obtener comentarios del cliente desde múltiples fuentes
+        let customerComments = '';
+        
+        if (window.serverOrderData && window.serverOrderData.customer_comments) {
+            customerComments = window.serverOrderData.customer_comments;
+            console.log('Customer comments from serverOrderData:', customerComments);
+        } else if (this.orderData && this.orderData.customer_comments) {
+            customerComments = this.orderData.customer_comments;
+            console.log('Customer comments from orderData.customer_comments:', customerComments);
+        } else if (this.orderData && this.orderData.post_expcerpt) {
+            customerComments = this.orderData.post_expcerpt;
+            console.log('Customer comments from orderData.post_expcerpt:', customerComments);
+        } else {
+            console.log('No customer comments found');
+        }
 
         console.log('[OrderSummary] order details sources:', {
             hasFormData: !!this.formData,
