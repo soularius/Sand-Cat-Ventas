@@ -378,7 +378,7 @@ class WooCommerceCustomer
      */
     public function upsertWooCommerceCustomer(int $userId, array $customerData): void
     {
-        if (!$this->tableExists('{$this->db_prefix}wc_customer_lookup')) {
+        if (!$this->tableExists("{$this->db_prefix}wc_customer_lookup")) {
             return; // Tabla no existe, skip
         }
 
@@ -416,10 +416,10 @@ class WooCommerceCustomer
             $row = mysqli_fetch_assoc($checkResult);
             $existingCustomerId = (int)$row['customer_id'];
             
-            $this->updateRowByWhere('{$this->db_prefix}wc_customer_lookup', $customerLookupData, "customer_id = $existingCustomerId");
+            $this->updateRowByWhere("{$this->db_prefix}wc_customer_lookup", $customerLookupData, "customer_id = $existingCustomerId");
         } else {
             // Cliente no existe, crear nuevo
-            $this->insertRow('{$this->db_prefix}wc_customer_lookup', $customerLookupData);
+            $this->insertRow("{$this->db_prefix}wc_customer_lookup", $customerLookupData);
         }
     }
 
@@ -870,7 +870,7 @@ class WooCommerceCustomer
             'post_excerpt' => $postExcerpt
         ];
         
-        return $this->insertRow('{$this->db_prefix}posts', $orderRow);
+        return $this->insertRow("{$this->db_prefix}posts", $orderRow);
     }
 
     /**
@@ -934,7 +934,7 @@ class WooCommerceCustomer
         
         // Insertar cada metadato
         foreach ($metaData as $metaKey => $metaValue) {
-            $this->insertRow('{$this->db_prefix}postmeta', [
+            $this->insertRow("{$this->db_prefix}postmeta", [
                 'post_id' => $orderId,
                 'meta_key' => $metaKey,
                 'meta_value' => $metaValue
@@ -947,7 +947,7 @@ class WooCommerceCustomer
      */
     public function insertOrderAddresses(int $orderId, array $customerData, array $locationData): void
     {
-        if (!$this->tableExists('{$this->db_prefix}wc_order_addresses')) {
+        if (!$this->tableExists("{$this->db_prefix}wc_order_addresses")) {
             return; // Tabla no existe
         }
         
@@ -959,7 +959,7 @@ class WooCommerceCustomer
         $address2 = trim((string)($customerData['_shipping_address_2'] ?? ''));
         
         // Dirección de facturación
-        $this->insertRow('{$this->db_prefix}wc_order_addresses', [
+        $this->insertRow("{$this->db_prefix}wc_order_addresses", [
             'order_id' => $orderId,
             'address_type' => 'billing',
             'first_name' => $firstName,
@@ -976,7 +976,7 @@ class WooCommerceCustomer
         ]);
         
         // Dirección de envío
-        $this->insertRow('{$this->db_prefix}wc_order_addresses', [
+        $this->insertRow("{$this->db_prefix}wc_order_addresses", [
             'order_id' => $orderId,
             'address_type' => 'shipping',
             'first_name' => $firstName,
@@ -1259,14 +1259,14 @@ class WooCommerceCustomer
 
                 if ($result && mysqli_num_rows($result) > 0) {
                     // Actualizar metadato existente
-                    $this->updateRowByWhere('{$this->db_prefix}usermeta', 
+                    $this->updateRowByWhere("{$this->db_prefix}usermeta", 
                         ['meta_value' => $metaValue], 
                         "user_id = $userId AND meta_key = '$metaKey'"
                     );
                     Utils::logError("Actualizado meta: $metaKey = '$metaValue'", 'INFO', 'WooCommerceCustomer');
                 } else {
                     // Insertar nuevo metadato
-                    $this->insertRow('{$this->db_prefix}usermeta', [
+                    $this->insertRow("{$this->db_prefix}usermeta", [
                         'user_id' => $userId,
                         'meta_key' => $metaKey,
                         'meta_value' => $metaValue,
@@ -1286,7 +1286,7 @@ class WooCommerceCustomer
      */
     private function updateCustomerLookupWithLocation(int $userId, array $formData, array $locationData): void
     {
-        if (!$this->tableExists('{$this->db_prefix}wc_customer_lookup')) {
+        if (!$this->tableExists("{$this->db_prefix}wc_customer_lookup")) {
             return;
         }
 
@@ -1318,11 +1318,11 @@ class WooCommerceCustomer
             $row = mysqli_fetch_assoc($checkResult);
             $existingCustomerId = (int)$row['customer_id'];
             
-            $this->updateRowByWhere('{$this->db_prefix}wc_customer_lookup', $customerData, "customer_id = $existingCustomerId");
+            $this->updateRowByWhere("{$this->db_prefix}wc_customer_lookup", $customerData, "customer_id = $existingCustomerId");
             Utils::logError("Cliente actualizado en customer_lookup - Customer ID: $existingCustomerId", 'INFO', 'WooCommerceCustomer');
         } else {
             // Cliente no existe, crear nuevo
-            $newCustomerId = $this->insertRow('{$this->db_prefix}wc_customer_lookup', $customerData);
+            $newCustomerId = $this->insertRow("{$this->db_prefix}wc_customer_lookup", $customerData);
             Utils::logError("Cliente creado en customer_lookup - Customer ID: $newCustomerId", 'INFO', 'WooCommerceCustomer');
         }
     }

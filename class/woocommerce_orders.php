@@ -445,7 +445,7 @@ class WooCommerceOrders
     private function detectHPOSStatusFormat(): string
     {
         // Detecta si {$this->db_prefix}wc_orders.status usa 'wc-processing' o 'processing'
-        if (!$this->tableExists('{$this->db_prefix}wc_orders')) return 'wc-processing';
+        if (!$this->tableExists("{$this->db_prefix}wc_orders")) return 'wc-processing';
         $q = "SELECT status FROM {$this->db_prefix}wc_orders WHERE type='shop_order' ORDER BY id DESC LIMIT 1";
         $r = mysqli_query($this->wp_connection, $q);
         if ($r && ($row = mysqli_fetch_assoc($r)) && !empty($row['status'])) {
@@ -584,7 +584,7 @@ class WooCommerceOrders
              * 1) Crear el ID de la orden desde {$this->db_prefix}posts (Legacy)
              *    (Así el order_id queda alineado con WordPress/WooCommerce)
              * ------------------------------------------------------------ */
-            $postId = $this->insertRow('{$this->db_prefix}posts', [
+            $postId = $this->insertRow("{$this->db_prefix}posts", [
                 'post_author' => $customerId, // 🔥 VINCULACIÓN CRÍTICA
                 'post_status' => $statusPosts,
                 'comment_status' => 'closed',
@@ -657,7 +657,7 @@ class WooCommerceOrders
             foreach ($metaPairs as $k => $v) {
                 // Evitar guardar meta_key vacío
                 if (trim((string)$k) === '') continue;
-                $this->insertRow('{$this->db_prefix}postmeta', [
+                $this->insertRow("{$this->db_prefix}postmeta", [
                     'post_id' => $postId,
                     'meta_key' => $k,
                     'meta_value' => ($v === null ? '' : (string)$v),
@@ -668,12 +668,12 @@ class WooCommerceOrders
             /* --------------------------------------------------------------
              * 3) Insertar direcciones HPOS ({$this->db_prefix}wc_order_addresses)
              * ------------------------------------------------------------ */
-            if ($this->tableExists('{$this->db_prefix}wc_order_addresses')) {
+            if ($this->tableExists("{$this->db_prefix}wc_order_addresses")) {
                 // Woo espera state como 'CO-XXX' en muchos casos (si tú ya lo guardas así, no lo dupliques)
                 $stateHPOS = str_starts_with($state, 'CO-') ? $state : ('CO-' . $state);
 
                 // billing
-                $this->insertRow('{$this->db_prefix}wc_order_addresses', [
+                $this->insertRow("{$this->db_prefix}wc_order_addresses", [
                     'order_id' => $postId,
                     'address_type' => 'billing',
                     'first_name' => $firstName,
@@ -690,7 +690,7 @@ class WooCommerceOrders
                 ]);
 
                 // shipping
-                $this->insertRow('{$this->db_prefix}wc_order_addresses', [
+                $this->insertRow("{$this->db_prefix}wc_order_addresses", [
                     'order_id' => $postId,
                     'address_type' => 'shipping',
                     'first_name' => $firstName,
@@ -708,15 +708,15 @@ class WooCommerceOrders
 
                 $debug['steps'][] = ['hpos_addresses_inserted' => true];
             } else {
-                $debug['warnings'][] = '{$this->db_prefix}wc_order_addresses no existe: se omiten direcciones HPOS';
+                $debug['warnings'][] = "{$this->db_prefix}wc_order_addresses no existe: se omiten direcciones HPOS";
             }
 
             /* --------------------------------------------------------------
              * 4) Insertar items (legacy) + itemmeta
              *    (WooCommerce sigue usando woocommerce_order_items / itemmeta)
              * ------------------------------------------------------------ */
-            if (!$this->tableExists('{$this->db_prefix}woocommerce_order_items') || !$this->tableExists('{$this->db_prefix}woocommerce_order_itemmeta')) {
-                throw new Exception('Faltan tablas de items: {$this->db_prefix}woocommerce_order_items o {$this->db_prefix}woocommerce_order_itemmeta');
+            if (!$this->tableExists("{$this->db_prefix}woocommerce_order_items") || !$this->tableExists("{$this->db_prefix}woocommerce_order_itemmeta")) {
+                throw new Exception("Faltan tablas de items: {$this->db_prefix}woocommerce_order_items o {$this->db_prefix}woocommerce_order_itemmeta");
             }
 
             $createdLineItemIds = [];
@@ -735,7 +735,7 @@ class WooCommerceOrders
                 $lineSubtotal = $regular * $qty;
                 $lineTotal    = $price * $qty;
 
-                $itemId = $this->insertRow('{$this->db_prefix}woocommerce_order_items', [
+                $itemId = $this->insertRow("{$this->db_prefix}woocommerce_order_items", [
                     'order_item_name' => $title,
                     'order_item_type' => 'line_item',
                     'order_id' => $postId,
@@ -757,7 +757,7 @@ class WooCommerceOrders
                 ];
 
                 foreach ($itemMeta as $mk => $mv) {
-                    $this->insertRow('{$this->db_prefix}woocommerce_order_itemmeta', [
+                    $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
                         'order_item_id' => $itemId,
                         'meta_key' => $mk,
                         'meta_value' => $mv,
@@ -765,7 +765,7 @@ class WooCommerceOrders
                 }
 
                 // ✅ Insertar correctamente {$this->db_prefix}wc_order_product_lookup (con order_item_id y variaciones)
-                if ($this->tableExists('{$this->db_prefix}wc_order_product_lookup')) {
+                if ($this->tableExists("{$this->db_prefix}wc_order_product_lookup")) {
                     try {
                         // Calcular descuentos a nivel de producto
                         $productDiscount = ($lineSubtotal - $lineTotal); // Diferencia entre precio regular y precio final
@@ -790,7 +790,7 @@ class WooCommerceOrders
                         $totalItemsValue = $itemsTotal; // Total de todos los productos
                         $productShippingAmount = $totalItemsValue > 0 ? ($shippingCost * $gross) / $totalItemsValue : 0;
                         
-                        $this->insertRow('{$this->db_prefix}wc_order_product_lookup', [
+                        $this->insertRow("{$this->db_prefix}wc_order_product_lookup", [
                             'order_item_id' => $itemId,            // ✅ CRÍTICO
                             'order_id'      => $postId,
                             'product_id'    => $parentProductId,   // ✅ padre
@@ -815,7 +815,7 @@ class WooCommerceOrders
              * 4.1) Shipping item (si hay costo)
              * ------------------------------------------------------------ */
             if ($shippingCost > 0) {
-                $shipItemId = $this->insertRow('{$this->db_prefix}woocommerce_order_items', [
+                $shipItemId = $this->insertRow("{$this->db_prefix}woocommerce_order_items", [
                     'order_item_name' => 'Envío',
                     'order_item_type' => 'shipping',
                     'order_id' => $postId,
@@ -830,7 +830,7 @@ class WooCommerceOrders
                 ];
 
                 foreach ($shipMeta as $mk => $mv) {
-                    $this->insertRow('{$this->db_prefix}woocommerce_order_itemmeta', [
+                    $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
                         'order_item_id' => $shipItemId,
                         'meta_key' => $mk,
                         'meta_value' => $mv,
@@ -842,7 +842,7 @@ class WooCommerceOrders
              * 4.2) Descuento como fee negativo (si aplica)
              * ------------------------------------------------------------ */
             if ($cartDiscount > 0) {
-                $feeItemId = $this->insertRow('{$this->db_prefix}woocommerce_order_items', [
+                $feeItemId = $this->insertRow("{$this->db_prefix}woocommerce_order_items", [
                     'order_item_name' => 'Descuento',
                     'order_item_type' => 'fee',
                     'order_id' => $postId,
@@ -858,7 +858,7 @@ class WooCommerceOrders
                 ];
 
                 foreach ($feeMeta as $mk => $mv) {
-                    $this->insertRow('{$this->db_prefix}woocommerce_order_itemmeta', [
+                    $this->insertRow("{$this->db_prefix}woocommerce_order_itemmeta", [
                         'order_item_id' => $feeItemId,
                         'meta_key' => $mk,
                         'meta_value' => $mv,
@@ -877,7 +877,7 @@ class WooCommerceOrders
             /* --------------------------------------------------------------
              * 5) Insertar HPOS order row ({$this->db_prefix}wc_orders)
              * ------------------------------------------------------------ */
-            if ($this->tableExists('{$this->db_prefix}wc_orders')) {
+            if ($this->tableExists("{$this->db_prefix}wc_orders")) {
                 // Importante: insertamos con el mismo ID que el post
                 $hposData = [
                     'id' => $postId,
@@ -906,7 +906,7 @@ class WooCommerceOrders
                 $check = mysqli_query($this->wp_connection, "SELECT id FROM {$this->db_prefix}wc_orders WHERE id=" . (int)$postId . " LIMIT 1");
                 if ($check && mysqli_num_rows($check) > 0) {
                     // Mejor hacer update
-                    $cols = $this->getTableColumns('{$this->db_prefix}wc_orders');
+                    $cols = $this->getTableColumns("{$this->db_prefix}wc_orders");
                     $sets = [];
                     foreach ($hposData as $k => $v) {
                         if ($k === 'id') continue;
@@ -921,12 +921,12 @@ class WooCommerceOrders
                     $debug['steps'][] = ['hpos_order_updated' => $postId];
                 } else {
                     // Insert normal
-                    $this->insertRow('{$this->db_prefix}wc_orders', $hposData);
+                    $this->insertRow("{$this->db_prefix}wc_orders", $hposData);
                     $debug['steps'][] = ['hpos_order_inserted' => $postId];
                 }
 
                 // Tabla opcional: {$this->db_prefix}wc_orders_meta (si existe)
-                if ($this->tableExists('{$this->db_prefix}wc_orders_meta')) {
+                if ($this->tableExists("{$this->db_prefix}wc_orders_meta")) {
                     $meta = [
                         '_created_via' => 'external_db',
                         '_order_currency' => 'COP',
@@ -936,21 +936,21 @@ class WooCommerceOrders
 
                     foreach ($meta as $k => $v) {
                         try {
-                            $this->insertRow('{$this->db_prefix}wc_orders_meta', [
+                            $this->insertRow("{$this->db_prefix}wc_orders_meta", [
                                 'order_id' => $postId,
                                 'meta_key' => $k,
                                 'meta_value' => (string)$v,
                             ]);
                         } catch (Exception $e) {
-                            $debug['warnings'][] = 'No se pudo insertar en {$this->db_prefix}wc_orders_meta: ' . $e->getMessage();
+                            $debug['warnings'][] = "No se pudo insertar en {$this->db_prefix}wc_orders_meta: " . $e->getMessage();
                         }
                     }
                 }
 
                 // Tabla opcional: {$this->db_prefix}wc_order_operational_data
-                if ($this->tableExists('{$this->db_prefix}wc_order_operational_data')) {
+                if ($this->tableExists("{$this->db_prefix}wc_order_operational_data")) {
                     try {
-                        $this->insertRow('{$this->db_prefix}wc_order_operational_data', [
+                        $this->insertRow("{$this->db_prefix}wc_order_operational_data", [
                             'order_id' => $postId,
                             'created_via' => 'external_db',
                             'woocommerce_version' => null,
@@ -962,12 +962,12 @@ class WooCommerceOrders
                             'order_key' => 'wc_order_' . bin2hex(random_bytes(8)),
                         ]);
                     } catch (Exception $e) {
-                        $debug['warnings'][] = 'No se pudo insertar {$this->db_prefix}wc_order_operational_data: ' . $e->getMessage();
+                        $debug['warnings'][] = "No se pudo insertar {$this->db_prefix}wc_order_operational_data: " . $e->getMessage();
                     }
                 }
 
             } else {
-                $debug['warnings'][] = '{$this->db_prefix}wc_orders no existe: el pedido NO aparecerá en listados HPOS';
+                $debug['warnings'][] = "{$this->db_prefix}wc_orders no existe: el pedido NO aparecerá en listados HPOS";
             }
 
             /* --------------------------------------------------------------
@@ -1069,9 +1069,9 @@ class WooCommerceOrders
         int $customerId = 0
     ): void {
         // 1) wc_order_stats
-        if ($this->tableExists('{$this->db_prefix}wc_order_stats')) {
+        if ($this->tableExists("{$this->db_prefix}wc_order_stats")) {
             try {
-                $this->insertRow('{$this->db_prefix}wc_order_stats', [
+                $this->insertRow("{$this->db_prefix}wc_order_stats", [
                     'order_id' => $orderId,
                     'parent_id' => 0,
                     'date_created' => $nowLocal,
@@ -1107,7 +1107,7 @@ class WooCommerceOrders
         $order_id = (int)$order_id;
 
         // 1) Intentar HPOS
-        if ($this->tableExists('{$this->db_prefix}wc_orders')) {
+        if ($this->tableExists("{$this->db_prefix}wc_orders")) {
 
             // ✅ Traemos TODO lo que podamos desde addresses (billing)
             $q = "
@@ -1569,16 +1569,16 @@ class WooCommerceOrders
         $structure = ['available_tables' => $available_tables];
 
         $tables_to_check = [
-            '{$this->db_prefix}wc_orders',
-            '{$this->db_prefix}wc_orders_meta',
-            '{$this->db_prefix}wc_order_operational_data',
-            '{$this->db_prefix}wc_order_addresses',
-            '{$this->db_prefix}wc_order_stats',
-            '{$this->db_prefix}wc_order_product_lookup',
-            '{$this->db_prefix}posts',
-            '{$this->db_prefix}postmeta',
-            '{$this->db_prefix}woocommerce_order_items',
-            '{$this->db_prefix}woocommerce_order_itemmeta',
+            "{$this->db_prefix}wc_orders",
+            "{$this->db_prefix}wc_orders_meta",
+            "{$this->db_prefix}wc_order_operational_data",
+            "{$this->db_prefix}wc_order_addresses",
+            "{$this->db_prefix}wc_order_stats",
+            "{$this->db_prefix}wc_order_product_lookup",
+            "{$this->db_prefix}posts",
+            "{$this->db_prefix}postmeta",
+            "{$this->db_prefix}woocommerce_order_items",
+            "{$this->db_prefix}woocommerce_order_itemmeta",
         ];
 
         foreach ($tables_to_check as $table) {
@@ -1610,7 +1610,7 @@ class WooCommerceOrders
      * UPSERT operacional HPOS
      */
     private function upsertOperationalData(int $orderId, string $nowGmt, int $shippingCost, int $cartDiscount, int $customerId = 0): void {
-        if (!$this->tableExists('{$this->db_prefix}wc_order_operational_data')) return;
+        if (!$this->tableExists("{$this->db_prefix}wc_order_operational_data")) return;
 
         // ⚠️ OJO: usar EXACTAMENTE los nombres de columnas que tu DESCRIBE mostró
         $opData = [
@@ -1634,10 +1634,10 @@ class WooCommerceOrders
         ];
 
         // Si existe, update; si no, insert
-        if ($this->rowExists('{$this->db_prefix}wc_order_operational_data', 'order_id=' . (int)$orderId)) {
-            $this->updateRowByWhere('{$this->db_prefix}wc_order_operational_data', $opData, 'order_id=' . (int)$orderId);
+        if ($this->rowExists("{$this->db_prefix}wc_order_operational_data", 'order_id=' . (int)$orderId)) {
+            $this->updateRowByWhere("{$this->db_prefix}wc_order_operational_data", $opData, 'order_id=' . (int)$orderId);
         } else {
-            $this->insertRow('{$this->db_prefix}wc_order_operational_data', $opData);
+            $this->insertRow("{$this->db_prefix}wc_order_operational_data", $opData);
         }
     }
 
@@ -1645,7 +1645,7 @@ class WooCommerceOrders
      * UPSERT stats HPOS
      */
     private function upsertOrderStats(int $orderId, string $nowLocal, string $nowGmt, string $status, int $itemsQty, int $shippingCost, int $finalTotal, int $customerId = 0): void {
-        if (!$this->tableExists('{$this->db_prefix}wc_order_stats')) return;
+        if (!$this->tableExists("{$this->db_prefix}wc_order_stats")) return;
 
         $stats = [
             'order_id' => $orderId,
@@ -1664,10 +1664,10 @@ class WooCommerceOrders
             'customer_id' => 0,
         ];
 
-        if ($this->rowExists('{$this->db_prefix}wc_order_stats', 'order_id=' . (int)$orderId)) {
-            $this->updateRowByWhere('{$this->db_prefix}wc_order_stats', $stats, 'order_id=' . (int)$orderId);
+        if ($this->rowExists("{$this->db_prefix}wc_order_stats", 'order_id=' . (int)$orderId)) {
+            $this->updateRowByWhere("{$this->db_prefix}wc_order_stats", $stats, 'order_id=' . (int)$orderId);
         } else {
-            $this->insertRow('{$this->db_prefix}wc_order_stats', $stats, false);
+            $this->insertRow("{$this->db_prefix}wc_order_stats", $stats, false);
         }
     }
 
@@ -2035,7 +2035,7 @@ class WooCommerceOrders
         }
         
         // 2) Descuentos desde ítems (cupones y fees negativos)
-        if ($this->tableExists('{$this->db_prefix}woocommerce_order_items')) {
+        if ($this->tableExists("{$this->db_prefix}woocommerce_order_items")) {
             $query_items = "
                 SELECT 
                     oi.order_item_name,
@@ -2124,12 +2124,12 @@ class WooCommerceOrders
         $sourceType = 'utm';
 
         // HPOS meta (si existe)
-        $this->upsertOrderMeta('{$this->db_prefix}wc_orders_meta', 'order_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
-        $this->upsertOrderMeta('{$this->db_prefix}wc_orders_meta', 'order_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
+        $this->upsertOrderMeta("{$this->db_prefix}wc_orders_meta", 'order_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
+        $this->upsertOrderMeta("{$this->db_prefix}wc_orders_meta", 'order_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
 
         // Legacy meta (si existe) para compatibilidad total
-        $this->upsertOrderMeta('{$this->db_prefix}postmeta', 'post_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
-        $this->upsertOrderMeta('{$this->db_prefix}postmeta', 'post_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
+        $this->upsertOrderMeta("{$this->db_prefix}postmeta", 'post_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
+        $this->upsertOrderMeta("{$this->db_prefix}postmeta", 'post_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
     }
 
     /**
@@ -2872,7 +2872,7 @@ class WooCommerceOrders
             }
 
             // Verificar si la tabla de comentarios existe
-            if (!$this->tableExists('{$this->db_prefix}comments')) {
+            if (!$this->tableExists("{$this->db_prefix}comments")) {
                 return [];
             }
 
@@ -2944,7 +2944,7 @@ class WooCommerceOrders
             }
 
             // Verificar si la tabla de comentarios existe
-            if (!$this->tableExists('{$this->db_prefix}comments')) {
+            if (!$this->tableExists("{$this->db_prefix}comments")) {
                 Utils::logError("Tabla {$this->db_prefix}comments no existe, no se puede agregar nota de orden", 'WARNING', 'WooCommerceOrders');
                 return false;
             }
@@ -2975,12 +2975,12 @@ class WooCommerceOrders
                 'user_id' => $user_id
             ];
 
-            $comment_id = $this->insertRow('{$this->db_prefix}comments', $comment_data);
+            $comment_id = $this->insertRow("{$this->db_prefix}comments", $comment_data);
 
             if ($comment_id > 0) {
                 // Agregar metadatos del comentario si es necesario
-                if ($this->tableExists('{$this->db_prefix}commentmeta')) {
-                    $this->insertRow('{$this->db_prefix}commentmeta', [
+                if ($this->tableExists("{$this->db_prefix}commentmeta")) {
+                    $this->insertRow("{$this->db_prefix}commentmeta", [
                         'comment_id' => $comment_id,
                         'meta_key' => 'is_customer_note',
                         'meta_value' => ($note_type === 'customer') ? '1' : '0'
