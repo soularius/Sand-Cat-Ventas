@@ -1757,11 +1757,7 @@ include("parts/header.php");
         printWindow.print();
       };
     }
-  </script>
-
-  <?php include("parts/footer.php"); ?>
-
-  <script>
+    
     $(document).ready(function() {
       $("#busca").on("keyup", function() {
         var value = $(this).val().toLowerCase();

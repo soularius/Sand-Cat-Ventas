@@ -325,7 +325,7 @@ include('parts/header.php');
                     <div class="action-buttons mt-4">
                         <div class="row">
                             <div class="col-md-6">
-                                <button class="btn btn-danger btn-custom btn-lg w-100" onclick="window.location.href='inicio.php'">
+                                <button class="btn btn-danger btn-custom btn-lg w-100" onclick="window.location.href='ventas.php'">
                                     <i class="fas fa-arrow-left me-2"></i>Volver a Pedidos
                                 </button>
                             </div>
