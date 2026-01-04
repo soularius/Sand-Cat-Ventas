@@ -68,8 +68,47 @@ try {
     require_once('class/woocommerce_orders.php');
     $ordersService = new WooCommerceOrders();
 
-    // La nueva implementación devuelve {success: bool, order_id?, total?, error?, debug?}
-    $result = $ordersService->createOrderFromSalesData($orderData, 'prod');
+    // Verificar si viene un order_id existente para edición
+    $existingOrderId = null;
+    if (isset($orderData['form_data']['_order_id']) && !empty($orderData['form_data']['_order_id'])) {
+        $candidateOrderId = (int)$orderData['form_data']['_order_id'];
+        
+        // Verificar que la orden realmente existe usando método público
+        if ($ordersService->orderExists($candidateOrderId)) {
+            $existingOrderId = $candidateOrderId;
+        }
+        
+        Utils::logError(
+            "Detectado order_id en datos: $candidateOrderId " . ($existingOrderId ? "(existe)" : "(no existe)"),
+            'INFO',
+            'create_final_order.php'
+        );
+    }
+
+    // Si hay orden existente, usar updateExistingOrder directamente
+    if ($existingOrderId) {
+        $debug = ['mode' => 'edit', 'steps' => [], 'warnings' => []];
+        $updateResult = $ordersService->updateExistingOrder($existingOrderId, $orderData, $debug);
+        
+        if ($updateResult['success']) {
+            $result = [
+                'success' => true,
+                'order_id' => $existingOrderId,
+                'total' => $updateResult['total'],
+                'message' => 'Orden actualizada exitosamente',
+                'debug' => $debug
+            ];
+        } else {
+            $result = [
+                'success' => false,
+                'error' => 'Error actualizando orden: ' . $updateResult['error'],
+                'debug' => $debug
+            ];
+        }
+    } else {
+        // La nueva implementación devuelve {success: bool, order_id?, total?, error?, debug?}
+        $result = $ordersService->createOrderFromSalesData($orderData, 'prod');
+    }
 
     if (!empty($result['success'])) {
         // Generar factura automáticamente en BD ventassc (tabla facturas)

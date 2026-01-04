@@ -174,6 +174,15 @@ class OrderSummary {
         const createBtn = document.getElementById('create-order-btn');
         if (createBtn) {
             createBtn.disabled = false;
+            // Cambiar texto del botón si es una edición
+            const orderId = (this.formData && this.formData._order_id) ? this.formData._order_id : null;
+            if (orderId) {
+                createBtn.innerHTML = '<i class="fas fa-edit me-2"></i>Actualizar Pedido';
+                createBtn.title = 'Actualizar pedido existente #' + orderId;
+            } else {
+                createBtn.innerHTML = '<i class="fas fa-check me-2"></i>Crear Pedido';
+                createBtn.title = 'Crear nuevo pedido';
+            }
         }
     }
     

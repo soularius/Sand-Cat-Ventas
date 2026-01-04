@@ -70,6 +70,7 @@ $orden['comentarios'] = implode("\n\n", $comentarios_combinados);
 // Los valores de envío y descuento ya vienen incluidos en $orden desde getOrderDataForPdf
 $envio = (float)$orden['envio'];
 $descuento = (float)$orden['descuento'];
+#var_dump($orden);die();
 
 // Usar la clase WooCommerceOrders para obtener productos de la orden
 $productos = $wooOrders->getOrderProductsForInvoice($orden_id);
