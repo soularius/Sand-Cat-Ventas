@@ -76,36 +76,6 @@ jQuery(document).ready(function($) {
         });
     });
     
-    // Manejar clic en botón "Ver Factura" para facturas existentes (streaming temporal)
-    $(document).on('click', '#view-invoice', function(e) {
-        e.preventDefault();
-        
-        var $button = $(this);
-        var orderId = $button.data('order-id');
-        
-        // Mostrar loading
-        $('#invoice-loading').show();
-        $button.prop('disabled', true);
-        $button.text('Generando...');
-        
-        console.log('Opening PDF via streaming for order:', orderId);
-        
-        // Crear URL para streaming directo del PDF
-        var streamUrl = sandcat_invoice_ajax.ajax_url + 
-            '?action=stream_invoice_pdf' +
-            '&nonce=' + encodeURIComponent(sandcat_invoice_ajax.nonce) +
-            '&order_id=' + encodeURIComponent(orderId);
-        
-        // Abrir PDF en nueva pestaña directamente
-        window.open(streamUrl, '_blank');
-        
-        // Restaurar estado del botón después de un breve delay
-        setTimeout(function() {
-            $('#invoice-loading').hide();
-            $button.prop('disabled', false);
-            $button.text('Ver Factura');
-        }, 1000);
-    });
     
     // Manejar clic en botones "Ver PDF" dinámicos
     $(document).on('click', '.view-pdf-btn', function(e) {
@@ -181,14 +151,20 @@ jQuery(document).ready(function($) {
                 order_id: orderId
             },
             success: function(response) {
-                $button.removeClass('processing');
-                $button.prop('disabled', false);
-                $button.text('Ver Factura');
-                
                 if (response.success && response.data.pdf_url) {
-                    // Abrir PDF en nueva pestaña
-                    window.open(response.data.pdf_url, '_blank');
+                    // Agregar un pequeño retraso para asegurar que el PDF esté listo
+                    setTimeout(function() {
+                        $button.removeClass('processing');
+                        $button.prop('disabled', false);
+                        $button.text('Ver Factura');
+                        
+                        // Abrir PDF en nueva pestaña
+                        window.open(response.data.pdf_url, '_blank');
+                    }, 500); // Retraso de 500ms
                 } else {
+                    $button.removeClass('processing');
+                    $button.prop('disabled', false);
+                    $button.text('Ver Factura');
                     alert('Error: No se pudo obtener la URL del PDF. ' + (response.data.message || ''));
                 }
             },

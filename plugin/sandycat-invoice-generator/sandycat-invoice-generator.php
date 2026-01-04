@@ -46,6 +46,11 @@ class SandCatInvoiceGenerator {
         add_action('wp_ajax_check_invoice_status', array($this, 'ajax_check_invoice_status'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
         
+        // Hooks para configuración
+        add_action('admin_menu', array($this, 'add_admin_menu'));
+        add_action('admin_init', array($this, 'register_settings'));
+        add_action('wp_ajax_test_sandcat_db_connection', array($this, 'ajax_test_db_connection'));
+        
         // Hook adicional para asegurar que el script se carga
         add_action('admin_footer', array($this, 'ensure_script_loaded'));
         
@@ -95,12 +100,15 @@ class SandCatInvoiceGenerator {
      */
     private function init_ventas_db_connection() {
         try {
-            $this->ventas_db = new mysqli(
-                'localhost',    // DB_VENTAS_HOST
-                'root',         // DB_VENTAS_USER
-                '',             // DB_VENTAS_PASS
-                'ventassc'      // DB_VENTAS_NAME
-            );
+            // Obtener configuraciones guardadas
+            $db_settings = get_option('sandcat_invoice_db_settings', array());
+            
+            $host = isset($db_settings['db_host']) ? $db_settings['db_host'] : 'localhost';
+            $user = isset($db_settings['db_user']) ? $db_settings['db_user'] : 'root';
+            $password = isset($db_settings['db_password']) ? $db_settings['db_password'] : '';
+            $database = isset($db_settings['db_name']) ? $db_settings['db_name'] : 'ventassc';
+            
+            $this->ventas_db = new mysqli($host, $user, $password, $database);
             
             if ($this->ventas_db->connect_error) {
                 throw new Exception('Error conectando a base de datos de ventas: ' . $this->ventas_db->connect_error);
@@ -496,10 +504,12 @@ class SandCatInvoiceGenerator {
                 $order->update_status('completed', __('Orden completada automáticamente después de generar factura.', 'sandcat-invoice'));
                 
                 // Agregar nota adicional con el cambio de estado
+                $bogota_time = new DateTime('now', new DateTimeZone('America/Bogota'));
                 $order->add_order_note(sprintf(
-                    __('Estado cambiado de "%s" a "Completado" automáticamente después de generar la factura #%s.', 'sandcat-invoice'),
+                    __('Estado cambiado de "%s" a "Completado" automáticamente después de generar la factura #%s el %s.', 'sandcat-invoice'),
                     $previous_status_name,
-                    $invoice_number
+                    $invoice_number,
+                    $bogota_time->format('Y-m-d H:i:s')
                 ));
                 
                 $this->logger->info('Order status changed to completed after invoice generation', array(
@@ -741,7 +751,7 @@ class SandCatInvoiceGenerator {
             'apellido_cliente_upper' => '', // Ya incluido en nombre_completo
             'celular' => $order_data['telefono'],
             'correo' => $order_data['email'],
-            'total_formateado' => '$' . number_format($order_data['total'], 0, ',', '.'),
+            'total_formateado' => number_format($order_data['total'], 0, '.', ','),
             'logo_factura' => $this->get_logo_url(),
             'woocommerce_url' => defined('URL_WOOCOMMERCE') ? URL_WOOCOMMERCE : home_url(),
             'woocommerce_url_pedido' => $order->get_view_order_url(),
@@ -849,7 +859,7 @@ class SandCatInvoiceGenerator {
             return '';
         }
         
-        $direccion_completa = implode(' ', $direccion_parts);
+        $direccion_completa = implode(', ', $direccion_parts);
         return '<tr><td colspan="4" style="word-wrap: break-word; width: 180"><strong>Dirección:</strong> ' . htmlspecialchars($direccion_completa) . '</td></tr>';
     }
     
@@ -1141,7 +1151,7 @@ class SandCatInvoiceGenerator {
     private function extract_order_data($order) {
         return array(
             'id' => $order->get_id(),
-            'fecha' => get_post_field('post_date', $order->get_id()),
+            'fecha' => $order->get_date_created(),
             'nombre_completo' => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
             'email' => $order->get_billing_email(),
             'telefono' => $order->get_billing_phone(),
@@ -1651,6 +1661,281 @@ class SandCatInvoiceGenerator {
                 'error' => $e->getMessage()
             ));
             wp_send_json_error(__('Error interno del servidor.', 'sandcat-invoice'));
+        }
+    }
+    
+    /**
+     * Agregar menú de administración
+     */
+    public function add_admin_menu() {
+        add_options_page(
+            __('Configuración SandCat Invoice', 'sandcat-invoice'),
+            __('Sand&Cat Invoice', 'sandcat-invoice'),
+            'manage_options',
+            'sandcat-invoice-settings',
+            array($this, 'settings_page')
+        );
+    }
+    
+    /**
+     * Registrar configuraciones
+     */
+    public function register_settings() {
+        // Registrar grupo de configuraciones
+        register_setting('sandcat_invoice_settings', 'sandcat_invoice_db_settings', array(
+            'sanitize_callback' => array($this, 'sanitize_db_settings')
+        ));
+        
+        // Sección de configuración de base de datos
+        add_settings_section(
+            'sandcat_invoice_db_section',
+            __('Configuración de Base de Datos de Ventas', 'sandcat-invoice'),
+            array($this, 'db_section_callback'),
+            'sandcat-invoice-settings'
+        );
+        
+        // Campos de configuración
+        add_settings_field(
+            'db_host',
+            __('Host de Base de Datos', 'sandcat-invoice'),
+            array($this, 'db_host_callback'),
+            'sandcat-invoice-settings',
+            'sandcat_invoice_db_section'
+        );
+        
+        add_settings_field(
+            'db_user',
+            __('Usuario de Base de Datos', 'sandcat-invoice'),
+            array($this, 'db_user_callback'),
+            'sandcat-invoice-settings',
+            'sandcat_invoice_db_section'
+        );
+        
+        add_settings_field(
+            'db_password',
+            __('Contraseña de Base de Datos', 'sandcat-invoice'),
+            array($this, 'db_password_callback'),
+            'sandcat-invoice-settings',
+            'sandcat_invoice_db_section'
+        );
+        
+        add_settings_field(
+            'db_name',
+            __('Nombre de Base de Datos', 'sandcat-invoice'),
+            array($this, 'db_name_callback'),
+            'sandcat-invoice-settings',
+            'sandcat_invoice_db_section'
+        );
+    }
+    
+    /**
+     * Página de configuraciones
+     */
+    public function settings_page() {
+        ?>
+        <div class="wrap">
+            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
+            <form action="options.php" method="post">
+                <?php
+                settings_fields('sandcat_invoice_settings');
+                do_settings_sections('sandcat-invoice-settings');
+                submit_button(__('Guardar Configuración', 'sandcat-invoice'));
+                ?>
+            </form>
+            
+            <div class="card" style="margin-top: 20px;">
+                <h2><?php _e('Probar Conexión', 'sandcat-invoice'); ?></h2>
+                <p><?php _e('Haz clic en el botón para probar la conexión con la base de datos de ventas.', 'sandcat-invoice'); ?></p>
+                <button type="button" id="test-db-connection" class="button button-secondary">
+                    <?php _e('Probar Conexión', 'sandcat-invoice'); ?>
+                </button>
+                <div id="connection-result" style="margin-top: 10px;"></div>
+            </div>
+        </div>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            $('#test-db-connection').on('click', function() {
+                var $button = $(this);
+                var $result = $('#connection-result');
+                
+                $button.prop('disabled', true).text('<?php _e('Probando...', 'sandcat-invoice'); ?>');
+                $result.html('');
+                
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'test_sandcat_db_connection',
+                        nonce: '<?php echo wp_create_nonce('test_db_connection'); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $result.html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>');
+                        } else {
+                            $result.html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
+                        }
+                    },
+                    error: function() {
+                        $result.html('<div class="notice notice-error"><p><?php _e('Error de conexión AJAX', 'sandcat-invoice'); ?></p></div>');
+                    },
+                    complete: function() {
+                        $button.prop('disabled', false).text('<?php _e('Probar Conexión', 'sandcat-invoice'); ?>');
+                    }
+                });
+            });
+        });
+        </script>
+        <?php
+    }
+    
+    /**
+     * Callback para sección de base de datos
+     */
+    public function db_section_callback() {
+        echo '<p>' . __('Configure los parámetros de conexión a la base de datos de ventas SandCat.', 'sandcat-invoice') . '</p>';
+    }
+    
+    /**
+     * Callback para campo host
+     */
+    public function db_host_callback() {
+        $settings = get_option('sandcat_invoice_db_settings', array());
+        $value = isset($settings['db_host']) ? $settings['db_host'] : 'localhost';
+        echo '<input type="text" name="sandcat_invoice_db_settings[db_host]" value="' . esc_attr($value) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Dirección del servidor de base de datos (ej: localhost)', 'sandcat-invoice') . '</p>';
+    }
+    
+    /**
+     * Callback para campo usuario
+     */
+    public function db_user_callback() {
+        $settings = get_option('sandcat_invoice_db_settings', array());
+        $value = isset($settings['db_user']) ? $settings['db_user'] : 'root';
+        echo '<input type="text" name="sandcat_invoice_db_settings[db_user]" value="' . esc_attr($value) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Nombre de usuario de la base de datos', 'sandcat-invoice') . '</p>';
+    }
+    
+    /**
+     * Callback para campo contraseña
+     */
+    public function db_password_callback() {
+        $settings = get_option('sandcat_invoice_db_settings', array());
+        $value = isset($settings['db_password']) ? $settings['db_password'] : '';
+        echo '<input type="password" name="sandcat_invoice_db_settings[db_password]" value="' . esc_attr($value) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Contraseña de la base de datos', 'sandcat-invoice') . '</p>';
+    }
+    
+    /**
+     * Callback para campo nombre de base de datos
+     */
+    public function db_name_callback() {
+        $settings = get_option('sandcat_invoice_db_settings', array());
+        $value = isset($settings['db_name']) ? $settings['db_name'] : 'ventassc';
+        echo '<input type="text" name="sandcat_invoice_db_settings[db_name]" value="' . esc_attr($value) . '" class="regular-text" />';
+        echo '<p class="description">' . __('Nombre de la base de datos de ventas', 'sandcat-invoice') . '</p>';
+    }
+    
+    /**
+     * Sanitizar configuraciones de base de datos
+     */
+    public function sanitize_db_settings($input) {
+        $sanitized = array();
+        
+        if (isset($input['db_host'])) {
+            $sanitized['db_host'] = sanitize_text_field($input['db_host']);
+        }
+        
+        if (isset($input['db_user'])) {
+            $sanitized['db_user'] = sanitize_text_field($input['db_user']);
+        }
+        
+        if (isset($input['db_password'])) {
+            $sanitized['db_password'] = $input['db_password']; // No sanitizar contraseña para mantener caracteres especiales
+        }
+        
+        if (isset($input['db_name'])) {
+            $sanitized['db_name'] = sanitize_text_field($input['db_name']);
+        }
+        
+        return $sanitized;
+    }
+    
+    /**
+     * AJAX handler para probar conexión a base de datos
+     */
+    public function ajax_test_db_connection() {
+        // Verificar nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'test_db_connection')) {
+            wp_send_json_error(array('message' => __('Error de seguridad.', 'sandcat-invoice')));
+            return;
+        }
+        
+        // Verificar permisos
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('No tienes permisos para realizar esta acción.', 'sandcat-invoice')));
+            return;
+        }
+        
+        try {
+            // Obtener configuraciones guardadas
+            $db_settings = get_option('sandcat_invoice_db_settings', array());
+            
+            $host = isset($db_settings['db_host']) ? $db_settings['db_host'] : 'localhost';
+            $user = isset($db_settings['db_user']) ? $db_settings['db_user'] : 'root';
+            $password = isset($db_settings['db_password']) ? $db_settings['db_password'] : '';
+            $database = isset($db_settings['db_name']) ? $db_settings['db_name'] : 'ventassc';
+            
+            // Intentar conexión
+            $test_connection = new mysqli($host, $user, $password, $database);
+            
+            if ($test_connection->connect_error) {
+                wp_send_json_error(array(
+                    'message' => sprintf(__('Error de conexión: %s', 'sandcat-invoice'), $test_connection->connect_error)
+                ));
+                return;
+            }
+            
+            // Probar una consulta simple
+            $result = $test_connection->query("SELECT 1");
+            if (!$result) {
+                wp_send_json_error(array(
+                    'message' => sprintf(__('Error ejecutando consulta: %s', 'sandcat-invoice'), $test_connection->error)
+                ));
+                $test_connection->close();
+                return;
+            }
+            
+            // Verificar si existe la tabla configuracion
+            $table_check = $test_connection->query("SHOW TABLES LIKE 'configuracion'");
+            $has_config_table = $table_check && $table_check->num_rows > 0;
+            
+            // Verificar si existe la tabla facturas
+            $table_check2 = $test_connection->query("SHOW TABLES LIKE 'facturas'");
+            $has_facturas_table = $table_check2 && $table_check2->num_rows > 0;
+            
+            $test_connection->close();
+            
+            $message = __('✅ Conexión exitosa a la base de datos.', 'sandcat-invoice');
+            
+            if (!$has_config_table) {
+                $message .= '<br>' . __('⚠️ Advertencia: No se encontró la tabla "configuracion".', 'sandcat-invoice');
+            }
+            
+            if (!$has_facturas_table) {
+                $message .= '<br>' . __('⚠️ Advertencia: No se encontró la tabla "facturas".', 'sandcat-invoice');
+            }
+            
+            if ($has_config_table && $has_facturas_table) {
+                $message .= '<br>' . __('✅ Todas las tablas necesarias están presentes.', 'sandcat-invoice');
+            }
+            
+            wp_send_json_success(array('message' => $message));
+            
+        } catch (Exception $e) {
+            wp_send_json_error(array(
+                'message' => sprintf(__('Error: %s', 'sandcat-invoice'), $e->getMessage())
+            ));
         }
     }
     

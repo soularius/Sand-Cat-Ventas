@@ -60,17 +60,19 @@ try {
     
     Utils::logError("get_order_details.php: Detalles obtenidos exitosamente", 'INFO', 'get_order_details.php');
     
-    // 8.2. Obtener número de factura si existe
+    // 8.2. Obtener número de factura y estado si existe
     $invoice_number = '';
+    $invoice_status = '';
     if ($order_details['has_invoice']) {
         try {
             $ventas_connection = DatabaseConfig::getVentasConnection();
-            $query_factura = "SELECT factura FROM facturas WHERE id_order = '$order_id' AND estado = 'a' LIMIT 1";
+            // Buscar facturas tanto activas como canceladas
+            $query_factura = "SELECT factura, estado FROM facturas WHERE id_order = '$order_id' AND estado IN ('a', 'c') LIMIT 1";
             $result_factura = mysqli_query($ventas_connection, $query_factura);
-            
             if ($result_factura && mysqli_num_rows($result_factura) > 0) {
                 $row_factura = mysqli_fetch_assoc($result_factura);
                 $invoice_number = $row_factura['factura'] ?? '';
+                $invoice_status = $row_factura['estado'] ?? '';
                 mysqli_free_result($result_factura);
             }
             mysqli_close($ventas_connection);
@@ -102,10 +104,10 @@ try {
         'has_invoice' => $order_details['has_invoice'] ?? false,
         'customer_note' => $order_details['customer_note'] ?? '',
         'invoice_number' => $invoice_number,
+        'invoice_status' => $invoice_status,
         'items' => [],
         'order_notes' => $order_notes
     ];
-    
     // 10. Formatear productos si existen
     if (!empty($order_details['items'])) {
         foreach ($order_details['items'] as $item) {

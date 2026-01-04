@@ -2868,9 +2868,9 @@ class WooCommerceOrders
             $per_page = max(1, min(100, (int)$per_page)); // Máximo 100 por página
             $offset = ($page - 1) * $per_page;
             
-            // Primero obtener IDs de órdenes ya facturadas del sistema de ventas
+            // Primero obtener IDs de órdenes que tienen facturas (activas o canceladas) del sistema de ventas
             $ventas_connection = DatabaseConfig::getVentasConnection();
-            $query_facturas = "SELECT id_order FROM facturas WHERE estado = 'a'";
+            $query_facturas = "SELECT id_order FROM facturas WHERE estado IN ('a', 'c')";
             $facturas_result = mysqli_query($ventas_connection, $query_facturas);
             
             $facturas_ids = [];
@@ -3099,7 +3099,7 @@ class WooCommerceOrders
             
             // Usar conexión de ventassc para tabla facturas
             $ventas_connection = DatabaseConfig::getVentasConnection();
-            $query = "SELECT COUNT(*) as count FROM facturas WHERE id_order = ? AND estado = 'a'";
+            $query = "SELECT COUNT(*) as count FROM facturas WHERE id_order = ? AND estado IN ('a', 'c')";
             $stmt = mysqli_prepare($ventas_connection, $query);
             
             if (!$stmt) {

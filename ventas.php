@@ -1487,9 +1487,21 @@ include("parts/header.php");
       // Procesar estado de facturación
       const hasInvoice = orderData.has_invoice === true || orderData.has_invoice === 1 || orderData.has_invoice === '1' || orderData.has_invoice === 'true';
       const invoiceNumber = orderData.invoice_number || '';
-      const invoiceBadge = hasInvoice ?
-        `<span class="badge bg-success bg-custom"><i class="fas fa-check"></i> Facturado${invoiceNumber ? ' #<span id="number-facturado">' + invoiceNumber : ''}</span></span>` :
-        '<span class="badge bg-warning bg-custom"><i class="fas fa-clock"></i> Pendiente</span>';
+      const invoiceStatus = orderData.invoice_status || '';
+
+      let invoiceBadge = '';
+      if (hasInvoice) {
+        if (invoiceStatus === 'c') {
+          // Factura cancelada
+          invoiceBadge = `<span class="badge bg-danger bg-custom"><i class="fas fa-times"></i> Factura Cancelada${invoiceNumber ? ' #<span id="number-facturado">' + invoiceNumber + '</span>' : ''}</span>`;
+        } else {
+          // Factura activa
+          invoiceBadge = `<span class="badge bg-success bg-custom"><i class="fas fa-check"></i> Facturado${invoiceNumber ? ' #<span id="number-facturado">' + invoiceNumber + '</span>' : ''}</span>`;
+        }
+      } else {
+        // Sin factura
+        invoiceBadge = '<span class="badge bg-warning bg-custom"><i class="fas fa-clock"></i> Pendiente</span>';
+      }
 
       console.log('Final Status:', status);
       console.log('Final HasInvoice:', hasInvoice);
