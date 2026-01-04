@@ -11,6 +11,9 @@ if (session_status() == PHP_SESSION_NONE) {
 // Cargar autoloader del sistema
 require_once('class/autoload.php');
 
+// Obtener prefijo de base de datos desde variable de entorno
+$db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
+
 // Verificar que sea una petición POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(400);
@@ -65,20 +68,20 @@ try {
                 ELSE p.ID 
             END as product_id
             
-        FROM miau_posts p
-        LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
-        LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-        LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
-        LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
-        LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-        LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-        LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'";
+        FROM {$db_prefix}posts p
+        LEFT JOIN {$db_prefix}posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
+        LEFT JOIN {$db_prefix}postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
+        LEFT JOIN {$db_prefix}postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
+        LEFT JOIN {$db_prefix}postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
+        LEFT JOIN {$db_prefix}postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+        LEFT JOIN {$db_prefix}postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
+        LEFT JOIN {$db_prefix}postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'";
     
     // Agregar JOIN para categorías si es necesario
     if (!empty($category_id)) {
         $query .= "
-        INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
-        INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id";
+        INNER JOIN {$db_prefix}term_relationships tr ON p.ID = tr.object_id
+        INNER JOIN {$db_prefix}term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id";
     }
     
     $query .= "
@@ -87,7 +90,7 @@ try {
             -- Productos simples (sin variaciones)
             (p.post_type = 'product' AND p.ID NOT IN (
                 SELECT DISTINCT post_parent 
-                FROM miau_posts 
+                FROM {$db_prefix}posts 
                 WHERE post_type = 'product_variation' 
                 AND post_status = 'publish'
                 AND post_parent IS NOT NULL
@@ -135,10 +138,10 @@ try {
     
     // Función para obtener atributos de variación
     function getVariationAttributes($variation_id) {
-        global $miau;
+        global $miau, $db_prefix;
         
         $query = "SELECT meta_key, meta_value 
-                 FROM miau_postmeta 
+                 FROM {$db_prefix}postmeta 
                  WHERE post_id = $variation_id 
                  AND meta_key LIKE 'attribute_%'";
         
@@ -208,9 +211,9 @@ try {
     
     // Función simple para obtener imagen
     function getSimpleProductImage($product_id) {
-        global $miau;
+        global $miau, $db_prefix;
         
-        $query = "SELECT meta_value as thumbnail_id FROM miau_postmeta WHERE post_id = $product_id AND meta_key = '_thumbnail_id'";
+        $query = "SELECT meta_value as thumbnail_id FROM {$db_prefix}postmeta WHERE post_id = $product_id AND meta_key = '_thumbnail_id'";
         $result = mysqli_query($miau, $query);
         
         if (!$result || mysqli_num_rows($result) == 0) {
@@ -224,7 +227,7 @@ try {
             return URL_WOOCOMMERCE . '/wp-content/themes/petio/images/placeholder.jpg';
         }
         
-        $image_query = "SELECT guid FROM miau_posts WHERE ID = $thumbnail_id AND post_type = 'attachment'";
+        $image_query = "SELECT guid FROM {$db_prefix}posts WHERE ID = $thumbnail_id AND post_type = 'attachment'";
         $image_result = mysqli_query($miau, $image_query);
         
         if ($image_result && $image_row = mysqli_fetch_assoc($image_result)) {

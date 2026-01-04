@@ -6,6 +6,9 @@
 // 1. Cargar autoloader del sistema
 require_once('class/autoload.php');
 
+// Obtener prefijo de base de datos desde variable de entorno
+$db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
+
 // 2. Cargar login handler centralizado
 require_once('parts/login_handler.php');
 // 2. Cargar clases específicas
@@ -58,7 +61,7 @@ if (!empty($edit_order_id)) {
 $existing_order_id = Utils::captureValue('_order_id', 'POST', '');
 if (!empty($existing_order_id) && !$edit_mode) {
     $post_id = $existing_order_id;
-    $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$post_id'");
+    $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM {$db_prefix}postmeta WHERE post_id = '$post_id'");
     $lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
     $row_lista = mysqli_fetch_assoc($lista);
     $totalRows_lista = mysqli_num_rows($lista);
@@ -83,7 +86,7 @@ if (isset($_POST['billing_id'])) {
         }
     } else {
         // Búsqueda tradicional (mantener por compatibilidad)
-        $query_idlast = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE meta_value = '$billing_id' AND meta_key = '_billing_id' ORDER BY post_id DESC LIMIT 1");
+        $query_idlast = sprintf("SELECT post_id, meta_key, meta_value FROM {$db_prefix}postmeta WHERE meta_value = '$billing_id' AND meta_key = '_billing_id' ORDER BY post_id DESC LIMIT 1");
         $idlast = mysqli_query($miau, $query_idlast) or die(mysqli_error($miau));
         $row_idlast = mysqli_fetch_assoc($idlast);
         $totalRows_idlast = mysqli_num_rows($idlast);
@@ -91,7 +94,7 @@ if (isset($_POST['billing_id'])) {
 
         // Solo ejecutar la segunda consulta si se encontró un post_id válido
         if (!empty($post_id)) {
-            $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$post_id'");
+            $query_lista = sprintf("SELECT post_id, meta_key, meta_value FROM {$db_prefix}postmeta WHERE post_id = '$post_id'");
             $lista = mysqli_query($miau, $query_lista) or die(mysqli_error($miau));
             $row_lista = mysqli_fetch_assoc($lista);
             $totalRows_lista = mysqli_num_rows($lista);

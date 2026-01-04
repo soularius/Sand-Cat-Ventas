@@ -2,6 +2,9 @@
 // 1. Cargar autoloader del sistema
 require_once('class/autoload.php');
 
+// Obtener prefijo de base de datos desde variable de entorno
+$db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
+
 // 2. Incluir el sistema de login dinámico
 require_once('parts/login_handler.php');
 
@@ -28,7 +31,7 @@ try {
     
     // Buscar datos del cliente asociados al pedido
     $query = "SELECT pm.meta_key, pm.meta_value 
-              FROM miau_postmeta pm 
+              FROM {$db_prefix}postmeta pm 
               WHERE pm.post_id = ? 
               AND pm.meta_key IN (
                   '_billing_first_name', '_billing_last_name', '_billing_email', '_billing_phone',

@@ -5,6 +5,9 @@ header('Content-Type: application/json');
 // 1. Cargar autoloader del sistema
 require_once('class/autoload.php');
 
+// Obtener prefijo de base de datos desde variable de entorno
+$db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
+
 try {
     // Verificar conexión a la base de datos
     global $miau;
@@ -22,8 +25,8 @@ try {
         t.name as nombre,
         t.slug as slug,
         tt.count as total_productos
-    FROM miau_terms t
-    INNER JOIN miau_term_taxonomy tt ON t.term_id = tt.term_id
+    FROM {$db_prefix}terms t
+    INNER JOIN {$db_prefix}term_taxonomy tt ON t.term_id = tt.term_id
     WHERE tt.taxonomy = 'product_cat'
     AND tt.count > 0
     ORDER BY t.name ASC

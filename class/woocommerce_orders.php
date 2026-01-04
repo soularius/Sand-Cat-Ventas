@@ -12,8 +12,8 @@
  * Importante:
  * - WooCommerce usa MUCHAS tablas derivadas (stats/lookups). Aquí las llenamos
  *   de forma "best effort" si existen, sin romper la creación del pedido.
- * - Si tu instalación tiene HPOS activo, NO basta con miau_posts/miau_postmeta.
- *   Debes crear también en miau_wc_orders para que aparezca en listados HPOS.
+ * - Si tu instalación tiene HPOS activo, NO basta con {$this->db_prefix}posts/{$this->db_prefix}postmeta.
+ *   Debes crear también en {$this->db_prefix}wc_orders para que aparezca en listados HPOS.
  */
 
 require_once('autoload.php');
@@ -26,9 +26,12 @@ class WooCommerceOrders
     private array $table_cache = [];
     private array $columns_cache = [];
     private WooCommerceCustomer $customerManager;
+    private string $db_prefix;
 
     public function __construct()
     {
+        // Obtener prefijo de base de datos desde variable de entorno
+        $this->db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
         $this->wp_connection = DatabaseConfig::getWordPressConnection();
         $this->customerManager = new WooCommerceCustomer();
 
@@ -64,8 +67,8 @@ class WooCommerceOrders
             ba.state as departamento,
             ba.country as pais,
             o.customer_note as customer_note
-        FROM miau_wc_orders o
-        LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+        FROM {$this->db_prefix}wc_orders o
+        LEFT JOIN {$this->db_prefix}wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
         WHERE o.id = ?";
 
         $stmt = mysqli_prepare($this->wp_connection, $query);
@@ -84,7 +87,7 @@ class WooCommerceOrders
         }
 
         // Obtener metadatos adicionales desde postmeta (compatibilidad legacy)
-        $metaQuery = "SELECT meta_key, meta_value FROM miau_postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title','_billing_dni','_billing_neighborhood')";
+        $metaQuery = "SELECT meta_key, meta_value FROM {$this->db_prefix}postmeta WHERE post_id = ? AND meta_key IN ('_order_shipping','_cart_discount','_payment_method_title','_billing_dni','_billing_neighborhood')";
         $metaStmt = mysqli_prepare($this->wp_connection, $metaQuery);
         
         $meta = [
@@ -162,7 +165,7 @@ class WooCommerceOrders
                 COALESCE(CAST(NULLIF(PM_sale.sale_price, '') AS DECIMAL(18,2)), 0) AS catalog_sale_price,
                 COALESCE(CAST(NULLIF(PM_price.price, '') AS DECIMAL(18,2)), 0) AS catalog_effective_price
 
-            FROM miau_woocommerce_order_items I
+            FROM {$this->db_prefix}woocommerce_order_items I
 
             /* Pivot de itemmeta: saco lo necesario en un solo join */
             LEFT JOIN (
@@ -173,7 +176,7 @@ class WooCommerceOrders
                     MAX(CASE WHEN meta_key = '_line_subtotal' THEN meta_value END) AS line_subtotal,
                     MAX(CASE WHEN meta_key = '_product_id' THEN meta_value END)    AS product_id,
                     MAX(CASE WHEN meta_key = '_variation_id' THEN meta_value END)  AS variation_id
-                FROM miau_woocommerce_order_itemmeta
+                FROM {$this->db_prefix}woocommerce_order_itemmeta
                 WHERE meta_key IN ('_qty','_line_total','_line_subtotal','_product_id','_variation_id')
                 GROUP BY order_item_id
             ) IM
@@ -182,14 +185,14 @@ class WooCommerceOrders
             /* SKU usando subconsultas para evitar duplicados */
             LEFT JOIN (
                 SELECT post_id, meta_value as sku_prod
-                FROM miau_postmeta 
+                FROM {$this->db_prefix}postmeta 
                 WHERE meta_key = '_sku'
             ) PM_sku_prod
                 ON PM_sku_prod.post_id = CAST(IM.product_id AS UNSIGNED)
 
             LEFT JOIN (
                 SELECT post_id, meta_value as sku_var
-                FROM miau_postmeta 
+                FROM {$this->db_prefix}postmeta 
                 WHERE meta_key = '_sku'
             ) PM_sku_var
                 ON PM_sku_var.post_id = CAST(IM.variation_id AS UNSIGNED)
@@ -197,7 +200,7 @@ class WooCommerceOrders
             /* Precios de catálogo usando subconsultas para evitar duplicados */
             LEFT JOIN (
                 SELECT post_id, meta_value as regular_price
-                FROM miau_postmeta 
+                FROM {$this->db_prefix}postmeta 
                 WHERE meta_key = '_regular_price'
             ) PM_regular
                 ON PM_regular.post_id = CAST(
@@ -210,7 +213,7 @@ class WooCommerceOrders
 
             LEFT JOIN (
                 SELECT post_id, meta_value as sale_price
-                FROM miau_postmeta 
+                FROM {$this->db_prefix}postmeta 
                 WHERE meta_key = '_sale_price'
             ) PM_sale
                 ON PM_sale.post_id = CAST(
@@ -223,7 +226,7 @@ class WooCommerceOrders
 
             LEFT JOIN (
                 SELECT post_id, meta_value as price
-                FROM miau_postmeta 
+                FROM {$this->db_prefix}postmeta 
                 WHERE meta_key = '_price'
             ) PM_price
                 ON PM_price.post_id = CAST(
@@ -441,9 +444,9 @@ class WooCommerceOrders
 
     private function detectHPOSStatusFormat(): string
     {
-        // Detecta si miau_wc_orders.status usa 'wc-processing' o 'processing'
-        if (!$this->tableExists('miau_wc_orders')) return 'wc-processing';
-        $q = "SELECT status FROM miau_wc_orders WHERE type='shop_order' ORDER BY id DESC LIMIT 1";
+        // Detecta si {$this->db_prefix}wc_orders.status usa 'wc-processing' o 'processing'
+        if (!$this->tableExists('{$this->db_prefix}wc_orders')) return 'wc-processing';
+        $q = "SELECT status FROM {$this->db_prefix}wc_orders WHERE type='shop_order' ORDER BY id DESC LIMIT 1";
         $r = mysqli_query($this->wp_connection, $q);
         if ($r && ($row = mysqli_fetch_assoc($r)) && !empty($row['status'])) {
             $s = (string)$row['status'];
@@ -578,10 +581,10 @@ class WooCommerceOrders
 
         try {
             /* --------------------------------------------------------------
-             * 1) Crear el ID de la orden desde miau_posts (Legacy)
+             * 1) Crear el ID de la orden desde {$this->db_prefix}posts (Legacy)
              *    (Así el order_id queda alineado con WordPress/WooCommerce)
              * ------------------------------------------------------------ */
-            $postId = $this->insertRow('miau_posts', [
+            $postId = $this->insertRow('{$this->db_prefix}posts', [
                 'post_author' => $customerId, // 🔥 VINCULACIÓN CRÍTICA
                 'post_status' => $statusPosts,
                 'comment_status' => 'closed',
@@ -654,7 +657,7 @@ class WooCommerceOrders
             foreach ($metaPairs as $k => $v) {
                 // Evitar guardar meta_key vacío
                 if (trim((string)$k) === '') continue;
-                $this->insertRow('miau_postmeta', [
+                $this->insertRow('{$this->db_prefix}postmeta', [
                     'post_id' => $postId,
                     'meta_key' => $k,
                     'meta_value' => ($v === null ? '' : (string)$v),
@@ -663,14 +666,14 @@ class WooCommerceOrders
             $debug['steps'][] = ['legacy_postmeta_inserted' => count($metaPairs)];
 
             /* --------------------------------------------------------------
-             * 3) Insertar direcciones HPOS (miau_wc_order_addresses)
+             * 3) Insertar direcciones HPOS ({$this->db_prefix}wc_order_addresses)
              * ------------------------------------------------------------ */
-            if ($this->tableExists('miau_wc_order_addresses')) {
+            if ($this->tableExists('{$this->db_prefix}wc_order_addresses')) {
                 // Woo espera state como 'CO-XXX' en muchos casos (si tú ya lo guardas así, no lo dupliques)
                 $stateHPOS = str_starts_with($state, 'CO-') ? $state : ('CO-' . $state);
 
                 // billing
-                $this->insertRow('miau_wc_order_addresses', [
+                $this->insertRow('{$this->db_prefix}wc_order_addresses', [
                     'order_id' => $postId,
                     'address_type' => 'billing',
                     'first_name' => $firstName,
@@ -687,7 +690,7 @@ class WooCommerceOrders
                 ]);
 
                 // shipping
-                $this->insertRow('miau_wc_order_addresses', [
+                $this->insertRow('{$this->db_prefix}wc_order_addresses', [
                     'order_id' => $postId,
                     'address_type' => 'shipping',
                     'first_name' => $firstName,
@@ -705,15 +708,15 @@ class WooCommerceOrders
 
                 $debug['steps'][] = ['hpos_addresses_inserted' => true];
             } else {
-                $debug['warnings'][] = 'miau_wc_order_addresses no existe: se omiten direcciones HPOS';
+                $debug['warnings'][] = '{$this->db_prefix}wc_order_addresses no existe: se omiten direcciones HPOS';
             }
 
             /* --------------------------------------------------------------
              * 4) Insertar items (legacy) + itemmeta
              *    (WooCommerce sigue usando woocommerce_order_items / itemmeta)
              * ------------------------------------------------------------ */
-            if (!$this->tableExists('miau_woocommerce_order_items') || !$this->tableExists('miau_woocommerce_order_itemmeta')) {
-                throw new Exception('Faltan tablas de items: miau_woocommerce_order_items o miau_woocommerce_order_itemmeta');
+            if (!$this->tableExists('{$this->db_prefix}woocommerce_order_items') || !$this->tableExists('{$this->db_prefix}woocommerce_order_itemmeta')) {
+                throw new Exception('Faltan tablas de items: {$this->db_prefix}woocommerce_order_items o {$this->db_prefix}woocommerce_order_itemmeta');
             }
 
             $createdLineItemIds = [];
@@ -732,7 +735,7 @@ class WooCommerceOrders
                 $lineSubtotal = $regular * $qty;
                 $lineTotal    = $price * $qty;
 
-                $itemId = $this->insertRow('miau_woocommerce_order_items', [
+                $itemId = $this->insertRow('{$this->db_prefix}woocommerce_order_items', [
                     'order_item_name' => $title,
                     'order_item_type' => 'line_item',
                     'order_id' => $postId,
@@ -754,15 +757,15 @@ class WooCommerceOrders
                 ];
 
                 foreach ($itemMeta as $mk => $mv) {
-                    $this->insertRow('miau_woocommerce_order_itemmeta', [
+                    $this->insertRow('{$this->db_prefix}woocommerce_order_itemmeta', [
                         'order_item_id' => $itemId,
                         'meta_key' => $mk,
                         'meta_value' => $mv,
                     ]);
                 }
 
-                // ✅ Insertar correctamente miau_wc_order_product_lookup (con order_item_id y variaciones)
-                if ($this->tableExists('miau_wc_order_product_lookup')) {
+                // ✅ Insertar correctamente {$this->db_prefix}wc_order_product_lookup (con order_item_id y variaciones)
+                if ($this->tableExists('{$this->db_prefix}wc_order_product_lookup')) {
                     try {
                         // Calcular descuentos a nivel de producto
                         $productDiscount = ($lineSubtotal - $lineTotal); // Diferencia entre precio regular y precio final
@@ -770,7 +773,7 @@ class WooCommerceOrders
                         
                         // Consultar si el producto tiene IVA configurado
                         $taxAmount = 0;
-                        $taxStatusQuery = "SELECT meta_value FROM miau_postmeta WHERE post_id = {$parentProductId} AND meta_key = '_tax_status' LIMIT 1";
+                        $taxStatusQuery = "SELECT meta_value FROM {$this->db_prefix}postmeta WHERE post_id = {$parentProductId} AND meta_key = '_tax_status' LIMIT 1";
                         $taxStatusResult = mysqli_query($this->wp_connection, $taxStatusQuery);
                         
                         if ($taxStatusResult && ($taxRow = mysqli_fetch_assoc($taxStatusResult))) {
@@ -787,7 +790,7 @@ class WooCommerceOrders
                         $totalItemsValue = $itemsTotal; // Total de todos los productos
                         $productShippingAmount = $totalItemsValue > 0 ? ($shippingCost * $gross) / $totalItemsValue : 0;
                         
-                        $this->insertRow('miau_wc_order_product_lookup', [
+                        $this->insertRow('{$this->db_prefix}wc_order_product_lookup', [
                             'order_item_id' => $itemId,            // ✅ CRÍTICO
                             'order_id'      => $postId,
                             'product_id'    => $parentProductId,   // ✅ padre
@@ -812,7 +815,7 @@ class WooCommerceOrders
              * 4.1) Shipping item (si hay costo)
              * ------------------------------------------------------------ */
             if ($shippingCost > 0) {
-                $shipItemId = $this->insertRow('miau_woocommerce_order_items', [
+                $shipItemId = $this->insertRow('{$this->db_prefix}woocommerce_order_items', [
                     'order_item_name' => 'Envío',
                     'order_item_type' => 'shipping',
                     'order_id' => $postId,
@@ -827,7 +830,7 @@ class WooCommerceOrders
                 ];
 
                 foreach ($shipMeta as $mk => $mv) {
-                    $this->insertRow('miau_woocommerce_order_itemmeta', [
+                    $this->insertRow('{$this->db_prefix}woocommerce_order_itemmeta', [
                         'order_item_id' => $shipItemId,
                         'meta_key' => $mk,
                         'meta_value' => $mv,
@@ -839,7 +842,7 @@ class WooCommerceOrders
              * 4.2) Descuento como fee negativo (si aplica)
              * ------------------------------------------------------------ */
             if ($cartDiscount > 0) {
-                $feeItemId = $this->insertRow('miau_woocommerce_order_items', [
+                $feeItemId = $this->insertRow('{$this->db_prefix}woocommerce_order_items', [
                     'order_item_name' => 'Descuento',
                     'order_item_type' => 'fee',
                     'order_id' => $postId,
@@ -855,7 +858,7 @@ class WooCommerceOrders
                 ];
 
                 foreach ($feeMeta as $mk => $mv) {
-                    $this->insertRow('miau_woocommerce_order_itemmeta', [
+                    $this->insertRow('{$this->db_prefix}woocommerce_order_itemmeta', [
                         'order_item_id' => $feeItemId,
                         'meta_key' => $mk,
                         'meta_value' => $mv,
@@ -872,9 +875,9 @@ class WooCommerceOrders
             ];
 
             /* --------------------------------------------------------------
-             * 5) Insertar HPOS order row (miau_wc_orders)
+             * 5) Insertar HPOS order row ({$this->db_prefix}wc_orders)
              * ------------------------------------------------------------ */
-            if ($this->tableExists('miau_wc_orders')) {
+            if ($this->tableExists('{$this->db_prefix}wc_orders')) {
                 // Importante: insertamos con el mismo ID que el post
                 $hposData = [
                     'id' => $postId,
@@ -900,10 +903,10 @@ class WooCommerceOrders
                 ];
 
                 // Si ya existe (por algún sync), no insertamos de nuevo
-                $check = mysqli_query($this->wp_connection, "SELECT id FROM miau_wc_orders WHERE id=" . (int)$postId . " LIMIT 1");
+                $check = mysqli_query($this->wp_connection, "SELECT id FROM {$this->db_prefix}wc_orders WHERE id=" . (int)$postId . " LIMIT 1");
                 if ($check && mysqli_num_rows($check) > 0) {
                     // Mejor hacer update
-                    $cols = $this->getTableColumns('miau_wc_orders');
+                    $cols = $this->getTableColumns('{$this->db_prefix}wc_orders');
                     $sets = [];
                     foreach ($hposData as $k => $v) {
                         if ($k === 'id') continue;
@@ -912,18 +915,18 @@ class WooCommerceOrders
                         $sets[] = "`{$k}`='{$val}'";
                     }
                     if ($sets) {
-                        $sqlUp = "UPDATE miau_wc_orders SET " . implode(',', $sets) . " WHERE id=" . (int)$postId;
+                        $sqlUp = "UPDATE {$this->db_prefix}wc_orders SET " . implode(',', $sets) . " WHERE id=" . (int)$postId;
                         $this->execRaw($sqlUp);
                     }
                     $debug['steps'][] = ['hpos_order_updated' => $postId];
                 } else {
                     // Insert normal
-                    $this->insertRow('miau_wc_orders', $hposData);
+                    $this->insertRow('{$this->db_prefix}wc_orders', $hposData);
                     $debug['steps'][] = ['hpos_order_inserted' => $postId];
                 }
 
-                // Tabla opcional: miau_wc_orders_meta (si existe)
-                if ($this->tableExists('miau_wc_orders_meta')) {
+                // Tabla opcional: {$this->db_prefix}wc_orders_meta (si existe)
+                if ($this->tableExists('{$this->db_prefix}wc_orders_meta')) {
                     $meta = [
                         '_created_via' => 'external_db',
                         '_order_currency' => 'COP',
@@ -933,21 +936,21 @@ class WooCommerceOrders
 
                     foreach ($meta as $k => $v) {
                         try {
-                            $this->insertRow('miau_wc_orders_meta', [
+                            $this->insertRow('{$this->db_prefix}wc_orders_meta', [
                                 'order_id' => $postId,
                                 'meta_key' => $k,
                                 'meta_value' => (string)$v,
                             ]);
                         } catch (Exception $e) {
-                            $debug['warnings'][] = 'No se pudo insertar en miau_wc_orders_meta: ' . $e->getMessage();
+                            $debug['warnings'][] = 'No se pudo insertar en {$this->db_prefix}wc_orders_meta: ' . $e->getMessage();
                         }
                     }
                 }
 
-                // Tabla opcional: miau_wc_order_operational_data
-                if ($this->tableExists('miau_wc_order_operational_data')) {
+                // Tabla opcional: {$this->db_prefix}wc_order_operational_data
+                if ($this->tableExists('{$this->db_prefix}wc_order_operational_data')) {
                     try {
-                        $this->insertRow('miau_wc_order_operational_data', [
+                        $this->insertRow('{$this->db_prefix}wc_order_operational_data', [
                             'order_id' => $postId,
                             'created_via' => 'external_db',
                             'woocommerce_version' => null,
@@ -959,12 +962,12 @@ class WooCommerceOrders
                             'order_key' => 'wc_order_' . bin2hex(random_bytes(8)),
                         ]);
                     } catch (Exception $e) {
-                        $debug['warnings'][] = 'No se pudo insertar miau_wc_order_operational_data: ' . $e->getMessage();
+                        $debug['warnings'][] = 'No se pudo insertar {$this->db_prefix}wc_order_operational_data: ' . $e->getMessage();
                     }
                 }
 
             } else {
-                $debug['warnings'][] = 'miau_wc_orders no existe: el pedido NO aparecerá en listados HPOS';
+                $debug['warnings'][] = '{$this->db_prefix}wc_orders no existe: el pedido NO aparecerá en listados HPOS';
             }
 
             /* --------------------------------------------------------------
@@ -981,7 +984,7 @@ class WooCommerceOrders
             $this->setOrderAttribution($postId, 'Sistema de Facturacion');
 
             /* --------------------------------------------------------------
-             * 7) Comentarios ahora se guardan directamente en customer_note de miau_wc_orders
+             * 7) Comentarios ahora se guardan directamente en customer_note de {$this->db_prefix}wc_orders
              *    (Ya se agregaron en el paso 5 - HPOS order row)
              * ------------------------------------------------------------ */
             if (!empty($orderNotes)) {
@@ -1028,7 +1031,7 @@ class WooCommerceOrders
 
         // Si tenemos variationId pero no productId, buscamos el padre en WP
         if ($variationId > 0 && $productId <= 0) {
-            $q = "SELECT post_parent FROM miau_posts WHERE ID = {$variationId} AND post_type = 'product_variation' LIMIT 1";
+            $q = "SELECT post_parent FROM {$this->db_prefix}posts WHERE ID = {$variationId} AND post_type = 'product_variation' LIMIT 1";
             $r = mysqli_query($this->wp_connection, $q);
             if ($r && ($row = mysqli_fetch_assoc($r))) {
                 $productId = (int)($row['post_parent'] ?? 0);
@@ -1066,9 +1069,9 @@ class WooCommerceOrders
         int $customerId = 0
     ): void {
         // 1) wc_order_stats
-        if ($this->tableExists('miau_wc_order_stats')) {
+        if ($this->tableExists('{$this->db_prefix}wc_order_stats')) {
             try {
-                $this->insertRow('miau_wc_order_stats', [
+                $this->insertRow('{$this->db_prefix}wc_order_stats', [
                     'order_id' => $orderId,
                     'parent_id' => 0,
                     'date_created' => $nowLocal,
@@ -1104,7 +1107,7 @@ class WooCommerceOrders
         $order_id = (int)$order_id;
 
         // 1) Intentar HPOS
-        if ($this->tableExists('miau_wc_orders')) {
+        if ($this->tableExists('{$this->db_prefix}wc_orders')) {
 
             // ✅ Traemos TODO lo que podamos desde addresses (billing)
             $q = "
@@ -1128,8 +1131,8 @@ class WooCommerceOrders
                     COALESCE(ba.state, '')      AS departamento_hpos,
                     COALESCE(ba.country, '')    AS pais_hpos
 
-                FROM miau_wc_orders o
-                LEFT JOIN miau_wc_order_addresses ba
+                FROM {$this->db_prefix}wc_orders o
+                LEFT JOIN {$this->db_prefix}wc_order_addresses ba
                     ON o.id = ba.order_id AND ba.address_type = 'billing'
                 WHERE o.id = {$order_id}
                 LIMIT 1
@@ -1190,7 +1193,7 @@ class WooCommerceOrders
     private function getLegacyMetaValue(int $postId, string $key): string
     {
         $key = mysqli_real_escape_string($this->wp_connection, $key);
-        $query = "SELECT meta_value FROM miau_postmeta WHERE post_id = {$postId} AND meta_key = '{$key}' LIMIT 1";
+        $query = "SELECT meta_value FROM {$this->db_prefix}postmeta WHERE post_id = {$postId} AND meta_key = '{$key}' LIMIT 1";
         $result = mysqli_query($this->wp_connection, $query);
         if ($result && $row = mysqli_fetch_assoc($result)) {
             return $row['meta_value'] ?? '';
@@ -1245,36 +1248,36 @@ class WooCommerceOrders
                 COALESCE(pm_payment_method.meta_value, '') as metodo_pago,
                 COALESCE(pm_payment_method_title.meta_value, '') as titulo_metodo_pago
 
-            FROM miau_posts p
+            FROM {$this->db_prefix}posts p
 
-            LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
-            LEFT JOIN miau_postmeta pm_subtotal ON p.ID = pm_subtotal.post_id AND pm_subtotal.meta_key = '_order_subtotal'
-            LEFT JOIN miau_postmeta pm_tax_total ON p.ID = pm_tax_total.post_id AND pm_tax_total.meta_key = '_order_tax'
-            LEFT JOIN miau_postmeta pm_shipping_total ON p.ID = pm_shipping_total.post_id AND pm_shipping_total.meta_key = '_order_shipping'
-            LEFT JOIN miau_postmeta pm_cart_discount ON p.ID = pm_cart_discount.post_id AND pm_cart_discount.meta_key = '_cart_discount'
+            LEFT JOIN {$this->db_prefix}postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
+            LEFT JOIN {$this->db_prefix}postmeta pm_subtotal ON p.ID = pm_subtotal.post_id AND pm_subtotal.meta_key = '_order_subtotal'
+            LEFT JOIN {$this->db_prefix}postmeta pm_tax_total ON p.ID = pm_tax_total.post_id AND pm_tax_total.meta_key = '_order_tax'
+            LEFT JOIN {$this->db_prefix}postmeta pm_shipping_total ON p.ID = pm_shipping_total.post_id AND pm_shipping_total.meta_key = '_order_shipping'
+            LEFT JOIN {$this->db_prefix}postmeta pm_cart_discount ON p.ID = pm_cart_discount.post_id AND pm_cart_discount.meta_key = '_cart_discount'
 
-            LEFT JOIN miau_postmeta pm_billing_first_name ON p.ID = pm_billing_first_name.post_id AND pm_billing_first_name.meta_key = '_billing_first_name'
-            LEFT JOIN miau_postmeta pm_billing_last_name ON p.ID = pm_billing_last_name.post_id AND pm_billing_last_name.meta_key = '_billing_last_name'
-            LEFT JOIN miau_postmeta pm_billing_email ON p.ID = pm_billing_email.post_id AND pm_billing_email.meta_key = '_billing_email'
-            LEFT JOIN miau_postmeta pm_billing_phone ON p.ID = pm_billing_phone.post_id AND pm_billing_phone.meta_key = '_billing_phone'
-            LEFT JOIN miau_postmeta pm_billing_address_1 ON p.ID = pm_billing_address_1.post_id AND pm_billing_address_1.meta_key = '_billing_address_1'
-            LEFT JOIN miau_postmeta pm_billing_address_2 ON p.ID = pm_billing_address_2.post_id AND pm_billing_address_2.meta_key = '_billing_address_2'
-            LEFT JOIN miau_postmeta pm_billing_city ON p.ID = pm_billing_city.post_id AND pm_billing_city.meta_key = '_billing_city'
-            LEFT JOIN miau_postmeta pm_billing_state ON p.ID = pm_billing_state.post_id AND pm_billing_state.meta_key = '_billing_state'
-            LEFT JOIN miau_postmeta pm_billing_country ON p.ID = pm_billing_country.post_id AND pm_billing_country.meta_key = '_billing_country'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_first_name ON p.ID = pm_billing_first_name.post_id AND pm_billing_first_name.meta_key = '_billing_first_name'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_last_name ON p.ID = pm_billing_last_name.post_id AND pm_billing_last_name.meta_key = '_billing_last_name'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_email ON p.ID = pm_billing_email.post_id AND pm_billing_email.meta_key = '_billing_email'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_phone ON p.ID = pm_billing_phone.post_id AND pm_billing_phone.meta_key = '_billing_phone'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_address_1 ON p.ID = pm_billing_address_1.post_id AND pm_billing_address_1.meta_key = '_billing_address_1'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_address_2 ON p.ID = pm_billing_address_2.post_id AND pm_billing_address_2.meta_key = '_billing_address_2'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_city ON p.ID = pm_billing_city.post_id AND pm_billing_city.meta_key = '_billing_city'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_state ON p.ID = pm_billing_state.post_id AND pm_billing_state.meta_key = '_billing_state'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_country ON p.ID = pm_billing_country.post_id AND pm_billing_country.meta_key = '_billing_country'
 
             -- ✅ Barrio keys reales
-            LEFT JOIN miau_postmeta pm_billing_neighborhood ON p.ID = pm_billing_neighborhood.post_id AND pm_billing_neighborhood.meta_key = '_billing_neighborhood'
-            LEFT JOIN miau_postmeta pm_billing_neighborhood2 ON p.ID = pm_billing_neighborhood2.post_id AND pm_billing_neighborhood2.meta_key = 'billing_neighborhood'
-            LEFT JOIN miau_postmeta pm_billing_barrio ON p.ID = pm_billing_barrio.post_id AND pm_billing_barrio.meta_key = '_billing_barrio'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_neighborhood ON p.ID = pm_billing_neighborhood.post_id AND pm_billing_neighborhood.meta_key = '_billing_neighborhood'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_neighborhood2 ON p.ID = pm_billing_neighborhood2.post_id AND pm_billing_neighborhood2.meta_key = 'billing_neighborhood'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_barrio ON p.ID = pm_billing_barrio.post_id AND pm_billing_barrio.meta_key = '_billing_barrio'
 
             -- ✅ DNI keys reales
-            LEFT JOIN miau_postmeta pm_billing_dni ON p.ID = pm_billing_dni.post_id AND pm_billing_dni.meta_key = '_billing_dni'
-            LEFT JOIN miau_postmeta pm_billing_id ON p.ID = pm_billing_id.post_id AND pm_billing_id.meta_key = 'billing_id'
-            LEFT JOIN miau_postmeta pm_billing_id2 ON p.ID = pm_billing_id2.post_id AND pm_billing_id2.meta_key = '_billing_id'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_dni ON p.ID = pm_billing_dni.post_id AND pm_billing_dni.meta_key = '_billing_dni'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_id ON p.ID = pm_billing_id.post_id AND pm_billing_id.meta_key = 'billing_id'
+            LEFT JOIN {$this->db_prefix}postmeta pm_billing_id2 ON p.ID = pm_billing_id2.post_id AND pm_billing_id2.meta_key = '_billing_id'
 
-            LEFT JOIN miau_postmeta pm_payment_method ON p.ID = pm_payment_method.post_id AND pm_payment_method.meta_key = '_payment_method'
-            LEFT JOIN miau_postmeta pm_payment_method_title ON p.ID = pm_payment_method_title.post_id AND pm_payment_method_title.meta_key = '_payment_method_title'
+            LEFT JOIN {$this->db_prefix}postmeta pm_payment_method ON p.ID = pm_payment_method.post_id AND pm_payment_method.meta_key = '_payment_method'
+            LEFT JOIN {$this->db_prefix}postmeta pm_payment_method_title ON p.ID = pm_payment_method_title.post_id AND pm_payment_method_title.meta_key = '_payment_method_title'
 
             WHERE p.ID = {$order_id}
             AND p.post_type = 'shop_order'
@@ -1308,11 +1311,11 @@ class WooCommerceOrders
         $order_id = (int)$order_id;
 
         // DEBUG: Verificar si existen items para este pedido
-        $debug_query = "SELECT COUNT(*) as count FROM miau_woocommerce_order_items WHERE order_id = {$order_id}";
+        $debug_query = "SELECT COUNT(*) as count FROM {$this->db_prefix}woocommerce_order_items WHERE order_id = {$order_id}";
         $debug_result = mysqli_query($this->wp_connection, $debug_query);
         if ($debug_result) {
             $debug_row = mysqli_fetch_assoc($debug_result);
-            Utils::logError("DEBUG getOrderItems: Pedido {$order_id} tiene {$debug_row['count']} items en miau_woocommerce_order_items");
+            Utils::logError("DEBUG getOrderItems: Pedido {$order_id} tiene {$debug_row['count']} items en {$this->db_prefix}woocommerce_order_items");
         }
 
         $query = "
@@ -1353,68 +1356,68 @@ class WooCommerceOrders
                 -- Thumbnail de la variación (si existe)
                 pm_thumbnail_variation.meta_value as variation_thumbnail_id
 
-            FROM miau_woocommerce_order_items oi
+            FROM {$this->db_prefix}woocommerce_order_items oi
 
-            LEFT JOIN miau_woocommerce_order_itemmeta oim_qty
+            LEFT JOIN {$this->db_prefix}woocommerce_order_itemmeta oim_qty
                 ON oi.order_item_id = oim_qty.order_item_id AND oim_qty.meta_key = '_qty'
 
-            LEFT JOIN miau_woocommerce_order_itemmeta oim_total
+            LEFT JOIN {$this->db_prefix}woocommerce_order_itemmeta oim_total
                 ON oi.order_item_id = oim_total.order_item_id AND oim_total.meta_key = '_line_total'
                 
-            LEFT JOIN miau_woocommerce_order_itemmeta oim_subtotal
+            LEFT JOIN {$this->db_prefix}woocommerce_order_itemmeta oim_subtotal
                 ON oi.order_item_id = oim_subtotal.order_item_id AND oim_subtotal.meta_key = '_line_subtotal'
 
-            LEFT JOIN miau_woocommerce_order_itemmeta oim_product_id
+            LEFT JOIN {$this->db_prefix}woocommerce_order_itemmeta oim_product_id
                 ON oi.order_item_id = oim_product_id.order_item_id AND oim_product_id.meta_key = '_product_id'
 
-            LEFT JOIN miau_woocommerce_order_itemmeta oim_variation_id
+            LEFT JOIN {$this->db_prefix}woocommerce_order_itemmeta oim_variation_id
                 ON oi.order_item_id = oim_variation_id.order_item_id AND oim_variation_id.meta_key = '_variation_id'
                 
             -- Datos del producto padre
-            LEFT JOIN miau_posts p_parent 
+            LEFT JOIN {$this->db_prefix}posts p_parent 
                 ON p_parent.ID = CAST(oim_product_id.meta_value AS UNSIGNED)
                 
-            LEFT JOIN miau_postmeta pm_sku_parent 
+            LEFT JOIN {$this->db_prefix}postmeta pm_sku_parent 
                 ON pm_sku_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
                 AND pm_sku_parent.meta_key = '_sku'
                 
             -- Precios del producto padre
-            LEFT JOIN miau_postmeta pm_regular_parent 
+            LEFT JOIN {$this->db_prefix}postmeta pm_regular_parent 
                 ON pm_regular_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
                 AND pm_regular_parent.meta_key = '_regular_price'
                 
-            LEFT JOIN miau_postmeta pm_sale_parent 
+            LEFT JOIN {$this->db_prefix}postmeta pm_sale_parent 
                 ON pm_sale_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
                 AND pm_sale_parent.meta_key = '_sale_price'
                 
             -- Datos de la variación (si existe)
-            LEFT JOIN miau_posts p_variation 
+            LEFT JOIN {$this->db_prefix}posts p_variation 
                 ON p_variation.ID = CAST(oim_variation_id.meta_value AS UNSIGNED) 
                 AND oim_variation_id.meta_value > 0
                 
-            LEFT JOIN miau_postmeta pm_sku_variation 
+            LEFT JOIN {$this->db_prefix}postmeta pm_sku_variation 
                 ON pm_sku_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
                 AND pm_sku_variation.meta_key = '_sku'
                 AND oim_variation_id.meta_value > 0
                 
             -- Precios de la variación (si existe)
-            LEFT JOIN miau_postmeta pm_regular_variation 
+            LEFT JOIN {$this->db_prefix}postmeta pm_regular_variation 
                 ON pm_regular_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
                 AND pm_regular_variation.meta_key = '_regular_price'
                 AND oim_variation_id.meta_value > 0
                 
-            LEFT JOIN miau_postmeta pm_sale_variation 
+            LEFT JOIN {$this->db_prefix}postmeta pm_sale_variation 
                 ON pm_sale_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
                 AND pm_sale_variation.meta_key = '_sale_price'
                 AND oim_variation_id.meta_value > 0
                 
             -- Thumbnail del producto padre
-            LEFT JOIN miau_postmeta pm_thumbnail_parent 
+            LEFT JOIN {$this->db_prefix}postmeta pm_thumbnail_parent 
                 ON pm_thumbnail_parent.post_id = CAST(oim_product_id.meta_value AS UNSIGNED) 
                 AND pm_thumbnail_parent.meta_key = '_thumbnail_id'
                 
             -- Thumbnail de la variación (si existe)
-            LEFT JOIN miau_postmeta pm_thumbnail_variation 
+            LEFT JOIN {$this->db_prefix}postmeta pm_thumbnail_variation 
                 ON pm_thumbnail_variation.post_id = CAST(oim_variation_id.meta_value AS UNSIGNED) 
                 AND pm_thumbnail_variation.meta_key = '_thumbnail_id'
                 AND oim_variation_id.meta_value > 0
@@ -1517,8 +1520,8 @@ class WooCommerceOrders
             SELECT 
                 p.guid as image_url,
                 pm.meta_value as attachment_metadata
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm ON p.ID = pm.post_id AND pm.meta_key = '_wp_attachment_metadata'
+            FROM {$this->db_prefix}posts p
+            LEFT JOIN {$this->db_prefix}postmeta pm ON p.ID = pm.post_id AND pm.meta_key = '_wp_attachment_metadata'
             WHERE p.ID = $thumbnail_id 
             AND p.post_type = 'attachment'
         ";
@@ -1555,7 +1558,7 @@ class WooCommerceOrders
      */
     public function checkTableStructure()
     {
-        $query = "SHOW TABLES LIKE 'miau_%'";
+        $query = "SHOW TABLES LIKE '{$this->db_prefix}%'";
         $result = mysqli_query($this->wp_connection, $query);
 
         $available_tables = [];
@@ -1566,16 +1569,16 @@ class WooCommerceOrders
         $structure = ['available_tables' => $available_tables];
 
         $tables_to_check = [
-            'miau_wc_orders',
-            'miau_wc_orders_meta',
-            'miau_wc_order_operational_data',
-            'miau_wc_order_addresses',
-            'miau_wc_order_stats',
-            'miau_wc_order_product_lookup',
-            'miau_posts',
-            'miau_postmeta',
-            'miau_woocommerce_order_items',
-            'miau_woocommerce_order_itemmeta',
+            '{$this->db_prefix}wc_orders',
+            '{$this->db_prefix}wc_orders_meta',
+            '{$this->db_prefix}wc_order_operational_data',
+            '{$this->db_prefix}wc_order_addresses',
+            '{$this->db_prefix}wc_order_stats',
+            '{$this->db_prefix}wc_order_product_lookup',
+            '{$this->db_prefix}posts',
+            '{$this->db_prefix}postmeta',
+            '{$this->db_prefix}woocommerce_order_items',
+            '{$this->db_prefix}woocommerce_order_itemmeta',
         ];
 
         foreach ($tables_to_check as $table) {
@@ -1607,7 +1610,7 @@ class WooCommerceOrders
      * UPSERT operacional HPOS
      */
     private function upsertOperationalData(int $orderId, string $nowGmt, int $shippingCost, int $cartDiscount, int $customerId = 0): void {
-        if (!$this->tableExists('miau_wc_order_operational_data')) return;
+        if (!$this->tableExists('{$this->db_prefix}wc_order_operational_data')) return;
 
         // ⚠️ OJO: usar EXACTAMENTE los nombres de columnas que tu DESCRIBE mostró
         $opData = [
@@ -1631,10 +1634,10 @@ class WooCommerceOrders
         ];
 
         // Si existe, update; si no, insert
-        if ($this->rowExists('miau_wc_order_operational_data', 'order_id=' . (int)$orderId)) {
-            $this->updateRowByWhere('miau_wc_order_operational_data', $opData, 'order_id=' . (int)$orderId);
+        if ($this->rowExists('{$this->db_prefix}wc_order_operational_data', 'order_id=' . (int)$orderId)) {
+            $this->updateRowByWhere('{$this->db_prefix}wc_order_operational_data', $opData, 'order_id=' . (int)$orderId);
         } else {
-            $this->insertRow('miau_wc_order_operational_data', $opData);
+            $this->insertRow('{$this->db_prefix}wc_order_operational_data', $opData);
         }
     }
 
@@ -1642,7 +1645,7 @@ class WooCommerceOrders
      * UPSERT stats HPOS
      */
     private function upsertOrderStats(int $orderId, string $nowLocal, string $nowGmt, string $status, int $itemsQty, int $shippingCost, int $finalTotal, int $customerId = 0): void {
-        if (!$this->tableExists('miau_wc_order_stats')) return;
+        if (!$this->tableExists('{$this->db_prefix}wc_order_stats')) return;
 
         $stats = [
             'order_id' => $orderId,
@@ -1661,10 +1664,10 @@ class WooCommerceOrders
             'customer_id' => 0,
         ];
 
-        if ($this->rowExists('miau_wc_order_stats', 'order_id=' . (int)$orderId)) {
-            $this->updateRowByWhere('miau_wc_order_stats', $stats, 'order_id=' . (int)$orderId);
+        if ($this->rowExists('{$this->db_prefix}wc_order_stats', 'order_id=' . (int)$orderId)) {
+            $this->updateRowByWhere('{$this->db_prefix}wc_order_stats', $stats, 'order_id=' . (int)$orderId);
         } else {
-            $this->insertRow('miau_wc_order_stats', $stats, false);
+            $this->insertRow('{$this->db_prefix}wc_order_stats', $stats, false);
         }
     }
 
@@ -1701,7 +1704,7 @@ class WooCommerceOrders
      */
     public function getSimpleOrders($limit = 5) {
         // Primero intentar con HPOS
-        $query = "SELECT * FROM miau_wc_orders LIMIT $limit";
+        $query = "SELECT * FROM {$this->db_prefix}wc_orders LIMIT $limit";
         $result = mysqli_query($this->wp_connection, $query);
         
         if ($result && mysqli_num_rows($result) > 0) {
@@ -1713,7 +1716,7 @@ class WooCommerceOrders
         }
         
         // Si no funciona HPOS, intentar con posts tradicional
-        $query = "SELECT ID, post_date, post_status, post_type FROM miau_posts WHERE post_type = 'shop_order' LIMIT $limit";
+        $query = "SELECT ID, post_date, post_status, post_type FROM {$this->db_prefix}posts WHERE post_type = 'shop_order' LIMIT $limit";
         $result = mysqli_query($this->wp_connection, $query);
         
         if ($result && mysqli_num_rows($result) > 0) {
@@ -1735,7 +1738,7 @@ class WooCommerceOrders
         $queries = [];
         
         // Consulta para verificar tablas
-        $queries['verificar_tablas'] = "SHOW TABLES LIKE 'miau_%';";
+        $queries['verificar_tablas'] = "SHOW TABLES LIKE '{$this->db_prefix}%';";
         
         // Consulta HPOS principal (todas las órdenes)
         $queries['hpos_orders'] = "
@@ -1750,8 +1753,8 @@ class WooCommerceOrders
                                     COALESCE(ba.last_name, '') AS apellido_cliente,
                                     COALESCE(ba.phone, '') AS telefono_cliente,
                                     COALESCE(ba.email, o.billing_email) AS email_completo
-                                FROM miau_wc_orders o
-                                LEFT JOIN miau_wc_order_addresses ba 
+                                FROM {$this->db_prefix}wc_orders o
+                                LEFT JOIN {$this->db_prefix}wc_order_addresses ba 
                                     ON o.id = ba.order_id 
                                     AND ba.address_type = 'billing'
                                 WHERE o.type = 'shop_order'
@@ -1759,13 +1762,13 @@ class WooCommerceOrders
                                 LIMIT 10;";
         
         // Consulta simple HPOS
-        $queries['hpos_simple'] = "SELECT * FROM miau_wc_orders WHERE type = 'shop_order' LIMIT 5;";
+        $queries['hpos_simple'] = "SELECT * FROM {$this->db_prefix}wc_orders WHERE type = 'shop_order' LIMIT 5;";
         
         // Consulta para obtener todos los estados disponibles
         $queries['estados_disponibles'] = "
                                 SELECT DISTINCT 
                                     o.status AS estado
-                                FROM miau_wc_orders o
+                                FROM {$this->db_prefix}wc_orders o
                                 WHERE o.type = 'shop_order'
                                 ORDER BY o.status;";
         
@@ -1777,21 +1780,21 @@ class WooCommerceOrders
                                     p.post_status as estado,
                                     pm_total.meta_value as total,
                                     pm_email.meta_value as email_cliente
-                                FROM miau_posts p
-                                LEFT JOIN miau_postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
-                                LEFT JOIN miau_postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
+                                FROM {$this->db_prefix}posts p
+                                LEFT JOIN {$this->db_prefix}postmeta pm_total ON p.ID = pm_total.post_id AND pm_total.meta_key = '_order_total'
+                                LEFT JOIN {$this->db_prefix}postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
                                 WHERE p.post_type = 'shop_order'
                                 AND p.post_status IN ('wc-processing', 'wc-on-hold', 'wc-completed')
                                 ORDER BY p.post_date DESC
                                 LIMIT 5;";
         
         // Consulta simple posts
-        $queries['posts_simple'] = "SELECT ID, post_date, post_status, post_type FROM miau_posts WHERE post_type = 'shop_order' LIMIT 5;";
+        $queries['posts_simple'] = "SELECT ID, post_date, post_status, post_type FROM {$this->db_prefix}posts WHERE post_type = 'shop_order' LIMIT 5;";
         
         // Verificar estructura de tablas
-        $queries['describe_hpos'] = "DESCRIBE miau_wc_orders;";
-        $queries['describe_addresses'] = "DESCRIBE miau_wc_order_addresses;";
-        $queries['describe_posts'] = "DESCRIBE miau_posts;";
+        $queries['describe_hpos'] = "DESCRIBE {$this->db_prefix}wc_orders;";
+        $queries['describe_addresses'] = "DESCRIBE {$this->db_prefix}wc_order_addresses;";
+        $queries['describe_posts'] = "DESCRIBE {$this->db_prefix}posts;";
         
         return $queries;
     }
@@ -1804,7 +1807,7 @@ class WooCommerceOrders
             SELECT DISTINCT 
                 o.status as estado,
                 COUNT(*) as cantidad
-            FROM miau_wc_orders o
+            FROM {$this->db_prefix}wc_orders o
             WHERE o.type = 'shop_order'
             GROUP BY o.status
             ORDER BY cantidad DESC
@@ -1852,8 +1855,8 @@ class WooCommerceOrders
                 COALESCE(ba.last_name, '') AS apellido_cliente,
                 COALESCE(ba.phone, '') AS telefono_cliente,
                 COALESCE(ba.email, o.billing_email) AS email_completo
-            FROM miau_wc_orders o
-            LEFT JOIN miau_wc_order_addresses ba 
+            FROM {$this->db_prefix}wc_orders o
+            LEFT JOIN {$this->db_prefix}wc_order_addresses ba 
                 ON o.id = ba.order_id 
                 AND ba.address_type = 'billing'
             WHERE o.type = 'shop_order'
@@ -1913,8 +1916,8 @@ class WooCommerceOrders
                 COALESCE(ba.last_name, '') AS apellido_cliente,
                 COALESCE(ba.phone, '') AS telefono_cliente,
                 COALESCE(ba.email, o.billing_email) AS email_completo
-            FROM miau_wc_orders o
-            LEFT JOIN miau_wc_order_addresses ba 
+            FROM {$this->db_prefix}wc_orders o
+            LEFT JOIN {$this->db_prefix}wc_order_addresses ba 
                 ON o.id = ba.order_id 
                 AND ba.address_type = 'billing'
             WHERE o.type = 'shop_order'
@@ -1975,7 +1978,7 @@ class WooCommerceOrders
                 o.status as estado,
                 COUNT(*) as cantidad,
                 SUM(COALESCE(o.total_amount, 0)) as total_ventas
-            FROM miau_wc_orders o
+            FROM {$this->db_prefix}wc_orders o
             WHERE o.type = 'shop_order'
             AND o.date_created_gmt >= '$date_from'
             GROUP BY o.status
@@ -2018,7 +2021,7 @@ class WooCommerceOrders
         // 1) Descuento desde _cart_discount en postmeta
         $query_cart = "
             SELECT meta_value as cart_discount
-            FROM miau_postmeta 
+            FROM {$this->db_prefix}postmeta 
             WHERE post_id = $order_id 
             AND meta_key = '_cart_discount' 
             AND meta_value != '0' 
@@ -2032,14 +2035,14 @@ class WooCommerceOrders
         }
         
         // 2) Descuentos desde ítems (cupones y fees negativos)
-        if ($this->tableExists('miau_woocommerce_order_items')) {
+        if ($this->tableExists('{$this->db_prefix}woocommerce_order_items')) {
             $query_items = "
                 SELECT 
                     oi.order_item_name,
                     oi.order_item_type,
                     COALESCE(SUM(CAST(oim.meta_value AS DECIMAL(10,2))), 0) as item_total
-                FROM miau_woocommerce_order_items oi
-                LEFT JOIN miau_woocommerce_order_itemmeta oim 
+                FROM {$this->db_prefix}woocommerce_order_items oi
+                LEFT JOIN {$this->db_prefix}woocommerce_order_itemmeta oim 
                     ON oi.order_item_id = oim.order_item_id 
                     AND oim.meta_key IN ('_line_total', '_fee_amount')
                 WHERE oi.order_id = $order_id
@@ -2121,12 +2124,12 @@ class WooCommerceOrders
         $sourceType = 'utm';
 
         // HPOS meta (si existe)
-        $this->upsertOrderMeta('miau_wc_orders_meta', 'order_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
-        $this->upsertOrderMeta('miau_wc_orders_meta', 'order_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
+        $this->upsertOrderMeta('{$this->db_prefix}wc_orders_meta', 'order_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
+        $this->upsertOrderMeta('{$this->db_prefix}wc_orders_meta', 'order_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
 
         // Legacy meta (si existe) para compatibilidad total
-        $this->upsertOrderMeta('miau_postmeta', 'post_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
-        $this->upsertOrderMeta('miau_postmeta', 'post_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
+        $this->upsertOrderMeta('{$this->db_prefix}postmeta', 'post_id', $orderId, '_wc_order_attribution_source_type', $sourceType);
+        $this->upsertOrderMeta('{$this->db_prefix}postmeta', 'post_id', $orderId, '_wc_order_attribution_utm_source', $originLabel);
     }
 
     /**
@@ -2164,7 +2167,7 @@ class WooCommerceOrders
             mysqli_autocommit($this->wp_connection, false);
             
             // Obtener estado actual del pedido antes de cambiarlo
-            $query_current_status = "SELECT post_status FROM miau_posts WHERE ID = '$order_id'";
+            $query_current_status = "SELECT post_status FROM {$this->db_prefix}posts WHERE ID = '$order_id'";
             $result_status = mysqli_query($this->wp_connection, $query_current_status);
             $current_status = 'wc-processing'; // Default
             if ($result_status && $row = mysqli_fetch_assoc($result_status)) {
@@ -2172,7 +2175,7 @@ class WooCommerceOrders
             }
             
             // 2. Actualizar estado del pedido a completado
-            $query_post = "UPDATE miau_posts SET post_status = 'wc-completed' WHERE ID = '$order_id'";
+            $query_post = "UPDATE {$this->db_prefix}posts SET post_status = 'wc-completed' WHERE ID = '$order_id'";
             if (!mysqli_query($this->wp_connection, $query_post)) {
                 throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
             }
@@ -2197,11 +2200,11 @@ class WooCommerceOrders
             }
             
             // 3. Actualizar estadísticas de WooCommerce
-            $query_stats = "UPDATE miau_wc_order_stats SET status = 'wc-completed' WHERE order_id = '$order_id'";
+            $query_stats = "UPDATE {$this->db_prefix}wc_order_stats SET status = 'wc-completed' WHERE order_id = '$order_id'";
             mysqli_query($this->wp_connection, $query_stats); // No crítico si falla
             
             // 4. Actualizar HPOS si existe
-            $query_hpos = "UPDATE miau_wc_orders SET status = 'wc-completed' WHERE id = '$order_id'";
+            $query_hpos = "UPDATE {$this->db_prefix}wc_orders SET status = 'wc-completed' WHERE id = '$order_id'";
             mysqli_query($this->wp_connection, $query_hpos); // No crítico si falla
             
             // Confirmar transacción de WordPress
@@ -2251,17 +2254,17 @@ class WooCommerceOrders
             mysqli_autocommit($this->wp_connection, false);
             
             // 1. Actualizar estado del pedido a cancelado
-            $query_post = "UPDATE miau_posts SET post_status = 'wc-cancelled' WHERE ID = '$order_id'";
+            $query_post = "UPDATE {$this->db_prefix}posts SET post_status = 'wc-cancelled' WHERE ID = '$order_id'";
             if (!mysqli_query($this->wp_connection, $query_post)) {
                 throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
             }
             
             // 2. Actualizar estadísticas de WooCommerce
-            $query_stats = "UPDATE miau_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$order_id'";
+            $query_stats = "UPDATE {$this->db_prefix}wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$order_id'";
             mysqli_query($this->wp_connection, $query_stats);
             
             // 3. Actualizar HPOS si existe
-            $query_hpos = "UPDATE miau_wc_orders SET status = 'wc-cancelled' WHERE id = '$order_id'";
+            $query_hpos = "UPDATE {$this->db_prefix}wc_orders SET status = 'wc-cancelled' WHERE id = '$order_id'";
             mysqli_query($this->wp_connection, $query_hpos);
             
             // 4. Marcar factura como inactiva si existe
@@ -2301,17 +2304,17 @@ class WooCommerceOrders
             mysqli_autocommit($this->wp_connection, false);
             
             // 1. Actualizar estado del pedido a processing
-            $query_post = "UPDATE miau_posts SET post_status = 'wc-processing' WHERE ID = '$order_id'";
+            $query_post = "UPDATE {$this->db_prefix}posts SET post_status = 'wc-processing' WHERE ID = '$order_id'";
             if (!mysqli_query($this->wp_connection, $query_post)) {
                 throw new Exception("Error actualizando post: " . mysqli_error($this->wp_connection));
             }
             
             // 2. Actualizar estadísticas de WooCommerce
-            $query_stats = "UPDATE miau_wc_order_stats SET status = 'wc-processing' WHERE order_id = '$order_id'";
+            $query_stats = "UPDATE {$this->db_prefix}wc_order_stats SET status = 'wc-processing' WHERE order_id = '$order_id'";
             mysqli_query($this->wp_connection, $query_stats);
             
             // 3. Actualizar HPOS si existe
-            $query_hpos = "UPDATE miau_wc_orders SET status = 'wc-processing' WHERE id = '$order_id'";
+            $query_hpos = "UPDATE {$this->db_prefix}wc_orders SET status = 'wc-processing' WHERE id = '$order_id'";
             mysqli_query($this->wp_connection, $query_hpos);
             
             // Confirmar transacción
@@ -2341,12 +2344,12 @@ class WooCommerceOrders
             $query_products = "SELECT 
                 IM.product_id,
                 CAST(IM.qty AS UNSIGNED) as product_qty
-            FROM miau_woocommerce_order_items I
+            FROM {$this->db_prefix}woocommerce_order_items I
             LEFT JOIN (
                 SELECT order_item_id,
                     MAX(CASE WHEN meta_key = '_product_id' THEN meta_value END) AS product_id,
                     MAX(CASE WHEN meta_key = '_qty' THEN meta_value END) AS qty
-                FROM miau_woocommerce_order_itemmeta
+                FROM {$this->db_prefix}woocommerce_order_itemmeta
                 WHERE meta_key IN ('_product_id','_qty')
                 GROUP BY order_item_id
             ) IM ON IM.order_item_id = I.order_item_id
@@ -2360,7 +2363,7 @@ class WooCommerceOrders
                 
                 if ($product_id > 0 && $product_qty > 0) {
                     // Obtener stock actual
-                    $query_stock = "SELECT meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'";
+                    $query_stock = "SELECT meta_value FROM {$this->db_prefix}postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'";
                     $stock_result = mysqli_query($this->wp_connection, $query_stock);
                     $stock_row = mysqli_fetch_assoc($stock_result);
                     
@@ -2369,12 +2372,12 @@ class WooCommerceOrders
                         $new_stock = $current_stock + $product_qty;
                         
                         // Actualizar stock
-                        $query_update_stock = "UPDATE miau_postmeta SET meta_value = '$new_stock' WHERE post_id = '$product_id' AND meta_key = '_stock'";
+                        $query_update_stock = "UPDATE {$this->db_prefix}postmeta SET meta_value = '$new_stock' WHERE post_id = '$product_id' AND meta_key = '_stock'";
                         mysqli_query($this->wp_connection, $query_update_stock);
                         
                         // Actualizar estado del stock si es mayor a 0
                         if ($new_stock > 0) {
-                            $query_stock_status = "UPDATE miau_postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
+                            $query_stock_status = "UPDATE {$this->db_prefix}postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
                             mysqli_query($this->wp_connection, $query_stock_status);
                         }
                         
@@ -2425,7 +2428,7 @@ class WooCommerceOrders
             
             // Consulta para contar órdenes pendientes de facturación
             $count_query = "SELECT COUNT(*) as total
-            FROM miau_wc_orders o
+            FROM {$this->db_prefix}wc_orders o
             WHERE o.status IN ('wc-completed', 'wc-processing')
             AND o.type = 'shop_order'
             $not_in_clause";
@@ -2444,8 +2447,8 @@ class WooCommerceOrders
                 COALESCE(ba.first_name, '') as nombre1,
                 COALESCE(ba.last_name, '') as nombre2,
                 COALESCE(o.total_amount, 0) as valor
-            FROM miau_wc_orders o
-            LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+            FROM {$this->db_prefix}wc_orders o
+            LEFT JOIN {$this->db_prefix}wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
             WHERE o.status IN ('wc-completed', 'wc-processing')
             AND o.type = 'shop_order'
             $not_in_clause
@@ -2548,10 +2551,10 @@ class WooCommerceOrders
             // Crear string de IDs para la consulta
             $ids_string = implode(',', $facturas_ids);
             
-            // Consulta para contar total de registros usando HPOS (miau_wc_orders)
+            // Consulta para contar total de registros usando HPOS ({$this->db_prefix}wc_orders)
             // CORREGIDO: Eliminar filtro de fecha restrictivo para mostrar todas las órdenes facturadas
             $count_query = "SELECT COUNT(*) as total
-            FROM miau_wc_orders o
+            FROM {$this->db_prefix}wc_orders o
             WHERE o.id IN ($ids_string) 
             AND o.type = 'shop_order'";
             
@@ -2561,7 +2564,7 @@ class WooCommerceOrders
                 $total_records = (int)$count_row['total'];
             }
             
-            // Consulta principal usando HPOS (miau_wc_orders) con JOINs optimizados
+            // Consulta principal usando HPOS ({$this->db_prefix}wc_orders) con JOINs optimizados
             // CORREGIDO: Eliminar filtro de fecha restrictivo para mostrar todas las órdenes facturadas
             $query = "SELECT 
                 o.id as ID,
@@ -2570,8 +2573,8 @@ class WooCommerceOrders
                 COALESCE(ba.first_name, '') as nombre1,
                 COALESCE(ba.last_name, '') as nombre2,
                 COALESCE(o.total_amount, 0) as valor
-            FROM miau_wc_orders o
-            LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+            FROM {$this->db_prefix}wc_orders o
+            LEFT JOIN {$this->db_prefix}wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
             WHERE o.id IN ($ids_string) 
             AND o.type = 'shop_order'
             ORDER BY o.id DESC
@@ -2679,9 +2682,9 @@ class WooCommerceOrders
             // NOTA: Verificaremos el estado de facturación de cada orden individualmente
             // usando el método hasInvoice que consulta la base de datos de ventas
             
-            // Consulta para contar total de registros usando HPOS (miau_wc_orders)
+            // Consulta para contar total de registros usando HPOS ({$this->db_prefix}wc_orders)
             $count_query = "SELECT COUNT(*) as total
-            FROM miau_wc_orders o
+            FROM {$this->db_prefix}wc_orders o
             WHERE o.status IN ('wc-processing', 'wc-completed', 'wc-on-hold', 'wc-pending', 'wc-cancelled', 'wc-refunded', 'wc-failed')
             AND o.type = 'shop_order'";
             
@@ -2691,7 +2694,7 @@ class WooCommerceOrders
                 $total_records = (int)$count_row['total'];
             }
             
-            // Consulta principal usando HPOS (miau_wc_orders) con JOINs optimizados
+            // Consulta principal usando HPOS ({$this->db_prefix}wc_orders) con JOINs optimizados
             $query = "SELECT 
                 o.id as ID,
                 o.date_created_gmt as post_date,
@@ -2699,8 +2702,8 @@ class WooCommerceOrders
                 COALESCE(ba.first_name, '') as nombre1,
                 COALESCE(ba.last_name, '') as nombre2,
                 COALESCE(o.total_amount, 0) as valor
-            FROM miau_wc_orders o
-            LEFT JOIN miau_wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
+            FROM {$this->db_prefix}wc_orders o
+            LEFT JOIN {$this->db_prefix}wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
             WHERE o.status IN ('wc-processing', 'wc-completed', 'wc-on-hold', 'wc-pending', 'wc-cancelled', 'wc-refunded', 'wc-failed')
             AND o.type = 'shop_order'
             ORDER BY o.id DESC
@@ -2771,7 +2774,7 @@ class WooCommerceOrders
     {
         try {
             $order_id = (int)$order_id;
-            $query = "SELECT post_status FROM miau_posts WHERE ID = '$order_id' AND post_type = 'shop_order'";
+            $query = "SELECT post_status FROM {$this->db_prefix}posts WHERE ID = '$order_id' AND post_type = 'shop_order'";
             $result = mysqli_query($this->wp_connection, $query);
             
             if ($result && $row = mysqli_fetch_assoc($result)) {
@@ -2817,23 +2820,23 @@ class WooCommerceOrders
                 COALESCE(pm_shipping.meta_value, '0') as shipping_cost,
                 COALESCE(os.total_sales, 0) as total,
                 COALESCE(wco.customer_note, '') as customer_note
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
-            LEFT JOIN miau_postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
-            LEFT JOIN miau_postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
-            LEFT JOIN miau_postmeta pm_phone ON p.ID = pm_phone.post_id AND pm_phone.meta_key = '_billing_phone'
-            LEFT JOIN miau_postmeta pm_address1 ON p.ID = pm_address1.post_id AND pm_address1.meta_key = '_billing_address_1'
-            LEFT JOIN miau_postmeta pm_address2 ON p.ID = pm_address2.post_id AND pm_address2.meta_key = '_billing_address_2'
-            LEFT JOIN miau_postmeta pm_city ON p.ID = pm_city.post_id AND pm_city.meta_key = '_billing_city'
-            LEFT JOIN miau_postmeta pm_state ON p.ID = pm_state.post_id AND pm_state.meta_key = '_billing_state'
-            LEFT JOIN miau_postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
-            LEFT JOIN miau_postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_neighborhood'
-            LEFT JOIN miau_postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_id'
-            LEFT JOIN miau_postmeta pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
-            LEFT JOIN miau_postmeta pm_payment_title ON p.ID = pm_payment_title.post_id AND pm_payment_title.meta_key = '_payment_method_title'
-            LEFT JOIN miau_postmeta pm_shipping ON p.ID = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
-            LEFT JOIN miau_wc_orders wco ON p.ID = wco.id
-            LEFT JOIN miau_wc_order_stats os ON p.ID = os.order_id
+            FROM {$this->db_prefix}posts p
+            LEFT JOIN {$this->db_prefix}postmeta pm_fname ON p.ID = pm_fname.post_id AND pm_fname.meta_key = '_billing_first_name'
+            LEFT JOIN {$this->db_prefix}postmeta pm_lname ON p.ID = pm_lname.post_id AND pm_lname.meta_key = '_billing_last_name'
+            LEFT JOIN {$this->db_prefix}postmeta pm_email ON p.ID = pm_email.post_id AND pm_email.meta_key = '_billing_email'
+            LEFT JOIN {$this->db_prefix}postmeta pm_phone ON p.ID = pm_phone.post_id AND pm_phone.meta_key = '_billing_phone'
+            LEFT JOIN {$this->db_prefix}postmeta pm_address1 ON p.ID = pm_address1.post_id AND pm_address1.meta_key = '_billing_address_1'
+            LEFT JOIN {$this->db_prefix}postmeta pm_address2 ON p.ID = pm_address2.post_id AND pm_address2.meta_key = '_billing_address_2'
+            LEFT JOIN {$this->db_prefix}postmeta pm_city ON p.ID = pm_city.post_id AND pm_city.meta_key = '_billing_city'
+            LEFT JOIN {$this->db_prefix}postmeta pm_state ON p.ID = pm_state.post_id AND pm_state.meta_key = '_billing_state'
+            LEFT JOIN {$this->db_prefix}postmeta pm_country ON p.ID = pm_country.post_id AND pm_country.meta_key = '_billing_country'
+            LEFT JOIN {$this->db_prefix}postmeta pm_barrio ON p.ID = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_neighborhood'
+            LEFT JOIN {$this->db_prefix}postmeta pm_dni ON p.ID = pm_dni.post_id AND pm_dni.meta_key = '_billing_id'
+            LEFT JOIN {$this->db_prefix}postmeta pm_payment ON p.ID = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
+            LEFT JOIN {$this->db_prefix}postmeta pm_payment_title ON p.ID = pm_payment_title.post_id AND pm_payment_title.meta_key = '_payment_method_title'
+            LEFT JOIN {$this->db_prefix}postmeta pm_shipping ON p.ID = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
+            LEFT JOIN {$this->db_prefix}wc_orders wco ON p.ID = wco.id
+            LEFT JOIN {$this->db_prefix}wc_order_stats os ON p.ID = os.order_id
             WHERE p.ID = '$order_id'";
             
             $result = mysqli_query($this->wp_connection, $query);
@@ -2869,7 +2872,7 @@ class WooCommerceOrders
             }
 
             // Verificar si la tabla de comentarios existe
-            if (!$this->tableExists('miau_comments')) {
+            if (!$this->tableExists('{$this->db_prefix}comments')) {
                 return [];
             }
 
@@ -2885,7 +2888,7 @@ class WooCommerceOrders
                         WHEN c.comment_type = 'order_note_private' THEN 'private'
                         ELSE 'system'
                     END as note_type
-                FROM miau_comments c
+                FROM {$this->db_prefix}comments c
                 WHERE c.comment_post_ID = ?
                     AND c.comment_type IN ('order_note', 'order_note_private')
                     AND c.comment_approved = '1'
@@ -2941,8 +2944,8 @@ class WooCommerceOrders
             }
 
             // Verificar si la tabla de comentarios existe
-            if (!$this->tableExists('miau_comments')) {
-                Utils::logError("Tabla miau_comments no existe, no se puede agregar nota de orden", 'WARNING', 'WooCommerceOrders');
+            if (!$this->tableExists('{$this->db_prefix}comments')) {
+                Utils::logError("Tabla {$this->db_prefix}comments no existe, no se puede agregar nota de orden", 'WARNING', 'WooCommerceOrders');
                 return false;
             }
 
@@ -2972,12 +2975,12 @@ class WooCommerceOrders
                 'user_id' => $user_id
             ];
 
-            $comment_id = $this->insertRow('miau_comments', $comment_data);
+            $comment_id = $this->insertRow('{$this->db_prefix}comments', $comment_data);
 
             if ($comment_id > 0) {
                 // Agregar metadatos del comentario si es necesario
-                if ($this->tableExists('miau_commentmeta')) {
-                    $this->insertRow('miau_commentmeta', [
+                if ($this->tableExists('{$this->db_prefix}commentmeta')) {
+                    $this->insertRow('{$this->db_prefix}commentmeta', [
                         'comment_id' => $comment_id,
                         'meta_key' => 'is_customer_note',
                         'meta_value' => ($note_type === 'customer') ? '1' : '0'
@@ -3026,12 +3029,12 @@ class WooCommerceOrders
                     COALESCE(om_shipping.meta_value, '0') as envio,
                     COALESCE(om_discount.meta_value, '0') as descuento,
                     COALESCE(wco.customer_note, '') as customer_note
-                FROM miau_wc_orders wco
-                LEFT JOIN miau_wc_order_addresses ba ON wco.id = ba.order_id AND ba.address_type = 'billing'
-                LEFT JOIN miau_wc_orders_meta om_barrio ON wco.id = om_barrio.order_id AND om_barrio.meta_key = '_billing_barrio'
-                LEFT JOIN miau_wc_orders_meta om_dni ON wco.id = om_dni.order_id AND om_dni.meta_key = '_billing_dni'
-                LEFT JOIN miau_wc_orders_meta om_shipping ON wco.id = om_shipping.order_id AND om_shipping.meta_key = '_order_shipping'
-                LEFT JOIN miau_wc_orders_meta om_discount ON wco.id = om_discount.order_id AND om_discount.meta_key = '_cart_discount'
+                FROM {$this->db_prefix}wc_orders wco
+                LEFT JOIN {$this->db_prefix}wc_order_addresses ba ON wco.id = ba.order_id AND ba.address_type = 'billing'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_barrio ON wco.id = om_barrio.order_id AND om_barrio.meta_key = '_billing_barrio'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_dni ON wco.id = om_dni.order_id AND om_dni.meta_key = '_billing_dni'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_shipping ON wco.id = om_shipping.order_id AND om_shipping.meta_key = '_order_shipping'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_discount ON wco.id = om_discount.order_id AND om_discount.meta_key = '_cart_discount'
                 WHERE wco.id = ? AND wco.type = 'shop_order'
             ";
 

@@ -2,6 +2,9 @@
 // 1. Cargar autoloader del sistema
 require_once('class/autoload.php');
 
+// Obtener prefijo de base de datos desde variable de entorno
+$db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
+
 // 2. Incluir el sistema de login dinámico
 require_once('parts/login_handler.php');
 
@@ -30,7 +33,7 @@ if (empty($search) || strlen($search) < 3) {
  * @return array - Array de productos con metadatos completos
  */
 function searchProducts($search) {
-    global $miau;
+    global $miau, $db_prefix;
     
     $search = mysqli_real_escape_string($miau, $search);
     
@@ -45,8 +48,8 @@ function searchProducts($search) {
             CONCAT(pm.meta_key, ':', pm.meta_value) 
             SEPARATOR '|'
         ) as product_meta
-    FROM miau_posts p
-    LEFT JOIN miau_postmeta pm ON p.ID = pm.post_id
+    FROM {$db_prefix}posts p
+    LEFT JOIN {$db_prefix}postmeta pm ON p.ID = pm.post_id
     WHERE p.post_status = 'publish'
         AND p.post_type = 'product'
         AND p.post_title LIKE '%$search%'

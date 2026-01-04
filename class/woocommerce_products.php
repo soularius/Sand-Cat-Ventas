@@ -1,11 +1,13 @@
 <?php
 require_once('config.php');
-
 class WooCommerceProducts {
     
     private $wp_connection;
+    private $db_prefix;
     
     public function __construct() {
+        // Obtener prefijo de base de datos desde variable de entorno
+        $this->db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
         // Intentar usar la conexión de DatabaseConfig primero
         try {
             $this->wp_connection = DatabaseConfig::getWordPressConnection();
@@ -45,9 +47,9 @@ class WooCommerceProducts {
             $category_id = intval($category_id);
             // Corregido: usar LEFT JOIN con OR para incluir variaciones
             $category_condition = "
-                LEFT JOIN miau_term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
-                LEFT JOIN miau_term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
-                INNER JOIN miau_term_taxonomy tt ON (
+                LEFT JOIN {$this->db_prefix}term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
+                LEFT JOIN {$this->db_prefix}term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
+                INNER JOIN {$this->db_prefix}term_taxonomy tt ON (
                     COALESCE(tr_product.term_taxonomy_id, tr_variation.term_taxonomy_id) = tt.term_taxonomy_id
                 )
                 AND tt.taxonomy = 'product_cat'
@@ -57,15 +59,15 @@ class WooCommerceProducts {
         
         $query = "
             SELECT COUNT(DISTINCT p.ID) as total
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            FROM {$this->db_prefix}posts p
+            LEFT JOIN {$this->db_prefix}postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
             $category_condition
             WHERE p.post_status IN ('publish', 'private')
             AND (
                 -- Productos simples (sin variaciones)
                 (p.post_type = 'product' AND p.ID NOT IN (
                     SELECT DISTINCT post_parent 
-                    FROM miau_posts 
+                    FROM {$this->db_prefix}posts 
                     WHERE post_type = 'product_variation' 
                     AND post_status = 'publish'
                     AND post_parent IS NOT NULL
@@ -112,9 +114,9 @@ class WooCommerceProducts {
             $category_id = intval($category_id);
             // Corregido: usar LEFT JOIN con OR para incluir variaciones
             $category_condition = "
-                LEFT JOIN miau_term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
-                LEFT JOIN miau_term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
-                INNER JOIN miau_term_taxonomy tt ON (
+                LEFT JOIN {$this->db_prefix}term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
+                LEFT JOIN {$this->db_prefix}term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
+                INNER JOIN {$this->db_prefix}term_taxonomy tt ON (
                     COALESCE(tr_product.term_taxonomy_id, tr_variation.term_taxonomy_id) = tt.term_taxonomy_id
                 )
                 AND tt.taxonomy = 'product_cat'
@@ -173,20 +175,20 @@ class WooCommerceProducts {
                     ELSE
                         COALESCE(att.guid, '')
                 END AS image_url
-            FROM miau_posts p
-            LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
-            LEFT JOIN miau_postmeta pm_parent_sku ON p.post_parent = pm_parent_sku.post_id AND pm_parent_sku.meta_key = '_sku' AND p.post_type = 'product_variation'
-            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
-            LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
-            LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-            LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
-            LEFT JOIN miau_postmeta pm_weight ON p.ID = pm_weight.post_id AND pm_weight.meta_key = '_weight'
-            LEFT JOIN miau_postmeta pm_length ON p.ID = pm_length.post_id AND pm_length.meta_key = '_length'
-            LEFT JOIN miau_postmeta pm_width ON p.ID = pm_width.post_id AND pm_width.meta_key = '_width'
-            LEFT JOIN miau_postmeta pm_height ON p.ID = pm_height.post_id AND pm_height.meta_key = '_height'
-            LEFT JOIN miau_postmeta pm_manage_stock ON p.ID = pm_manage_stock.post_id AND pm_manage_stock.meta_key = '_manage_stock'
+            FROM {$this->db_prefix}posts p
+            LEFT JOIN {$this->db_prefix}posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
+            LEFT JOIN {$this->db_prefix}postmeta pm_parent_sku ON p.post_parent = pm_parent_sku.post_id AND pm_parent_sku.meta_key = '_sku' AND p.post_type = 'product_variation'
+            LEFT JOIN {$this->db_prefix}postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
+            LEFT JOIN {$this->db_prefix}postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
+            LEFT JOIN {$this->db_prefix}postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
+            LEFT JOIN {$this->db_prefix}postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            LEFT JOIN {$this->db_prefix}postmeta pm_weight ON p.ID = pm_weight.post_id AND pm_weight.meta_key = '_weight'
+            LEFT JOIN {$this->db_prefix}postmeta pm_length ON p.ID = pm_length.post_id AND pm_length.meta_key = '_length'
+            LEFT JOIN {$this->db_prefix}postmeta pm_width ON p.ID = pm_width.post_id AND pm_width.meta_key = '_width'
+            LEFT JOIN {$this->db_prefix}postmeta pm_height ON p.ID = pm_height.post_id AND pm_height.meta_key = '_height'
+            LEFT JOIN {$this->db_prefix}postmeta pm_manage_stock ON p.ID = pm_manage_stock.post_id AND pm_manage_stock.meta_key = '_manage_stock'
             
             -- ✅ base_url desde options (siteurl/home)
             CROSS JOIN (
@@ -195,14 +197,14 @@ class WooCommerceProducts {
                     MAX(CASE WHEN option_name = 'home'    THEN option_value END),
                     ''
                 )) AS base_url
-                FROM miau_options
+                FROM {$this->db_prefix}options
                 WHERE option_name IN ('siteurl', 'home')
             ) opt
 
             -- ✅ thumb_id de la variación (agrupado para evitar duplicados)
             LEFT JOIN (
                 SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
                 GROUP BY post_id
             ) thumb_var
@@ -212,7 +214,7 @@ class WooCommerceProducts {
             -- ✅ thumb_id del padre (o del mismo post si no es variación)
             LEFT JOIN (
                 SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
                 GROUP BY post_id
             ) thumb_prod
@@ -224,14 +226,14 @@ class WooCommerceProducts {
             -- ✅ _wp_attached_file del attachment final
             LEFT JOIN (
                 SELECT post_id, MAX(meta_value) AS file_path
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_wp_attached_file' AND meta_value <> ''
                 GROUP BY post_id
             ) att_file
                 ON att_file.post_id = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
 
             -- ✅ guid del attachment (fallback)
-            LEFT JOIN miau_posts att
+            LEFT JOIN {$this->db_prefix}posts att
                 ON att.ID = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
                AND att.post_type = 'attachment'
             
@@ -241,7 +243,7 @@ class WooCommerceProducts {
                 -- Productos simples (sin variaciones)
                 (p.post_type = 'product' AND p.ID NOT IN (
                     SELECT DISTINCT post_parent 
-                    FROM miau_posts 
+                    FROM {$this->db_prefix}posts 
                     WHERE post_type = 'product_variation' 
                     AND post_status = 'publish'
                     AND post_parent IS NOT NULL
@@ -318,7 +320,7 @@ class WooCommerceProducts {
         $variation_id = (int)$variation_id;
         
         $query = "SELECT meta_key, meta_value 
-                 FROM miau_postmeta 
+                 FROM {$this->db_prefix}postmeta 
                  WHERE post_id = $variation_id 
                  AND meta_key LIKE 'attribute_%'";
         
@@ -417,15 +419,15 @@ class WooCommerceProducts {
                         COALESCE(att.guid, '')
                 END AS image_url
                 
-            FROM miau_posts p
-            LEFT JOIN miau_posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
-            LEFT JOIN miau_postmeta pm_parent_sku ON p.post_parent = pm_parent_sku.post_id AND pm_parent_sku.meta_key = '_sku' AND p.post_type = 'product_variation'
-            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
-            LEFT JOIN miau_postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
-            LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-            LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            FROM {$this->db_prefix}posts p
+            LEFT JOIN {$this->db_prefix}posts parent ON p.post_parent = parent.ID AND p.post_type = 'product_variation'
+            LEFT JOIN {$this->db_prefix}postmeta pm_parent_sku ON p.post_parent = pm_parent_sku.post_id AND pm_parent_sku.meta_key = '_sku' AND p.post_type = 'product_variation'
+            LEFT JOIN {$this->db_prefix}postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
+            LEFT JOIN {$this->db_prefix}postmeta pm_regular_price ON p.ID = pm_regular_price.post_id AND pm_regular_price.meta_key = '_regular_price'
+            LEFT JOIN {$this->db_prefix}postmeta pm_sale_price ON p.ID = pm_sale_price.post_id AND pm_sale_price.meta_key = '_sale_price'
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
+            LEFT JOIN {$this->db_prefix}postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
             
             -- ✅ base_url desde options (siteurl/home)
             CROSS JOIN (
@@ -434,14 +436,14 @@ class WooCommerceProducts {
                     MAX(CASE WHEN option_name = 'home'    THEN option_value END),
                     ''
                 )) AS base_url
-                FROM miau_options
+                FROM {$this->db_prefix}options
                 WHERE option_name IN ('siteurl', 'home')
             ) opt
 
             -- ✅ thumb_id de la variación (agrupado para evitar duplicados)
             LEFT JOIN (
                 SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
                 GROUP BY post_id
             ) thumb_var
@@ -451,7 +453,7 @@ class WooCommerceProducts {
             -- ✅ thumb_id del padre (o del mismo post si no es variación)
             LEFT JOIN (
                 SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
                 GROUP BY post_id
             ) thumb_prod
@@ -463,23 +465,23 @@ class WooCommerceProducts {
             -- ✅ _wp_attached_file del attachment final
             LEFT JOIN (
                 SELECT post_id, MAX(meta_value) AS file_path
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_wp_attached_file' AND meta_value <> ''
                 GROUP BY post_id
             ) att_file
                 ON att_file.post_id = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
 
             -- ✅ guid del attachment (fallback)
-            LEFT JOIN miau_posts att
+            LEFT JOIN {$this->db_prefix}posts att
                 ON att.ID = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
                AND att.post_type = 'attachment'";
         
         // Agregar JOIN para categorías si es necesario - CORREGIDO para incluir variaciones
         if (!empty($category_id)) {
             $query .= "
-            LEFT JOIN miau_term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
-            LEFT JOIN miau_term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
-            INNER JOIN miau_term_taxonomy tt ON (
+            LEFT JOIN {$this->db_prefix}term_relationships tr_product ON p.ID = tr_product.object_id AND p.post_type = 'product'
+            LEFT JOIN {$this->db_prefix}term_relationships tr_variation ON p.post_parent = tr_variation.object_id AND p.post_type = 'product_variation'
+            INNER JOIN {$this->db_prefix}term_taxonomy tt ON (
                 COALESCE(tr_product.term_taxonomy_id, tr_variation.term_taxonomy_id) = tt.term_taxonomy_id
             )";
         }
@@ -490,7 +492,7 @@ class WooCommerceProducts {
                 -- Productos simples (sin variaciones)
                 (p.post_type = 'product' AND p.ID NOT IN (
                     SELECT DISTINCT post_parent 
-                    FROM miau_posts 
+                    FROM {$this->db_prefix}posts 
                     WHERE post_type = 'product_variation' 
                     AND post_status = 'publish'
                     AND post_parent IS NOT NULL
@@ -628,11 +630,11 @@ class WooCommerceProducts {
                 COALESCE(pm_stock.meta_value, '0') as stock,
                 COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
                 COALESCE(pm_sku.meta_value, '') as sku
-            FROM miau_posts p
-            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-            LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            FROM {$this->db_prefix}posts p
+            LEFT JOIN {$this->db_prefix}postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
+            LEFT JOIN {$this->db_prefix}postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
             WHERE p.post_type = 'product' 
             AND p.post_status = 'publish'
             AND (
@@ -743,27 +745,27 @@ class WooCommerceProducts {
                         COALESCE(att.guid, '')
                 END AS image_url
 
-            FROM miau_posts p
+            FROM {$this->db_prefix}posts p
 
             /* Padre (solo para variación) */
-            LEFT JOIN miau_posts parent
+            LEFT JOIN {$this->db_prefix}posts parent
                 ON parent.ID = p.post_parent
                AND p.post_type = 'product_variation'
 
             /* Metas del post actual */
-            LEFT JOIN miau_postmeta pm_price
+            LEFT JOIN {$this->db_prefix}postmeta pm_price
                 ON pm_price.post_id = p.ID AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_regular
+            LEFT JOIN {$this->db_prefix}postmeta pm_regular
                 ON pm_regular.post_id = p.ID AND pm_regular.meta_key = '_regular_price'
-            LEFT JOIN miau_postmeta pm_sale
+            LEFT JOIN {$this->db_prefix}postmeta pm_sale
                 ON pm_sale.post_id = p.ID AND pm_sale.meta_key = '_sale_price'
 
-            LEFT JOIN miau_postmeta pm_stock
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock
                 ON pm_stock.post_id = p.ID AND pm_stock.meta_key = '_stock'
-            LEFT JOIN miau_postmeta pm_stock_status
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock_status
                 ON pm_stock_status.post_id = p.ID AND pm_stock_status.meta_key = '_stock_status'
 
-            LEFT JOIN miau_postmeta pm_sku
+            LEFT JOIN {$this->db_prefix}postmeta pm_sku
                 ON pm_sku.post_id = p.ID AND pm_sku.meta_key = '_sku'
 
             /* ✅ base_url desde options (siteurl/home) */
@@ -773,14 +775,14 @@ class WooCommerceProducts {
                     MAX(CASE WHEN option_name = 'home'    THEN option_value END),
                     ''
                 )) AS base_url
-                FROM miau_options
+                FROM {$this->db_prefix}options
                 WHERE option_name IN ('siteurl', 'home')
             ) opt
 
             /* ✅ thumb_id de la variación (agrupado para evitar duplicados) */
             LEFT JOIN (
                 SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
                 GROUP BY post_id
             ) thumb_var
@@ -790,7 +792,7 @@ class WooCommerceProducts {
             /* ✅ thumb_id del padre (o del mismo post si no es variación) */
             LEFT JOIN (
                 SELECT post_id, MAX(CAST(meta_value AS UNSIGNED)) AS thumb_id
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_thumbnail_id' AND meta_value <> ''
                 GROUP BY post_id
             ) thumb_prod
@@ -802,14 +804,14 @@ class WooCommerceProducts {
             /* ✅ _wp_attached_file del attachment final */
             LEFT JOIN (
                 SELECT post_id, MAX(meta_value) AS file_path
-                FROM miau_postmeta
+                FROM {$this->db_prefix}postmeta
                 WHERE meta_key = '_wp_attached_file' AND meta_value <> ''
                 GROUP BY post_id
             ) att_file
                 ON att_file.post_id = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
 
             /* ✅ guid del attachment (fallback) */
-            LEFT JOIN miau_posts att
+            LEFT JOIN {$this->db_prefix}posts att
                 ON att.ID = COALESCE(thumb_var.thumb_id, thumb_prod.thumb_id)
                AND att.post_type = 'attachment'
 
@@ -894,7 +896,7 @@ class WooCommerceProducts {
         // Obtener thumbnail_id del producto
         $query = "
             SELECT meta_value as thumbnail_id 
-            FROM miau_postmeta 
+            FROM {$this->db_prefix}postmeta 
             WHERE post_id = $product_id 
             AND meta_key = '_thumbnail_id'
         ";
@@ -914,7 +916,7 @@ class WooCommerceProducts {
         // Obtener URL de la imagen
         $image_query = "
             SELECT guid 
-            FROM miau_posts 
+            FROM {$this->db_prefix}posts 
             WHERE ID = $thumbnail_id 
             AND post_type = 'attachment'
         ";
@@ -942,7 +944,7 @@ class WooCommerceProducts {
         // Obtener todos los thumbnail_ids de una vez
         $query = "
             SELECT post_id, meta_value as thumbnail_id 
-            FROM miau_postmeta 
+            FROM {$this->db_prefix}postmeta 
             WHERE post_id IN ($ids_string) 
             AND meta_key = '_thumbnail_id'
             AND meta_value != ''
@@ -974,7 +976,7 @@ class WooCommerceProducts {
         $thumbnail_ids_string = implode(',', $thumbnail_ids);
         $image_query = "
             SELECT ID, guid 
-            FROM miau_posts 
+            FROM {$this->db_prefix}posts 
             WHERE ID IN ($thumbnail_ids_string) 
             AND post_type = 'attachment'
         ";
@@ -1014,15 +1016,15 @@ class WooCommerceProducts {
                 -- Conteo real de productos/variaciones en la categoría
                 (
                     SELECT COUNT(DISTINCT p.ID)
-                    FROM miau_posts p
-                    INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
+                    FROM {$this->db_prefix}posts p
+                    INNER JOIN {$this->db_prefix}term_relationships tr ON p.ID = tr.object_id
                     WHERE tr.term_taxonomy_id = tt.term_taxonomy_id
                     AND p.post_status IN ('publish', 'private')
                     AND (
                         -- Productos simples (sin variaciones)
                         (p.post_type = 'product' AND p.ID NOT IN (
                             SELECT DISTINCT post_parent 
-                            FROM miau_posts 
+                            FROM {$this->db_prefix}posts 
                             WHERE post_type = 'product_variation' 
                             AND post_status = 'publish'
                             AND post_parent IS NOT NULL
@@ -1032,8 +1034,8 @@ class WooCommerceProducts {
                         p.post_type = 'product_variation'
                     )
                 ) as total_productos
-            FROM miau_terms t
-            INNER JOIN miau_term_taxonomy tt ON t.term_id = tt.term_id
+            FROM {$this->db_prefix}terms t
+            INNER JOIN {$this->db_prefix}term_taxonomy tt ON t.term_id = tt.term_id
             WHERE tt.taxonomy = 'product_cat'
             HAVING total_productos > 0
             ORDER BY t.name ASC
@@ -1072,13 +1074,13 @@ class WooCommerceProducts {
                 COALESCE(pm_stock.meta_value, '0') as stock,
                 COALESCE(pm_stock_status.meta_value, 'outofstock') as estado_stock,
                 COALESCE(pm_sku.meta_value, '') as sku
-            FROM miau_posts p
-            INNER JOIN miau_term_relationships tr ON p.ID = tr.object_id
-            INNER JOIN miau_term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
-            LEFT JOIN miau_postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
-            LEFT JOIN miau_postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
-            LEFT JOIN miau_postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
-            LEFT JOIN miau_postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
+            FROM {$this->db_prefix}posts p
+            INNER JOIN {$this->db_prefix}term_relationships tr ON p.ID = tr.object_id
+            INNER JOIN {$this->db_prefix}term_taxonomy tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+            LEFT JOIN {$this->db_prefix}postmeta pm_price ON p.ID = pm_price.post_id AND pm_price.meta_key = '_price'
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock ON p.ID = pm_stock.post_id AND pm_stock.meta_key = '_stock'
+            LEFT JOIN {$this->db_prefix}postmeta pm_stock_status ON p.ID = pm_stock_status.post_id AND pm_stock_status.meta_key = '_stock_status'
+            LEFT JOIN {$this->db_prefix}postmeta pm_sku ON p.ID = pm_sku.post_id AND pm_sku.meta_key = '_sku'
             WHERE p.post_type = 'product'
             AND p.post_status = 'publish'
             AND tt.taxonomy = 'product_cat'
@@ -1120,7 +1122,7 @@ class WooCommerceProducts {
         
         // Actualizar stock
         $query_stock = "
-            UPDATE miau_postmeta 
+            UPDATE {$this->db_prefix}postmeta 
             SET meta_value = '$new_stock' 
             WHERE post_id = $product_id AND meta_key = '_stock'
         ";
@@ -1134,7 +1136,7 @@ class WooCommerceProducts {
         // Actualizar estado del stock
         $stock_status = ($new_stock > 0) ? 'instock' : 'outofstock';
         $query_status = "
-            UPDATE miau_postmeta 
+            UPDATE {$this->db_prefix}postmeta 
             SET meta_value = '$stock_status' 
             WHERE post_id = $product_id AND meta_key = '_stock_status'
         ";

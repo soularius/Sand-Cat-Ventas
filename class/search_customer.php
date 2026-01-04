@@ -17,6 +17,9 @@
 // Cargar autoloader del sistema
 require_once('autoload.php');
 
+// Obtener prefijo de base de datos desde variable de entorno
+$db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
+
 // Verificar que sea una petición AJAX POST usando Utils
 if (!Utils::isPostRequest() || !Utils::hasPostFields(['action']) || Utils::captureValue('action', 'POST') !== 'search_customer') {
     http_response_code(400);
@@ -43,8 +46,8 @@ try {
     // El plugin guarda el DNI en billing_dni y shipping_dni en user_meta
     $query_customer = "
         SELECT DISTINCT u.ID as user_id, um.meta_value as billing_dni, u.user_email, u.display_name
-        FROM miau_users u
-        INNER JOIN miau_usermeta um ON u.ID = um.user_id
+        FROM {$db_prefix}users u
+        INNER JOIN {$db_prefix}usermeta um ON u.ID = um.user_id
         WHERE um.meta_key IN ('billing_dni', 'shipping_dni')
         AND um.meta_value = '$billing_id'
         ORDER BY u.ID DESC
@@ -85,7 +88,7 @@ try {
         
         $query_meta = "
             SELECT meta_key, meta_value
-            FROM miau_usermeta 
+            FROM {$db_prefix}usermeta 
             WHERE user_id = '$user_id' 
             AND meta_key IN ($meta_keys)
         ";
@@ -154,7 +157,7 @@ try {
         Utils::logError("Cliente no encontrado para DNI: " . $billing_id, 'INFO', 'search_customer.php');
         
         // Verificar si existen registros con billing_dni en user_meta
-        $check_query = "SELECT COUNT(*) as total FROM miau_usermeta WHERE meta_key IN ('billing_dni', 'shipping_dni')";
+        $check_query = "SELECT COUNT(*) as total FROM {$db_prefix}usermeta WHERE meta_key IN ('billing_dni', 'shipping_dni')";
         $check_result = mysqli_query($miau, $check_query);
         if ($check_result) {
             $check_row = mysqli_fetch_assoc($check_result);
@@ -162,7 +165,7 @@ try {
         }
         
         // Verificar si existe el DNI con espacios o caracteres adicionales
-        $similar_query = "SELECT meta_key, meta_value FROM miau_usermeta WHERE meta_key IN ('billing_dni', 'shipping_dni') AND meta_value LIKE '%$billing_id%' LIMIT 5";
+        $similar_query = "SELECT meta_key, meta_value FROM {$db_prefix}usermeta WHERE meta_key IN ('billing_dni', 'shipping_dni') AND meta_value LIKE '%$billing_id%' LIMIT 5";
         $similar_result = mysqli_query($miau, $similar_query);
         if ($similar_result && mysqli_num_rows($similar_result) > 0) {
             Utils::logError("Similar DNI values found in user_meta:", 'DEBUG', 'search_customer.php');
@@ -172,7 +175,7 @@ try {
         }
         
         // Verificar también en postmeta (pedidos) por si acaso
-        $order_query = "SELECT COUNT(*) as total FROM miau_postmeta WHERE meta_key = '_billing_dni' AND meta_value = '$billing_id'";
+        $order_query = "SELECT COUNT(*) as total FROM {$db_prefix}postmeta WHERE meta_key = '_billing_dni' AND meta_value = '$billing_id'";
         $order_result = mysqli_query($miau, $order_query);
         if ($order_result) {
             $order_row = mysqli_fetch_assoc($order_result);

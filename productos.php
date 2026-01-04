@@ -6,6 +6,9 @@ error_reporting(E_ALL); */
 // 1. Cargar autoloader del sistema
 require_once('class/autoload.php');
 
+// Obtener prefijo de base de datos desde variable de entorno
+$db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
+
 // 2. Establecer codificación UTF-8
 header('Content-Type: text/html; charset=utf-8');
 mysqli_set_charset($sandycat, "utf8mb4");
@@ -111,8 +114,8 @@ Utils::logError("PRODUCTOS.PHP DEBUG - Page param: '$page_param', Current page: 
 // Si tenemos category_id, verificar si es term_id y convertir a term_taxonomy_id
 if ($category_id > 0) {
   // Verificar si el category_id es term_id y convertir a term_taxonomy_id
-  $query_convert = "SELECT tt.term_taxonomy_id FROM miau_terms t 
-                     INNER JOIN miau_term_taxonomy tt ON t.term_id = tt.term_id 
+  $query_convert = "SELECT tt.term_taxonomy_id FROM {$db_prefix}terms t 
+                     INNER JOIN {$db_prefix}term_taxonomy tt ON t.term_id = tt.term_id 
                      WHERE tt.taxonomy = 'product_cat' AND (t.term_id = $category_id OR tt.term_taxonomy_id = $category_id)";
   $result_convert = mysqli_query($miau, $query_convert);
   if ($result_convert && mysqli_num_rows($result_convert) > 0) {

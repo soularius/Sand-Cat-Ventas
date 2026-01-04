@@ -22,10 +22,13 @@ class WooCommerceCustomer
     private mysqli $wp_connection;
     private array $table_cache = [];
     private array $columns_cache = [];
+    private string $db_prefix;
 
     public function __construct()
     {
         $this->wp_connection = DatabaseConfig::getWordPressConnection();
+        // Obtener prefijo de base de datos desde variable de entorno
+        $this->db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
     }
 
     /* ==============================================================
@@ -194,7 +197,7 @@ class WooCommerceCustomer
         if (empty($email)) return null;
 
         $emailEscaped = mysqli_real_escape_string($this->wp_connection, $email);
-        $query = "SELECT ID FROM miau_users WHERE user_email = '$emailEscaped' LIMIT 1";
+        $query = "SELECT ID FROM {$this->db_prefix}users WHERE user_email = '$emailEscaped' LIMIT 1";
         $result = mysqli_query($this->wp_connection, $query);
         
         if ($result && mysqli_num_rows($result) > 0) {
@@ -218,7 +221,7 @@ class WooCommerceCustomer
         // Verificar unicidad del username
         $originalUsername = $username;
         $usernameEscaped = mysqli_real_escape_string($this->wp_connection, $username);
-        $checkQuery = "SELECT ID FROM miau_users WHERE user_login = '$usernameEscaped' LIMIT 1";
+        $checkQuery = "SELECT ID FROM {$this->db_prefix}users WHERE user_login = '$usernameEscaped' LIMIT 1";
         $checkResult = mysqli_query($this->wp_connection, $checkQuery);
         
         // Si existe, agregar dígitos aleatorios
@@ -227,7 +230,7 @@ class WooCommerceCustomer
                 $randomDigits = str_pad(rand(0, 9999), 4, '0', STR_PAD_LEFT);
                 $username = $originalUsername . '.' . $randomDigits;
                 $usernameEscaped = mysqli_real_escape_string($this->wp_connection, $username);
-                $checkQuery = "SELECT ID FROM miau_users WHERE user_login = '$usernameEscaped' LIMIT 1";
+                $checkQuery = "SELECT ID FROM {$this->db_prefix}users WHERE user_login = '$usernameEscaped' LIMIT 1";
                 $checkResult = mysqli_query($this->wp_connection, $checkQuery);
             } while ($checkResult && mysqli_num_rows($checkResult) > 0);
         }
@@ -263,8 +266,8 @@ class WooCommerceCustomer
         date_default_timezone_set('America/Bogota');
         $now = date('Y-m-d H:i:s');
         
-        // Crear usuario en miau_users
-        $userId = $this->insertRow('miau_users', [
+        // Crear usuario en {$this->db_prefix}users
+        $userId = $this->insertRow('{$this->db_prefix}users', [
             'user_login' => $username,
             'user_pass' => $hashedPassword,
             'user_nicename' => $userNicename,
@@ -292,8 +295,8 @@ class WooCommerceCustomer
 
         // Metadatos básicos del usuario (rol guest_customer)
         $userMeta = [
-            'miau_capabilities' => 'a:1:{s:14:"guest_customer";b:1;}',
-            'miau_user_level' => '0',
+            '{$this->db_prefix}capabilities' => 'a:1:{s:14:"guest_customer";b:1;}',
+            '{$this->db_prefix}user_level' => '0',
             'first_name' => $firstName,
             'last_name' => $lastName,
             'billing_first_name' => $firstName,
@@ -331,7 +334,7 @@ class WooCommerceCustomer
         }
         
         foreach ($userMeta as $metaKey => $metaValue) {
-            $this->insertRow('miau_usermeta', [
+            $this->insertRow('{$this->db_prefix}usermeta', [
                 'user_id' => $userId,
                 'meta_key' => $metaKey,
                 'meta_value' => $metaValue,
@@ -370,12 +373,12 @@ class WooCommerceCustomer
     }
 
     /**
-     * Crea o actualiza el cliente en miau_wc_customer_lookup
+     * Crea o actualiza el cliente en {$this->db_prefix}wc_customer_lookup
      * Esta tabla es crítica para que WooCommerce reconozca al cliente
      */
     public function upsertWooCommerceCustomer(int $userId, array $customerData): void
     {
-        if (!$this->tableExists('miau_wc_customer_lookup')) {
+        if (!$this->tableExists('{$this->db_prefix}wc_customer_lookup')) {
             return; // Tabla no existe, skip
         }
 
@@ -394,7 +397,7 @@ class WooCommerceCustomer
 
         // Verificar si el cliente ya existe
         $emailEscaped = mysqli_real_escape_string($this->wp_connection, $email);
-        $checkQuery = "SELECT customer_id FROM miau_wc_customer_lookup WHERE email = '$emailEscaped' LIMIT 1";
+        $checkQuery = "SELECT customer_id FROM {$this->db_prefix}wc_customer_lookup WHERE email = '$emailEscaped' LIMIT 1";
         $checkResult = mysqli_query($this->wp_connection, $checkQuery);
 
         $customerLookupData = [
@@ -413,10 +416,10 @@ class WooCommerceCustomer
             $row = mysqli_fetch_assoc($checkResult);
             $existingCustomerId = (int)$row['customer_id'];
             
-            $this->updateRowByWhere('miau_wc_customer_lookup', $customerLookupData, "customer_id = $existingCustomerId");
+            $this->updateRowByWhere('{$this->db_prefix}wc_customer_lookup', $customerLookupData, "customer_id = $existingCustomerId");
         } else {
             // Cliente no existe, crear nuevo
-            $this->insertRow('miau_wc_customer_lookup', $customerLookupData);
+            $this->insertRow('{$this->db_prefix}wc_customer_lookup', $customerLookupData);
         }
     }
 
@@ -470,7 +473,7 @@ class WooCommerceCustomer
         
         // Obtener datos del usuario WordPress
         $userQuery = "SELECT u.ID, u.user_login, u.user_email, u.display_name, u.user_registered 
-                      FROM miau_users u 
+                      FROM {$this->db_prefix}users u 
                       WHERE u.user_email = '$emailEscaped' LIMIT 1";
         $userResult = mysqli_query($this->wp_connection, $userQuery);
         
@@ -482,7 +485,7 @@ class WooCommerceCustomer
         
         // Obtener datos del cliente WooCommerce
         $customerQuery = "SELECT customer_id, first_name, last_name, city, state, country, date_last_active 
-                          FROM miau_wc_customer_lookup 
+                          FROM {$this->db_prefix}wc_customer_lookup 
                           WHERE email = '$emailEscaped' LIMIT 1";
         $customerResult = mysqli_query($this->wp_connection, $customerQuery);
         
@@ -520,12 +523,12 @@ class WooCommerceCustomer
             MAX(CASE WHEN um.meta_key = 'billing_address_1' THEN um.meta_value END) as direccion,
             MAX(CASE WHEN um.meta_key = 'billing_city' THEN um.meta_value END) as ciudad,
             MAX(CASE WHEN um.meta_key = 'billing_state' THEN um.meta_value END) as departamento,
-            MAX(CASE WHEN um.meta_key = 'miau_capabilities' THEN um.meta_value END) as rol
-        FROM miau_users u
-        LEFT JOIN miau_usermeta um ON u.ID = um.user_id 
+            MAX(CASE WHEN um.meta_key = '{$this->db_prefix}capabilities' THEN um.meta_value END) as rol
+        FROM {$this->db_prefix}users u
+        LEFT JOIN {$this->db_prefix}usermeta um ON u.ID = um.user_id 
             AND um.meta_key IN ('first_name', 'last_name', 'billing_dni', 'billing_barrio', 
                                'billing_phone', 'billing_address_1', 'billing_city', 
-                               'billing_state', 'miau_capabilities')
+                               'billing_state', '{$this->db_prefix}capabilities')
         GROUP BY u.ID, u.user_login, u.user_email, u.user_registered, u.user_status";
         
         // Filtrar por roles si se especifican
@@ -533,7 +536,7 @@ class WooCommerceCustomer
             $roleConditions = [];
             foreach ($roles as $role) {
                 $roleEscaped = mysqli_real_escape_string($this->wp_connection, $role);
-                $roleConditions[] = "MAX(CASE WHEN um.meta_key = 'miau_capabilities' THEN um.meta_value END) LIKE '%{$roleEscaped}%'";
+                $roleConditions[] = "MAX(CASE WHEN um.meta_key = '{$this->db_prefix}capabilities' THEN um.meta_value END) LIKE '%{$roleEscaped}%'";
             }
             $query .= " HAVING " . implode(' OR ', $roleConditions);
         }
@@ -569,9 +572,9 @@ class WooCommerceCustomer
     public function countWordPressUsers(array $roles = []): int
     {
         $query = "SELECT COUNT(DISTINCT u.ID) as total
-        FROM miau_users u
-        LEFT JOIN miau_usermeta um ON u.ID = um.user_id 
-            AND um.meta_key = 'miau_capabilities'";
+        FROM {$this->db_prefix}users u
+        LEFT JOIN {$this->db_prefix}usermeta um ON u.ID = um.user_id 
+            AND um.meta_key = '{$this->db_prefix}capabilities'";
         
         // Filtrar por roles si se especifican
         if (!empty($roles)) {
@@ -619,7 +622,7 @@ class WooCommerceCustomer
         }
 
         $query = "SELECT pm.meta_key, pm.meta_value 
-                  FROM miau_postmeta pm 
+                  FROM {$this->db_prefix}postmeta pm 
                   WHERE pm.post_id = ? AND pm.meta_key IN (
                       '_shipping_first_name', '_shipping_last_name', 'billing_id',
                       '_billing_email', '_billing_phone', '_shipping_address_1',
@@ -843,7 +846,7 @@ class WooCommerceCustomer
     }
 
     /**
-     * Crea un pedido básico en miau_posts (compatible con resumen_cliente.php)
+     * Crea un pedido básico en {$this->db_prefix}posts (compatible con resumen_cliente.php)
      * Retorna el ID del pedido creado
      */
     public function createBasicOrder(array $orderData): int
@@ -867,11 +870,11 @@ class WooCommerceCustomer
             'post_excerpt' => $postExcerpt
         ];
         
-        return $this->insertRow('miau_posts', $orderRow);
+        return $this->insertRow('{$this->db_prefix}posts', $orderRow);
     }
 
     /**
-     * Inserta metadatos del pedido en miau_postmeta (compatible con resumen_cliente.php)
+     * Inserta metadatos del pedido en {$this->db_prefix}postmeta (compatible con resumen_cliente.php)
      */
     public function insertOrderMetadata(int $orderId, array $customerData, array $locationData): void
     {
@@ -931,7 +934,7 @@ class WooCommerceCustomer
         
         // Insertar cada metadato
         foreach ($metaData as $metaKey => $metaValue) {
-            $this->insertRow('miau_postmeta', [
+            $this->insertRow('{$this->db_prefix}postmeta', [
                 'post_id' => $orderId,
                 'meta_key' => $metaKey,
                 'meta_value' => $metaValue
@@ -940,11 +943,11 @@ class WooCommerceCustomer
     }
 
     /**
-     * Inserta direcciones en miau_wc_order_addresses
+     * Inserta direcciones en {$this->db_prefix}wc_order_addresses
      */
     public function insertOrderAddresses(int $orderId, array $customerData, array $locationData): void
     {
-        if (!$this->tableExists('miau_wc_order_addresses')) {
+        if (!$this->tableExists('{$this->db_prefix}wc_order_addresses')) {
             return; // Tabla no existe
         }
         
@@ -956,7 +959,7 @@ class WooCommerceCustomer
         $address2 = trim((string)($customerData['_shipping_address_2'] ?? ''));
         
         // Dirección de facturación
-        $this->insertRow('miau_wc_order_addresses', [
+        $this->insertRow('{$this->db_prefix}wc_order_addresses', [
             'order_id' => $orderId,
             'address_type' => 'billing',
             'first_name' => $firstName,
@@ -973,7 +976,7 @@ class WooCommerceCustomer
         ]);
         
         // Dirección de envío
-        $this->insertRow('miau_wc_order_addresses', [
+        $this->insertRow('{$this->db_prefix}wc_order_addresses', [
             'order_id' => $orderId,
             'address_type' => 'shipping',
             'first_name' => $firstName,
@@ -1014,7 +1017,7 @@ class WooCommerceCustomer
             $orderId = $this->createBasicOrder($orderData);
             
             if ($orderId === 0) {
-                throw new Exception('No se pudo crear el pedido en miau_posts');
+                throw new Exception('No se pudo crear el pedido en {$this->db_prefix}posts');
             }
             
             // 4. Agregar customer_id a formData para metadatos
@@ -1180,21 +1183,21 @@ class WooCommerceCustomer
 
     /**
      * Inserta/actualiza cliente en TODAS las tablas requeridas con formatos específicos
-     * Maneja: miau_usermeta, miau_wc_customer_lookup, miau_wc_order_addresses (si aplica)
+     * Maneja: {$this->db_prefix}usermeta, {$this->db_prefix}wc_customer_lookup, {$this->db_prefix}wc_order_addresses (si aplica)
      */
     private function insertAllCustomerTables(int $userId, array $formData, array $locationData): void
     {
-        // 1. Actualizar miau_usermeta con formato específico
+        // 1. Actualizar {$this->db_prefix}usermeta con formato específico
         $this->updateUserMetaWithLocation($userId, $formData, $locationData);
         
-        // 2. Actualizar miau_wc_customer_lookup con formato específico
+        // 2. Actualizar {$this->db_prefix}wc_customer_lookup con formato específico
         $this->updateCustomerLookupWithLocation($userId, $formData, $locationData);
         
         Utils::logError("Cliente actualizado en todas las tablas - User ID: $userId", 'INFO', 'WooCommerceCustomer');
     }
 
     /**
-     * Actualiza miau_usermeta con campos específicos y formatos correctos
+     * Actualiza {$this->db_prefix}usermeta con campos específicos y formatos correctos
      * Formato: state = solo clave (SAN), city = valor completo
      */
     private function updateUserMetaWithLocation(int $userId, array $formData, array $locationData): void
@@ -1248,7 +1251,7 @@ class WooCommerceCustomer
             // Cambiar validación: permitir valores que no sean null y no sean string vacío después de trim
             if ($metaValue !== null && trim((string)$metaValue) !== '') {
                 // Verificar si el metadato ya existe
-                $checkQuery = "SELECT umeta_id FROM miau_usermeta WHERE user_id = ? AND meta_key = ? LIMIT 1";
+                $checkQuery = "SELECT umeta_id FROM {$this->db_prefix}usermeta WHERE user_id = ? AND meta_key = ? LIMIT 1";
                 $stmt = mysqli_prepare($this->wp_connection, $checkQuery);
                 mysqli_stmt_bind_param($stmt, 'is', $userId, $metaKey);
                 mysqli_stmt_execute($stmt);
@@ -1256,14 +1259,14 @@ class WooCommerceCustomer
 
                 if ($result && mysqli_num_rows($result) > 0) {
                     // Actualizar metadato existente
-                    $this->updateRowByWhere('miau_usermeta', 
+                    $this->updateRowByWhere('{$this->db_prefix}usermeta', 
                         ['meta_value' => $metaValue], 
                         "user_id = $userId AND meta_key = '$metaKey'"
                     );
                     Utils::logError("Actualizado meta: $metaKey = '$metaValue'", 'INFO', 'WooCommerceCustomer');
                 } else {
                     // Insertar nuevo metadato
-                    $this->insertRow('miau_usermeta', [
+                    $this->insertRow('{$this->db_prefix}usermeta', [
                         'user_id' => $userId,
                         'meta_key' => $metaKey,
                         'meta_value' => $metaValue,
@@ -1278,12 +1281,12 @@ class WooCommerceCustomer
     }
 
     /**
-     * Actualiza miau_wc_customer_lookup con formato específico
+     * Actualiza {$this->db_prefix}wc_customer_lookup con formato específico
      * Formato: state = solo clave (SAN), city = valor completo
      */
     private function updateCustomerLookupWithLocation(int $userId, array $formData, array $locationData): void
     {
-        if (!$this->tableExists('miau_wc_customer_lookup')) {
+        if (!$this->tableExists('{$this->db_prefix}wc_customer_lookup')) {
             return;
         }
 
@@ -1307,7 +1310,7 @@ class WooCommerceCustomer
 
         // Verificar si el cliente ya existe
         $emailEscaped = mysqli_real_escape_string($this->wp_connection, $email);
-        $checkQuery = "SELECT customer_id FROM miau_wc_customer_lookup WHERE email = '$emailEscaped' LIMIT 1";
+        $checkQuery = "SELECT customer_id FROM {$this->db_prefix}wc_customer_lookup WHERE email = '$emailEscaped' LIMIT 1";
         $checkResult = mysqli_query($this->wp_connection, $checkQuery);
 
         if ($checkResult && mysqli_num_rows($checkResult) > 0) {
@@ -1315,11 +1318,11 @@ class WooCommerceCustomer
             $row = mysqli_fetch_assoc($checkResult);
             $existingCustomerId = (int)$row['customer_id'];
             
-            $this->updateRowByWhere('miau_wc_customer_lookup', $customerData, "customer_id = $existingCustomerId");
+            $this->updateRowByWhere('{$this->db_prefix}wc_customer_lookup', $customerData, "customer_id = $existingCustomerId");
             Utils::logError("Cliente actualizado en customer_lookup - Customer ID: $existingCustomerId", 'INFO', 'WooCommerceCustomer');
         } else {
             // Cliente no existe, crear nuevo
-            $newCustomerId = $this->insertRow('miau_wc_customer_lookup', $customerData);
+            $newCustomerId = $this->insertRow('{$this->db_prefix}wc_customer_lookup', $customerData);
             Utils::logError("Cliente creado en customer_lookup - Customer ID: $newCustomerId", 'INFO', 'WooCommerceCustomer');
         }
     }

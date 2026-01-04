@@ -1,5 +1,9 @@
 <?php
 require_once('class/autoload.php');
+
+// Obtener prefijo de base de datos desde variable de entorno
+$db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
+
 requireLogin('index.php');
 
 include("parts/header.php");
@@ -25,12 +29,12 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
     $cancelData = Utils::capturePostData(['id_ventas', 'num']);
     $venta = $cancelData['id_ventas'];
     $factu = $cancelData['num'];
-    $query = "UPDATE miau_posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
+    $query = "UPDATE {$db_prefix}posts SET post_status = 'wc-cancelled' WHERE ID = '$venta'";
     mysqli_query($miau, $query);
-    $query = "UPDATE miau_wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$venta'";
+    $query = "UPDATE {$db_prefix}wc_order_stats SET status = 'wc-cancelled' WHERE order_id = '$venta'";
     mysqli_query($miau, $query);
 
-    $query_vcancel = sprintf("SELECT order_id, product_id, product_qty FROM miau_wc_order_product_lookup WHERE order_id = '$venta'");
+    $query_vcancel = sprintf("SELECT order_id, product_id, product_qty FROM {$db_prefix}wc_order_product_lookup WHERE order_id = '$venta'");
     $vcancel = mysqli_query($miau, $query_vcancel) or die(mysqli_error($miau));
     $row_vcancel = mysqli_fetch_assoc($vcancel);
     $totalRows_vcancel = mysqli_num_rows($vcancel);
@@ -38,17 +42,17 @@ if (Utils::hasPostFields(['id_ventas', 'cancela'])) {
         $product_id = $row_vcancel['product_id'];
         $product_qty = $row_vcancel['product_qty'];
 
-        $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM miau_postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
+        $query_stock = sprintf("SELECT post_id, meta_key, meta_value FROM {$db_prefix}postmeta WHERE post_id = '$product_id' AND meta_key = '_stock'");
         $stock = mysqli_query($miau, $query_stock) or die(mysqli_error($miau));
         $row_stock = mysqli_fetch_assoc($stock);
         $totalRows_stock = mysqli_num_rows($stock);
 
         $_stock1 = $row_stock['meta_value'];
         $_stock2 = $row_stock['meta_value'] + $product_qty;
-        $query9 = "UPDATE miau_postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
+        $query9 = "UPDATE {$db_prefix}postmeta SET meta_value = '$_stock2' WHERE post_id = '$product_id' AND meta_key = '_stock'";
         mysqli_query($miau, $query9);
         if ($_stock2 > 0) {
-            $query10 = "UPDATE miau_postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
+            $query10 = "UPDATE {$db_prefix}postmeta SET meta_value = 'instock' WHERE post_id = '$product_id' AND meta_key = '_stock_status'";
             mysqli_query($miau, $query10);
         }
     } while ($row_vcancel = mysqli_fetch_assoc($vcancel));
