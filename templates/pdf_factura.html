@@ -24,9 +24,32 @@
             color: #8b8b8b;
             font-weight: 400;
         }
+        .box-cancelada {
+            position: absolute;
+            top: 13%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .cancelada-text {
+            text-align: center;
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: rgba(172, 8, 8, 0.6);
+            margin: 20px 0;
+            transform: rotate(-150deg);
+            border: 4px solid rgba(172, 8, 8, 0.6);
+            padding: 10px;
+            display: inline-block;
+            position: relative;
+            top: 20%;
+        }
     </style>
 </head>
 <body>
+    <div class="box-cancelada">
+        {{cancelada_overlay}}
+    </div>
     <table border="0" style="table-layout: fixed; width: 180">
         <tr align="center">
             <td colspan="4" style="text-align: center"><img src="{{logo_factura}}" width="130"></td>

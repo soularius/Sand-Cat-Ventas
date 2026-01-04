@@ -82,6 +82,20 @@ try {
         $email_destino = $orden['email_cliente'];
     }
 
+    // Obtener el estado de la factura desde la base de datos
+    $orden_id_safe = (int)$orden_id;
+    $factura_id_safe = mysqli_real_escape_string($sandycat, (string)$factura_id);
+    $query_factura = "SELECT estado FROM facturas WHERE id_order = '{$orden_id_safe}' AND factura = '{$factura_id_safe}' AND estado IN ('a', 'c')";
+    $result_factura = mysqli_query($sandycat, $query_factura);
+    
+    if (mysqli_num_rows($result_factura) == 0) {
+        throw new Exception("Factura no encontrada");
+    }
+    
+    $factura_data = mysqli_fetch_assoc($result_factura);
+    $estado_factura = $factura_data['estado'];
+    mysqli_free_result($result_factura);
+
     // Generar PDF usando la función centralizada
     $factura_num = $factura_id;
     $fecha = date('d/m/Y H:i', strtotime($orden['fecha_orden']));
@@ -120,6 +134,7 @@ try {
         'barrio' => (string)($orden['barrio'] ?? ''),
         'dni' => (string)($orden['dni'] ?? ''),
         'comentarios' => (string)($orden['customer_note'] ?? ''),
+        'estado_factura' => $estado_factura
     ];
 
     // Generar PDF como string para adjuntar al email

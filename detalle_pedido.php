@@ -12,13 +12,15 @@ if ($order_id <= 0) {
     exit();
 }
 
-// Obtener número de factura si existe
+// Obtener número de factura y estado si existe
 $factura_num = '';
-$query_factura = "SELECT factura FROM facturas WHERE id_order = '$order_id' AND estado = 'a' ORDER BY id_facturas DESC LIMIT 1";
+$factura_estado = '';
+$query_factura = "SELECT factura, estado FROM facturas WHERE id_order = '$order_id' AND estado IN ('a', 'c') ORDER BY id_facturas DESC LIMIT 1";
 $result_factura = mysqli_query($sandycat, $query_factura);
 if ($result_factura && mysqli_num_rows($result_factura) > 0) {
     $row_factura = mysqli_fetch_assoc($result_factura);
     $factura_num = (string)($row_factura['factura'] ?? '');
+    $factura_estado = (string)($row_factura['estado'] ?? '');
 }
 if ($result_factura) {
     mysqli_free_result($result_factura);
@@ -328,7 +330,7 @@ include('parts/header.php');
                                 </button>
                             </div>
                             <div class="col-md-6">
-                                <button class="btn btn-primary btn-custom btn-lg w-100" id="btnImprimirPDF" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                <button class="btn btn-primary btn-custom btn-lg w-100" id="btnImprimirPDF" <?php echo (empty($factura_num) || $factura_estado === 'c') ? 'disabled' : ''; ?>>
                                     <i class="fas fa-print me-2"></i>Imprimir PDF
                                 </button>
                             </div>
@@ -336,17 +338,17 @@ include('parts/header.php');
 
                         <div class="row mt-3">
                             <div class="col-md-4">
-                                <button class="btn btn-danger btn-custom btn-lg w-100" id="btnAbrirPDF" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                <button class="btn btn-danger btn-custom btn-lg w-100" id="btnAbrirPDF" <?php echo (empty($factura_num) || $factura_estado === 'c') ? 'disabled' : ''; ?>>
                                     <i class="fas fa-external-link-alt me-2"></i>Abrir PDF
                                 </button>
                             </div>
                             <div class="col-md-4">
-                                <button class="btn btn-success btn-custom btn-lg w-100" id="btnDescargarPDF" <?php echo empty($factura_num) ? 'disabled' : ''; ?>>
+                                <button class="btn btn-success btn-custom btn-lg w-100" id="btnDescargarPDF" <?php echo (empty($factura_num) || $factura_estado === 'c') ? 'disabled' : ''; ?>>
                                     <i class="fas fa-download me-2"></i>Descargar
                                 </button>
                             </div>
                             <div class="col-md-4">
-                                <button class="btn btn-primary btn-custom btn-lg w-100 text-white" id="btnEnviarEmail" <?php echo empty($factura_num) ? 'disabled' : ''; ?> data-bs-toggle="modal" data-bs-target="#emailModal">
+                                <button class="btn btn-primary btn-custom btn-lg w-100 text-white" id="btnEnviarEmail" <?php echo (empty($factura_num) || $factura_estado === 'c') ? 'disabled' : ''; ?> data-bs-toggle="modal" data-bs-target="#emailModal">
                                     <i class="fas fa-envelope me-2"></i>Enviar Email
                                 </button>
                             </div>
@@ -358,6 +360,15 @@ include('parts/header.php');
                                     <div class="alert alert-warning mb-0">
                                         <i class="fas fa-exclamation-triangle me-2"></i>
                                         No hay factura activa para este pedido. Genere la factura desde el panel de administración.
+                                    </div>
+                                </div>
+                            </div>
+                        <?php elseif ($factura_estado === 'c'): ?>
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="alert alert-danger mb-0">
+                                        <i class="fas fa-ban me-2"></i>
+                                        La factura de este pedido ha sido <strong>CANCELADA</strong>. No se pueden realizar acciones sobre facturas canceladas.
                                     </div>
                                 </div>
                             </div>

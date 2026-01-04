@@ -79,6 +79,7 @@ function generarHTMLFactura($datos) {
     $barrio = $datos['barrio'] ?? '';
     $dni = $datos['dni'] ?? '';
     $comentarios = $datos['comentarios'] ?? '';
+    $estado_factura = $datos['estado_factura'] ?? 'a';
 
     // Construir dirección completa
     $direccion_completa = '';
@@ -130,7 +131,8 @@ function generarHTMLFactura($datos) {
         'observaciones' => $observaciones,
         'comentarios' => $comentarios,
         'envio' => $envio,
-        'descuento' => $descuento
+        'descuento' => $descuento,
+        'estado_factura' => $estado_factura
     ];
 
     // Usar el sistema de templates

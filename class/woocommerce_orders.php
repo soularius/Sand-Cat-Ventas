@@ -2507,8 +2507,9 @@ class WooCommerceOrders
     {
         try {
             // Obtener IDs de órdenes facturadas del sistema de ventas (ventassc) con números de factura
+            // Incluir tanto facturas activas ('a') como canceladas ('c')
             $ventas_connection = DatabaseConfig::getVentasConnection();
-            $query_facturas = "SELECT id_order, factura FROM facturas WHERE estado = 'a'";
+            $query_facturas = "SELECT id_order, factura, estado FROM facturas WHERE estado IN ('a', 'c')";
             $facturas_result = mysqli_query($ventas_connection, $query_facturas);
             
             if (!$facturas_result) {
@@ -2519,10 +2520,12 @@ class WooCommerceOrders
             
             $facturas_ids = [];
             $facturas_map = []; // Mapeo de order_id => factura_number
+            $facturas_estado = []; // Mapeo de order_id => estado_factura
             while ($row_fact = mysqli_fetch_assoc($facturas_result)) {
                 $order_id = (int)$row_fact['id_order'];
                 $facturas_ids[] = $order_id;
                 $facturas_map[$order_id] = $row_fact['factura'];
+                $facturas_estado[$order_id] = $row_fact['estado'];
             }
             mysqli_free_result($facturas_result);
             mysqli_close($ventas_connection);
@@ -2583,9 +2586,10 @@ class WooCommerceOrders
             
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
-                // Agregar número de factura al registro
+                // Agregar número de factura y estado al registro
                 $order_id = (int)$row['ID'];
                 $row['factura_number'] = $facturas_map[$order_id] ?? '';
+                $row['factura_estado'] = $facturas_estado[$order_id] ?? 'a';
                 $orders[] = $row;
             }
             

@@ -244,6 +244,14 @@ class EmailTemplate
                 <td colspan=\"4\" style=\"word-wrap: break-word; width: 180\"><strong>Observaciones:</strong> " . htmlspecialchars($data['comentarios']) . "</td>
             </tr>" : "";
         
+        // Sección para factura cancelada
+        $cancelada_overlay = ($data['estado_factura'] === 'c') ? "
+            <tr>
+                <td colspan=\"4\" style=\"text-align: center; padding: 20px 0;\">
+                    <div class=\"cancelada-text\">CANCELADA</div>
+                </td>
+            </tr>" : "";
+        
         $envio_section = ($data['envio'] > 0) ? "
             <tr>
                 <td style=\"text-align: center; vertical-align: top\"><br>1</td>
@@ -286,6 +294,7 @@ class EmailTemplate
             '{{comentarios_section}}' => $comentarios_section,
             '{{envio_section}}' => $envio_section,
             '{{descuento_section}}' => $descuento_section,
+            '{{cancelada_overlay}}' => $cancelada_overlay,
         ];
         
         return str_replace(array_keys($replacements), array_values($replacements), $template);

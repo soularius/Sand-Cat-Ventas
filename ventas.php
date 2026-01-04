@@ -117,6 +117,53 @@ if (isset($_POST['fin_pedido'])) {
   }
 }
 
+// Procesar cancelación de factura
+if (isset($_POST['cancelar_factura']) && isset($_POST['orden_id'])) {
+  $orden_id = Utils::sanitizeInput($_POST['orden_id']);
+  
+  try {
+    // Actualizar estado de factura a 'c' (cancelada) en la tabla facturas
+    $query_cancel_factura = "UPDATE facturas SET estado = 'c' WHERE id_order = ? AND estado = 'a'";
+    $stmt = mysqli_prepare($sandycat, $query_cancel_factura);
+    
+    if ($stmt) {
+      mysqli_stmt_bind_param($stmt, "i", $orden_id);
+      $result = mysqli_stmt_execute($stmt);
+      
+      if ($result && mysqli_stmt_affected_rows($stmt) > 0) {
+        Utils::logError("Factura cancelada exitosamente para orden: $orden_id", 'INFO', 'ventas.php');
+        $carga = '<script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                      showSuccessAlert("Factura cancelada exitosamente.");
+                    });
+                  </script>';
+      } else {
+        Utils::logError("No se encontró factura activa para cancelar en orden: $orden_id", 'WARNING', 'ventas.php');
+        $carga = '<script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                      showWarningAlert("No se encontró una factura activa para cancelar.");
+                    });
+                  </script>';
+      }
+      
+      mysqli_stmt_close($stmt);
+    } else {
+      Utils::logError("Error preparando consulta para cancelar factura: " . mysqli_error($sandycat), 'ERROR', 'ventas.php');
+      $carga = '<script>
+                  document.addEventListener("DOMContentLoaded", function() {
+                    showErrorAlert("Error al cancelar la factura.");
+                  });
+                </script>';
+    }
+  } catch (Exception $e) {
+    Utils::logError("Excepción al cancelar factura: " . $e->getMessage(), 'ERROR', 'ventas.php');
+    $carga = '<script>
+                document.addEventListener("DOMContentLoaded", function() {
+                  showErrorAlert("Error inesperado al cancelar la factura.");
+                });
+              </script>';
+  }
+}
 
 // 8. Obtener pedidos pendientes usando clase WooCommerce con paginación
 // Incluye pedidos en processing y on-hold con método de pago cheque
@@ -227,6 +274,12 @@ include("parts/header.php");
       </div>
     </div>
 
+    <?php if (!empty($carga)) { ?>
+      <div class="w-100 mb-3">
+        <?php echo $carga; ?>
+      </div>
+    <?php } ?>
+
     <?php if (isset($_POST['id_ventas']) && isset($_POST['imprimiendo'])) { ?>
       <form action="fact.php" class="login-form" method="post" target="_blank" id="impr" name="impr">
         <input type="hidden" id="id_ventas" name="id_ventas" value="<?php echo $venta; ?>" />
@@ -307,6 +360,42 @@ include("parts/header.php");
             </button>
             <button type="button" class="btn btn-success btn-custom" id="btnConfirmarEdicion">
               <i class="fas fa-edit me-2"></i>Confirmar Edición
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para Cancelar Factura -->
+    <div class="modal fade" id="cancelInvoiceModal" tabindex="-1" aria-labelledby="cancelInvoiceModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-danger bg-custom text-white">
+            <h5 class="modal-title" id="cancelInvoiceModalLabel">
+              <i class="fas fa-ban me-2"></i>Cancelar Factura
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center py-4">
+            <div class="mb-4">
+              <i class="fas fa-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+            </div>
+            <h6 class="mb-3">¿Está seguro de que desea cancelar la factura de este pedido?</h6>
+            <div class="alert alert-warning">
+              <i class="fas fa-warning me-2"></i>
+              <strong>Pedido #<span id="cancel-invoice-order-id"></span></strong>
+              <br>
+              <small class="text-muted">
+                Esta acción actualizará el estado de la factura a "cancelada" en el sistema. Esta acción no se puede deshacer.
+              </small>
+            </div>
+          </div>
+          <div class="modal-footer justify-content-center">
+            <button type="button" class="btn btn-secondary btn-custom" data-bs-dismiss="modal">
+              <i class="fas fa-times me-2"></i>No, Mantener
+            </button>
+            <button type="button" class="btn btn-danger btn-custom" id="btnConfirmarCancelacion">
+              <i class="fas fa-ban me-2"></i>Sí, Cancelar Factura
             </button>
           </div>
         </div>
@@ -410,9 +499,18 @@ include("parts/header.php");
                         </td>
                         <td class="text-center">
                           <?php if ($has_invoice): ?>
-                            <span class="badge bg-success bg-custom px-3 py-2">
-                              <i class="fas fa-check-circle me-1"></i>Facturado
-                            </span>
+                            <?php 
+                            // Verificar el estado de la factura
+                            $factura_estado = $row_pendientes['factura_estado'] ?? 'a';
+                            if ($factura_estado === 'c'): ?>
+                              <span class="badge bg-danger bg-custom px-3 py-2">
+                                <i class="fas fa-ban me-1"></i>Cancelado
+                              </span>
+                            <?php else: ?>
+                              <span class="badge bg-success bg-custom px-3 py-2">
+                                <i class="fas fa-check-circle me-1"></i>Facturado
+                              </span>
+                            <?php endif; ?>
                           <?php else: ?>
                             <span class="badge bg-warning bg-custom px-3 py-2">
                               <i class="fas fa-clock me-1"></i>Pendiente
@@ -648,9 +746,18 @@ include("parts/header.php");
                           <?php echo $alert_badge; ?>
                         </td>
                         <td class="text-center">
-                          <span class="badge bg-success bg-custom px-3 py-2">
-                            <i class="fas fa-check-circle me-1"></i>Facturado
-                          </span>
+                          <?php 
+                          // Verificar el estado de la factura
+                          $factura_estado = $row_pendientesf['factura_estado'] ?? 'a';
+                          if ($factura_estado === 'c'): ?>
+                            <span class="badge bg-danger bg-custom px-3 py-2">
+                              <i class="fas fa-ban me-1"></i>Cancelado
+                            </span>
+                          <?php else: ?>
+                            <span class="badge bg-success bg-custom px-3 py-2">
+                              <i class="fas fa-check-circle me-1"></i>Facturado
+                            </span>
+                          <?php endif; ?>
                         </td>
                         <td class="text-center">
                           <div class="btn-group" role="group">
@@ -667,6 +774,11 @@ include("parts/header.php");
                             <!-- Botón Abrir PDF Factura -->
                             <button type="button" class="btn btn-sm btn-warning btn-custom px-3 py-2" onclick="window.open('generar_pdf.php?orden=<?php echo $row_pendientesf['ID']; ?>&factura=<?php echo $row_pendientesf['factura_number']; ?>', '_blank')" title="Abrir PDF Factura">
                               <i class="fas fa-file-pdf"></i>
+                            </button>
+
+                            <!-- Botón Cancelar Factura -->
+                            <button type="button" class="btn btn-sm btn-danger btn-custom px-3 py-2" onclick="cancelInvoice(<?php echo $row_pendientesf['ID']; ?>)" title="Cancelar Factura">
+                              <i class="fas fa-ban"></i>
                             </button>
                           </div>
                         </td>
@@ -1110,6 +1222,48 @@ include("parts/header.php");
     // Auto-remover después de 5 segundos
     setTimeout(() => {
       $('.alert-danger').fadeOut(500, function() {
+        $(this).remove();
+      });
+    }, 5000);
+  }
+
+  // Función para mostrar alertas de éxito
+  function showSuccessAlert(message, container = 'body') {
+    const alertHtml = `
+      <div class="alert alert-success alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; max-width: 400px;" role="alert">
+        <i class="fas fa-check-circle me-2"></i>
+        <strong>Éxito:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    
+    // Agregar la alerta al contenedor especificado
+    $(container).append(alertHtml);
+    
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+      $('.alert-success').fadeOut(500, function() {
+        $(this).remove();
+      });
+    }, 5000);
+  }
+
+  // Función para mostrar alertas de advertencia
+  function showWarningAlert(message, container = 'body') {
+    const alertHtml = `
+      <div class="alert alert-warning alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999; max-width: 400px;" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>Advertencia:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    
+    // Agregar la alerta al contenedor especificado
+    $(container).append(alertHtml);
+    
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+      $('.alert-warning').fadeOut(500, function() {
         $(this).remove();
       });
     }, 5000);
@@ -1714,10 +1868,42 @@ include("parts/header.php");
         }
       });
     });
+
+    // Función para cancelar factura
+    function cancelInvoice(orderId) {
+      // Mostrar el modal de confirmación
+      $('#cancel-invoice-order-id').text(orderId);
+      $('#cancelInvoiceModal').modal('show');
+      
+      // Configurar el botón de confirmación
+      $('#btnConfirmarCancelacion').off('click').on('click', function() {
+        // Crear formulario para enviar la cancelación
+        const form = $('<form>', {
+          method: 'POST',
+          action: window.location.href
+        });
+        
+        // Agregar campos hidden
+        form.append($('<input>', {
+          type: 'hidden',
+          name: 'cancelar_factura',
+          value: '1'
+        }));
+        
+        form.append($('<input>', {
+          type: 'hidden',
+          name: 'orden_id',
+          value: orderId
+        }));
+        
+        // Agregar el formulario al DOM y enviarlo
+        $('body').append(form);
+        form.submit();
+      });
+    }
   </script>
 
+  <?php include("parts/footer.php"); ?>
 </body>
-
 </html>
-<?php
 ?>

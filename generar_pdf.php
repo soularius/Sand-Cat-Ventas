@@ -22,15 +22,19 @@ if (!$orden_id || !$factura_num) {
     die("Parámetros inválidos");
 }
 
-// Verificar que la factura existe
+// Verificar que la factura existe (incluir facturas activas y canceladas)
 $orden_id_safe = (int)$orden_id;
 $factura_num_safe = mysqli_real_escape_string($sandycat, (string)$factura_num);
-$query_factura = "SELECT * FROM facturas WHERE id_order = '{$orden_id_safe}' AND factura = '{$factura_num_safe}' AND estado = 'a'";
+$query_factura = "SELECT * FROM facturas WHERE id_order = '{$orden_id_safe}' AND factura = '{$factura_num_safe}' AND estado IN ('a', 'c')";
 $result_factura = mysqli_query($sandycat, $query_factura);
 
 if (mysqli_num_rows($result_factura) == 0) {
     die("Factura no encontrada");
 }
+
+// Obtener el estado de la factura
+$factura_data = mysqli_fetch_assoc($result_factura);
+$estado_factura = $factura_data['estado'];
 
 // Usar la clase WooCommerceOrders para obtener datos de la orden
 $wooOrders = new WooCommerceOrders();
@@ -102,7 +106,8 @@ $datos_pdf = [
     'pais' => $orden['pais'],
     'barrio' => $orden['barrio'],
     'dni' => $orden['dni'],
-    'comentarios' => $orden['customer_note'] ?? ''
+    'comentarios' => $orden['customer_note'] ?? '',
+    'estado_factura' => $estado_factura
 ];
 
 // Determinar modo de salida
