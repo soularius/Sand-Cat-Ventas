@@ -196,10 +196,22 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success && response.data.has_invoice) {
-                    // Actualizar si hay cambios
-                    var currentNumber = $('.notice-info p:contains("Número:")').text();
-                    if (currentNumber.indexOf(response.data.invoice_number) === -1) {
-                        location.reload(); // Recargar página si hay cambios
+                    if (response.data.is_cancelled) {
+                        // Factura cancelada - mostrar mensaje y deshabilitar botones
+                        $('#generate-invoice').prop('disabled', true).text('Factura Cancelada');
+                        $('#view-invoice').prop('disabled', true);
+                        
+                        // Mostrar mensaje de cancelación
+                        if (!$('.notice-error').length) {
+                            var cancelledNotice = '<div class="notice notice-error"><p><strong>Factura Cancelada:</strong> ' + response.data.message + '</p></div>';
+                            $('.wrap h1').after(cancelledNotice);
+                        }
+                    } else {
+                        // Actualizar si hay cambios
+                        var currentNumber = $('.notice-info p:contains("Número:")').text();
+                        if (currentNumber.indexOf(response.data.invoice_number) === -1) {
+                            location.reload(); // Recargar página si hay cambios
+                        }
                     }
                 }
             },

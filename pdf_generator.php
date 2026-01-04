@@ -13,6 +13,11 @@ require_once('class/email_template.php');
  * @return string Nombre completo del departamento
  */
 function convertirCodigoDepartamento($codigo) {
+    // Si el código contiene "CO-", extraer solo la parte del departamento
+    if (strpos($codigo, 'CO-') === 0) {
+        $codigo = substr($codigo, 3); // Quitar "CO-" del inicio
+    }
+    
     // Cargar datos de departamentos desde el plugin Colombia
     $states_file = 'data/data-plugin-departamentos-y-ciudades-de-colombia-para-woocommerce/states/CO.php';
     
@@ -26,7 +31,6 @@ function convertirCodigoDepartamento($codigo) {
             }
         }
     }
-    
     // Si no se encuentra, devolver el código original
     return $codigo;
 }
@@ -94,7 +98,7 @@ function generarHTMLFactura($datos) {
     $ubicacion = '';
     if (!empty($ciudad)) {
         $ubicacion = $ciudad;
-        
+
         // Convertir código de departamento a nombre completo
         if (!empty($departamento)) {
             $departamento_nombre = convertirCodigoDepartamento($departamento);

@@ -245,12 +245,15 @@ class EmailTemplate
             </tr>" : "";
         
         // Sección para factura cancelada
-        $cancelada_overlay = ($data['estado_factura'] === 'c') ? "
-            <tr>
-                <td colspan=\"4\" style=\"text-align: center; padding: 20px 0;\">
-                    <div class=\"cancelada-text\">CANCELADA</div>
-                </td>
-            </tr>" : "";
+        $cancelada_overlay = ($data['estado_factura'] === 'c') ? '
+            <div style="position: absolute; top: 8%; background: rgba(204, 115, 115, 0.72);
+                         border: 3px solid #530c0cff; padding: 5px; text-align: center;
+                         font-size: 24px; font-weight: bold; color: #530c0cff; z-index: 1000;
+                         width: 95%; max-width: 400px; left: 0px;">
+                <div style="font-size: 28px; margin-bottom: 10px;">CANCELADA</div>
+                <div style="font-size: 18px; margin-bottom: 5px;">Número: ' . htmlspecialchars($data['factura_num'] ?? '') . '</div>
+                <div style="font-size: 16px;">Fecha: ' . ($data['fecha_modificacion'] ?? date('d/m/Y')) . '</div>
+            </div>' : "";
         
         $envio_section = ($data['envio'] > 0) ? "
             <tr>

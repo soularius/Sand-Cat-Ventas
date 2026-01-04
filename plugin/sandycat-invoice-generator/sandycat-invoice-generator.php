@@ -220,6 +220,7 @@ class SandCatInvoiceGenerator {
         
         if ($existing_invoice) {
             echo '<div class="notice notice-info inline">';
+            var_dump($existing_invoice);
             echo '<p><strong>' . __('Factura existente:', 'sandcat-invoice') . '</strong></p>';
             echo '<p>' . sprintf(__('Número: %s', 'sandcat-invoice'), $existing_invoice['factura']) . '</p>';
             echo '<p>' . sprintf(__('Fecha: %s', 'sandcat-invoice'), $existing_invoice['fecha_creacion']) . '</p>';
@@ -261,7 +262,7 @@ class SandCatInvoiceGenerator {
             return false;
         }
         
-        $stmt = $this->ventas_db->prepare("SELECT id_facturas, id_order, factura, fecha_creacion FROM facturas WHERE id_order = ? AND estado = 'a' LIMIT 1");
+        $stmt = $this->ventas_db->prepare("SELECT id_facturas, id_order, factura, fecha_creacion, estado FROM facturas WHERE id_order = ? LIMIT 1");
         
         // Verificar si prepare() fue exitoso
         if ($stmt === false) {
@@ -464,6 +465,17 @@ class SandCatInvoiceGenerator {
         $order_id = intval($_POST['order_id']);
 
         try {
+            // Verificar si existe una factura para este pedido
+            $existing_invoice = $this->get_existing_invoice($order_id);
+            if ($existing_invoice && $existing_invoice['estado'] === 'c') {
+                wp_send_json_error(array(
+                    'message' => sprintf(__('La factura #%s fue cancelada desde el sistema de ventas y no puede ser regenerada', 'sandcat-invoice'), $existing_invoice['factura']),
+                    'cancelled' => true,
+                    'invoice_number' => $existing_invoice['factura']
+                ));
+                return;
+            }
+            
             // Generar número de factura
             $invoice_number = $this->get_next_invoice_number();
             
@@ -741,6 +753,10 @@ class SandCatInvoiceGenerator {
      * Preparar datos para el template
      */
     private function prepare_template_data($order, $invoice_number, $order_data) {
+        // Verificar si la factura está cancelada
+        $existing_invoice = $this->get_existing_invoice($order->get_id());
+        $is_cancelled = $existing_invoice && $existing_invoice['estado'] === 'c';
+        
         // Datos básicos
         $data = array(
             'factura_num' => $invoice_number,
@@ -778,6 +794,9 @@ class SandCatInvoiceGenerator {
         // Totales
         $data['envio_section'] = $this->get_envio_section($order_data['total_envio']);
         $data['descuento_section'] = $this->get_descuento_section($order_data['total_descuento']);
+        
+        // Overlay de cancelación
+        $data['cancelada_overlay'] = $is_cancelled ? $this->get_cancelada_overlay($existing_invoice) : '';
         
         // Debug: Log template data para verificar que se están pasando correctamente
         $this->logger->info('Template data prepared', array(
@@ -1096,6 +1115,30 @@ class SandCatInvoiceGenerator {
             </tr>';
         }
         return '';
+    }
+    
+    /**
+     * Obtener overlay de factura cancelada
+     */
+    private function get_cancelada_overlay($cancelled_invoice) {
+        if (!$cancelled_invoice) {
+            return '';
+        }
+        
+        $invoice_number = $cancelled_invoice['factura'];
+        $fecha_cancelacion = date('d/m/Y', strtotime($cancelled_invoice['fecha_creacion']));
+        
+        return '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                           background: rgba(255, 0, 0, 0.1); border: 3px solid #ff0000; 
+                           padding: 20px; text-align: center; font-size: 24px; font-weight: bold; 
+                           color: #ff0000; z-index: 1000; width: 80%; max-width: 400px;">
+                    <div style="font-size: 28px; margin-bottom: 10px;">FACTURA CANCELADA</div>
+                    <div style="font-size: 18px; margin-bottom: 5px;">Número: ' . htmlspecialchars($invoice_number) . '</div>
+                    <div style="font-size: 16px;">Fecha: ' . $fecha_cancelacion . '</div>
+                    <div style="font-size: 14px; margin-top: 10px; font-style: italic;">
+                        Esta factura fue cancelada desde el sistema de ventas
+                    </div>
+                </div>';
     }
     
     /**
@@ -1639,19 +1682,46 @@ class SandCatInvoiceGenerator {
                 return;
             }
             
-            // Verificar si existe factura en la base de datos de ventas
+            // Verificar si existe factura para este pedido
+            $existing_invoice = $this->get_existing_invoice($order_id);
+            if ($existing_invoice) {
+                if ($existing_invoice['estado'] === 'c') {
+                    // Factura cancelada
+                    wp_send_json_success(array(
+                        'has_invoice' => true,
+                        'is_cancelled' => true,
+                        'invoice_number' => $existing_invoice['factura'],
+                        'invoice_date' => $existing_invoice['fecha_creacion'],
+                        'message' => sprintf(__('La factura #%s fue cancelada desde el sistema de ventas', 'sandcat-invoice'), $existing_invoice['factura'])
+                    ));
+                    return;
+                } else {
+                    // Factura activa
+                    wp_send_json_success(array(
+                        'has_invoice' => true,
+                        'is_cancelled' => false,
+                        'invoice_number' => $existing_invoice['factura'],
+                        'invoice_date' => $existing_invoice['fecha_creacion']
+                    ));
+                    return;
+                }
+            }
+            
+            // Si no hay factura en la tabla facturas, verificar en la base de datos de ventas
             $invoice_data = $this->get_invoice_from_ventas_db($order_id);
             
             if ($invoice_data) {
                 wp_send_json_success(array(
                     'has_invoice' => true,
+                    'is_cancelled' => false,
                     'invoice_number' => $invoice_data['numero_factura'],
                     'invoice_date' => $invoice_data['fecha'],
                     'total' => $invoice_data['total']
                 ));
             } else {
                 wp_send_json_success(array(
-                    'has_invoice' => false
+                    'has_invoice' => false,
+                    'is_cancelled' => false
                 ));
             }
             
