@@ -444,11 +444,11 @@ include("parts/header.php");
                   </thead>
                   <tbody id="donde">
                     <?php foreach ($pendientes_data as $row_pendientes) {
-                      // Obtener estado y verificar factura para validar acciones
-                      $order_status = $wc_orders->getOrderStatus($row_pendientes['ID']);
-                      $has_invoice = $wc_orders->hasInvoice($row_pendientes['ID']);
+                      // Usar estado ya disponible en los datos (más eficiente)
+                      $order_status = $row_pendientes['post_status'];
+                      $has_invoice = $row_pendientes['has_invoice'];
                       $can_edit = !$has_invoice; // Solo editar si no tiene factura
-                      $can_invoice = ($order_status === 'wc-processing' || $order_status === 'wc-on-hold') || ($order_status === 'wc-completed' && !$has_invoice);
+                      $can_invoice = ($order_status === 'wc-processing' || $order_status === 'wc-on-hold') || ($order_status === 'wc-completed' || $order_status === 'wc-pending' || $order_status === 'wc-on-hold' && !$has_invoice);
                     ?>
                       <tr>
                         <td style="text-align: center"><?php echo $row_pendientes['ID']; ?></td>
@@ -971,9 +971,15 @@ include("parts/header.php");
                         </td>
                         <td class="text-center">
                           <?php if ($has_invoice): ?>
-                            <span class="badge bg-success bg-custom px-3 py-2">
-                              <i class="fas fa-check-circle me-1"></i>Facturado
-                            </span>
+                            <?php if ($row_todos['invoice_status'] === 'c'): ?>
+                              <span class="badge bg-danger bg-custom px-3 py-2">
+                                <i class="fas fa-ban me-1"></i>Cancelado
+                              </span>
+                            <?php else: ?>
+                              <span class="badge bg-success bg-custom px-3 py-2">
+                                <i class="fas fa-check-circle me-1"></i>Facturado
+                              </span>
+                            <?php endif; ?>
                           <?php else: ?>
                             <span class="badge bg-warning bg-custom px-3 py-2">
                               <i class="fas fa-clock me-1"></i>Sin Facturar

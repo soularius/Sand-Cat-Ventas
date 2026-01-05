@@ -3451,7 +3451,7 @@ class WooCommerceOrders
             // Consulta para contar órdenes pendientes de facturación
             $count_query = "SELECT COUNT(*) as total
             FROM {$this->db_prefix}wc_orders o
-            WHERE o.status IN ('wc-completed', 'wc-processing')
+            WHERE o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold', 'wc-pending')
             AND o.type = 'shop_order'
             $not_in_clause";
 
@@ -3471,7 +3471,7 @@ class WooCommerceOrders
                 COALESCE(o.total_amount, 0) as valor
             FROM {$this->db_prefix}wc_orders o
             LEFT JOIN {$this->db_prefix}wc_order_addresses ba ON o.id = ba.order_id AND ba.address_type = 'billing'
-            WHERE o.status IN ('wc-completed', 'wc-processing')
+            WHERE o.status IN ('wc-completed', 'wc-processing', 'wc-on-hold', 'wc-pending')
             AND o.type = 'shop_order'
             $not_in_clause
             ORDER BY o.id DESC
@@ -3735,13 +3735,38 @@ class WooCommerceOrders
                 return ['data' => [], 'pagination' => []];
             }
 
+            // Primero obtener todas las facturas del sistema de ventas
+            $ventas_connection = DatabaseConfig::getVentasConnection();
+            $query_facturas = "SELECT id_order, factura, estado FROM facturas WHERE estado IN ('a', 'c')";
+            $facturas_result = mysqli_query($ventas_connection, $query_facturas);
+
+            $facturas_map = []; // Mapeo de order_id => factura_number
+            $facturas_estado = []; // Mapeo de order_id => estado_factura
+            if ($facturas_result) {
+                while ($row_fact = mysqli_fetch_assoc($facturas_result)) {
+                    $order_id = (int)$row_fact['id_order'];
+                    $facturas_map[$order_id] = $row_fact['factura'];
+                    $facturas_estado[$order_id] = $row_fact['estado'];
+                }
+                mysqli_free_result($facturas_result);
+            }
+            mysqli_close($ventas_connection);
+
             $orders = [];
             while ($row = mysqli_fetch_assoc($result)) {
                 $order_id = (int)$row['ID'];
 
-                // Verificar si esta orden tiene factura consultando directamente la base de datos de ventas
-                $row['has_invoice'] = $this->hasInvoice($order_id);
-                $row['invoice_status'] = $row['has_invoice'] ? 'Facturado' : 'Sin Facturar';
+                // Verificar si esta orden tiene factura y obtener su estado
+                $has_invoice = isset($facturas_map[$order_id]);
+                $row['has_invoice'] = $has_invoice;
+                
+                if ($has_invoice) {
+                    $row['invoice_number'] = $facturas_map[$order_id];
+                    $row['invoice_status'] = $facturas_estado[$order_id]; // 'a' o 'c'
+                } else {
+                    $row['invoice_number'] = '';
+                    $row['invoice_status'] = 'Sin Facturar';
+                }
 
                 // Formatear datos
                 $row['valor'] = (float)($row['valor'] ?? 0);
