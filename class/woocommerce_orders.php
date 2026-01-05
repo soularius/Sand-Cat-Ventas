@@ -3816,7 +3816,111 @@ class WooCommerceOrders
         try {
             $order_id = (int)$order_id;
 
-            // Obtener datos básicos de la orden
+            // 1) Consulta única con HPOS y wc_orders_meta, con fallback a postmeta
+            if ($this->tableExists("{$this->db_prefix}wc_orders")) {
+                
+                $query = "SELECT
+                    o.id AS ID,
+                    o.date_created_gmt AS post_date,
+                    o.status AS post_status,
+                    COALESCE(o.total_amount, 0) AS total,
+                    COALESCE(o.customer_note, '') AS customer_note,
+
+                    -- Datos básicos de billing (HPOS addresses primero)
+                    COALESCE(NULLIF(o.billing_email,''), NULLIF(ba.email,''), '') AS billing_email,
+                    COALESCE(NULLIF(ba.phone,''), '') AS billing_phone,
+                    COALESCE(ba.first_name, '') AS billing_first_name,
+                    COALESCE(ba.last_name, '') AS billing_last_name,
+                    COALESCE(ba.address_1, '') AS billing_address_1,
+                    COALESCE(ba.address_2, '') AS billing_address_2,
+                    COALESCE(ba.city, '') AS billing_city,
+                    COALESCE(ba.state, '') AS billing_state,
+                    COALESCE(ba.country, '') AS billing_country,
+
+                    -- Datos desde wc_orders_meta primero, fallback a postmeta
+                    COALESCE(NULLIF(om_shipping.meta_value,''), NULLIF(pm_shipping.meta_value,''), '0') AS shipping_cost,
+                    COALESCE(NULLIF(om_payment.meta_value,''), NULLIF(pm_payment.meta_value,''), '') AS payment_method,
+                    COALESCE(NULLIF(om_payment_title.meta_value,''), NULLIF(pm_payment_title.meta_value,''), '') AS payment_method_title,
+
+                    -- DNI: wc_orders_meta primero, luego postmeta
+                    COALESCE(NULLIF(om_dni.meta_value,''), NULLIF(om_billing_id.meta_value,''), NULLIF(pm_dni.meta_value,''), NULLIF(pm_billing_id.meta_value,''), '') AS dni_cliente,
+
+                    -- Barrio: wc_orders_meta primero, luego postmeta
+                    COALESCE(NULLIF(om_barrio.meta_value,''), NULLIF(om_neighborhood.meta_value,''), NULLIF(pm_barrio.meta_value,''), NULLIF(pm_neighborhood.meta_value,''), '') AS billing_barrio,
+
+                    -- Complementar state y country desde meta si no están en addresses
+                    COALESCE(NULLIF(ba.state,''), NULLIF(om_state.meta_value,''), NULLIF(pm_state.meta_value,''), '') AS billing_state_final,
+                    COALESCE(NULLIF(ba.country,''), NULLIF(om_country.meta_value,''), NULLIF(pm_country.meta_value,''), '') AS billing_country_final
+
+                FROM {$this->db_prefix}wc_orders o
+                LEFT JOIN {$this->db_prefix}wc_order_addresses ba
+                    ON o.id = ba.order_id AND ba.address_type = 'billing'
+
+                -- wc_orders_meta JOINs (prioridad)
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_shipping 
+                    ON o.id = om_shipping.order_id AND om_shipping.meta_key = '_order_shipping'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_payment 
+                    ON o.id = om_payment.order_id AND om_payment.meta_key = '_payment_method'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_payment_title 
+                    ON o.id = om_payment_title.order_id AND om_payment_title.meta_key = '_payment_method_title'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_dni 
+                    ON o.id = om_dni.order_id AND om_dni.meta_key = '_billing_dni'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_billing_id 
+                    ON o.id = om_billing_id.order_id AND om_billing_id.meta_key = '_billing_id'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_barrio 
+                    ON o.id = om_barrio.order_id AND om_barrio.meta_key = '_billing_barrio'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_neighborhood 
+                    ON o.id = om_neighborhood.order_id AND om_neighborhood.meta_key = '_billing_neighborhood'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_state 
+                    ON o.id = om_state.order_id AND om_state.meta_key = '_billing_state'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_country 
+                    ON o.id = om_country.order_id AND om_country.meta_key = '_billing_country'
+
+                -- postmeta JOINs (fallback)
+                LEFT JOIN {$this->db_prefix}postmeta pm_shipping 
+                    ON o.id = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
+                LEFT JOIN {$this->db_prefix}postmeta pm_payment 
+                    ON o.id = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
+                LEFT JOIN {$this->db_prefix}postmeta pm_payment_title 
+                    ON o.id = pm_payment_title.post_id AND pm_payment_title.meta_key = '_payment_method_title'
+                LEFT JOIN {$this->db_prefix}postmeta pm_dni 
+                    ON o.id = pm_dni.post_id AND pm_dni.meta_key = '_billing_dni'
+                LEFT JOIN {$this->db_prefix}postmeta pm_billing_id 
+                    ON o.id = pm_billing_id.post_id AND pm_billing_id.meta_key = '_billing_id'
+                LEFT JOIN {$this->db_prefix}postmeta pm_barrio 
+                    ON o.id = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_barrio'
+                LEFT JOIN {$this->db_prefix}postmeta pm_neighborhood 
+                    ON o.id = pm_neighborhood.post_id AND pm_neighborhood.meta_key = '_billing_neighborhood'
+                LEFT JOIN {$this->db_prefix}postmeta pm_state 
+                    ON o.id = pm_state.post_id AND pm_state.meta_key = '_billing_state'
+                LEFT JOIN {$this->db_prefix}postmeta pm_country 
+                    ON o.id = pm_country.post_id AND pm_country.meta_key = '_billing_country'
+
+                WHERE o.id = {$order_id}
+                LIMIT 1";
+
+                $result = mysqli_query($this->wp_connection, $query);
+
+                if ($result && ($order_data = mysqli_fetch_assoc($result))) {
+                    
+                    // Usar los campos finales calculados
+                    $order_data['billing_state'] = $order_data['billing_state_final'];
+                    $order_data['billing_country'] = $order_data['billing_country_final'];
+                    
+                    // Limpiar campos temporales
+                    unset($order_data['billing_state_final'], $order_data['billing_country_final']);
+
+                    // Obtener productos de la orden
+                    $order_data['items'] = $this->getOrderItems($order_id);
+
+                    // Verificar si tiene factura
+                    $order_data['has_invoice'] = $this->hasInvoice($order_id);
+
+                    return $order_data;
+                }
+            }
+
+            // 2) Fallback a consulta legacy si HPOS no está disponible o no tiene datos
             $query = "SELECT 
                 p.ID,
                 p.post_date,
