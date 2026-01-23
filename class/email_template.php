@@ -26,16 +26,16 @@ class EmailTemplate
         $barrio_section = !empty($data['barrio']) ? "<p><strong>Barrio:</strong> {$data['barrio']}</p>" : "";
         $ubicacion_section = !empty($data['ubicacion']) ? "<p><strong>Ubicación:</strong> {$data['ubicacion']}</p>" : "";
         
-        $envio_section = ($data['envio'] > 0) ? "
+        $envio_section = "
             <tr>
                 <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: center;'>1</td>
-                <td style='padding: 8px; border-bottom: 1px solid #ddd;'>Domicilio</td>
-                <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>$" . number_format($data['envio'], 0) . "</td>
-                <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>$" . number_format($data['envio'], 0) . "</td>
-            </tr>" : "";
+                <td style='padding: 8px; border-bottom: 1px solid #ddd;'>" . ($data['envio'] == 0 ? "<span class='sku-text'>Pago Contra Entrega</span><br>" : "") . "Domicilio</td>
+                <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>" . ($data['envio'] > 0 ? "$" . number_format($data['envio'], 0) : "Recargo envío") . "</td>
+                <td style='padding: 8px; border-bottom: 1px solid #ddd; text-align: right;'>" . ($data['envio'] > 0 ? "$" . number_format($data['envio'], 0) : "Recargo envío") . "</td>
+            </tr>";
         
         $descuento_section = ($data['descuento'] > 0) ? "<p><strong>Descuento:</strong> <span style='color: #dc3545;'>-$" . number_format($data['descuento'], 0) . "</span></p>" : "";
-        
+
         // Reemplazos simples
         $replacements = [
             '{{nombre_cliente}}' => $data['nombre_cliente'],

@@ -124,7 +124,7 @@ try {
         'productos' => $productos_array,
         'envio' => (float)($orden['envio'] ?? 0),
         'descuento' => (float)($orden['descuento'] ?? 0),
-        'metodo' => (string)($orden['titulo_metodo_pago'] ?? ''),
+        'metodo' => (string)($orden['metodo_pago'] ?? ''),
         // Campos de dirección completa
         'direccion_1' => (string)($orden['direccion_1'] ?? ''),
         'direccion_2' => (string)($orden['direccion_2'] ?? ''),
