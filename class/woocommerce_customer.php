@@ -267,7 +267,7 @@ class WooCommerceCustomer
         $now = date('Y-m-d H:i:s');
         
         // Crear usuario en {$this->db_prefix}users
-        $userId = $this->insertRow('{$this->db_prefix}users', [
+        $userId = $this->insertRow("{$this->db_prefix}users", [
             'user_login' => $username,
             'user_pass' => $hashedPassword,
             'user_nicename' => $userNicename,
@@ -295,8 +295,8 @@ class WooCommerceCustomer
 
         // Metadatos básicos del usuario (rol guest_customer)
         $userMeta = [
-            '{$this->db_prefix}capabilities' => 'a:1:{s:14:"guest_customer";b:1;}',
-            '{$this->db_prefix}user_level' => '0',
+            "{$this->db_prefix}capabilities" => 'a:1:{s:14:"guest_customer";b:1;}',
+            "{$this->db_prefix}user_level" => '0',
             'first_name' => $firstName,
             'last_name' => $lastName,
             'billing_first_name' => $firstName,
@@ -334,7 +334,7 @@ class WooCommerceCustomer
         }
         
         foreach ($userMeta as $metaKey => $metaValue) {
-            $this->insertRow('{$this->db_prefix}usermeta', [
+            $this->insertRow("{$this->db_prefix}usermeta", [
                 'user_id' => $userId,
                 'meta_key' => $metaKey,
                 'meta_value' => $metaValue,

@@ -1566,6 +1566,18 @@ include("parts/header.php");
                 </tr>
             `;
         });
+        
+          itemsHtml += `
+                <tr>
+                    <td class="px-3 py-2">1</td>
+                    <td class="px-3 py-2">
+                        <small class="text-muted">${orderData.shipping_cost != "0" ? `Envio a Bogotá` : 'Pago contra entrega'}</small><br>
+                    </td>
+                    <td class="px-3 py-2">
+                        <strong>${orderData.shipping_cost != "0" ? '$' + parseInt(orderData.shipping_cost).toLocaleString('es-CO') : 'Recargo envío'}</strong>
+                    </td>
+                </tr>
+            `;
       }
 
       const html = `
@@ -1631,7 +1643,7 @@ include("parts/header.php");
         </div>
         
         <hr>
-        <h6><i class="fas fa-shopping-cart me-2"></i> Productos del Pedido</h6>
+          <h6><i class="fas fa-shopping-cart me-2"></i> Productos del Pedido</h6>
         <hr>
 
         <div class="table-responsive">

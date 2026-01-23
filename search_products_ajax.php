@@ -11,6 +11,7 @@ if (session_status() == PHP_SESSION_NONE) {
 // Cargar autoloader del sistema
 require_once('class/autoload.php');
 
+
 // Obtener prefijo de base de datos desde variable de entorno
 $db_prefix = Utils::env('DB_PREFIX') ?? 'miau_';
 
@@ -260,6 +261,7 @@ try {
         
         // Construir permalink del producto (usar slug del padre para variaciones)
         $base_url = URL_WOOCOMMERCE; // URL base de WordPress
+        
         $permalink = $base_url . '/producto/' . $product['slug'] . '/';
         
         // Formatear precio

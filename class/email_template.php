@@ -255,13 +255,13 @@ class EmailTemplate
                 <div style="font-size: 16px;">Fecha: ' . ($data['fecha_modificacion'] ?? date('d/m/Y')) . '</div>
             </div>' : "";
         
-        $envio_section = ($data['envio'] > 0) ? "
+        $envio_section = "
             <tr>
                 <td style=\"text-align: center; vertical-align: top\"><br>1</td>
-                <td style=\"vertical-align: top\"><br>Domicilio</td>
-                <td style=\"text-align: right; vertical-align: top\"><br>" . number_format($data['envio']) . "</td>
-                <td style=\"text-align: right; vertical-align: top\"><br>" . number_format($data['envio']) . "</td>
-            </tr>" : "";
+                <td style=\"word-wrap: break-word; width: 180; vertical-align: top\">" . ($data['envio'] == 0 ? "<span class=\"sku-text\">Pago Contra Entrega</span>" : "") . "<br>Domicilio</td>
+                <td style=\"text-align: right; vertical-align: top\">" .  ($data['envio'] > 0 ? "<br>".number_format($data['envio']) : "Recargo envío") . "</td>
+                <td style=\"text-align: right; vertical-align: top\">" . ($data['envio'] > 0 ? "<br>".number_format($data['envio']) : "Recargo envío") . "</td>
+            </tr>";
         
         $descuento_section = ($data['descuento'] > 0) ? "
             <tr>

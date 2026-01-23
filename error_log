@@ -1,0 +1,28 @@
+[18-Jan-2026 03:39:24 UTC] PHP Warning:  require_once(/home/amerlogic/public_html/ventas.sandycat.com.co/vendor/autoload.php): Failed to open stream: No such file or directory in /home/amerlogic/public_html/ventas.sandycat.com.co/mpdf_config.php on line 8
+[18-Jan-2026 03:39:24 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/amerlogic/public_html/ventas.sandycat.com.co/vendor/autoload.php' (include_path='.:/opt/alt/php84/usr/share/pear:/opt/alt/php84/usr/share/php:/usr/share/pear:/usr/share/php') in /home/amerlogic/public_html/ventas.sandycat.com.co/mpdf_config.php:8
+Stack trace:
+#0 /home/amerlogic/public_html/ventas.sandycat.com.co/class/autoload.php(31): require_once()
+#1 /home/amerlogic/public_html/ventas.sandycat.com.co/index.php(3): require_once('/home/amerlogic...')
+#2 {main}
+  thrown in /home/amerlogic/public_html/ventas.sandycat.com.co/mpdf_config.php on line 8
+[18-Jan-2026 03:52:37 UTC] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'amerlogic_sysventas'@'localhost' (using password: YES) in /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php:16
+Stack trace:
+#0 /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php(16): mysqli->__construct()
+#1 /home/amerlogic/public_html/ventas.sandycat.com.co/class/autoload.php(20): DatabaseConfig::getVentasConnection()
+#2 /home/amerlogic/public_html/ventas.sandycat.com.co/index.php(3): require_once('/home/amerlogic...')
+#3 {main}
+  thrown in /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php on line 16
+[22-Jan-2026 02:04:53 UTC] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'root'@'localhost' (using password: NO) in /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php:16
+Stack trace:
+#0 /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php(16): mysqli->__construct()
+#1 /home/amerlogic/public_html/ventas.sandycat.com.co/class/autoload.php(20): DatabaseConfig::getVentasConnection()
+#2 /home/amerlogic/public_html/ventas.sandycat.com.co/selector_productos.php(3): require_once('/home/amerlogic...')
+#3 {main}
+  thrown in /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php on line 16
+[22-Jan-2026 02:05:15 UTC] PHP Fatal error:  Uncaught mysqli_sql_exception: Access denied for user 'root'@'localhost' (using password: NO) in /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php:16
+Stack trace:
+#0 /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php(16): mysqli->__construct()
+#1 /home/amerlogic/public_html/ventas.sandycat.com.co/class/autoload.php(20): DatabaseConfig::getVentasConnection()
+#2 /home/amerlogic/public_html/ventas.sandycat.com.co/selector_productos.php(3): require_once('/home/amerlogic...')
+#3 {main}
+  thrown in /home/amerlogic/public_html/ventas.sandycat.com.co/class/config.php on line 16

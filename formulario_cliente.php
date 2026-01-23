@@ -150,7 +150,7 @@ include("parts/header.php");
             $comentarios = $order_data['customer_note'] ?? '';
             $envio = $order_data['shipping_cost'] ?? '10000';
             $descuento = '0';
-            $metodo_pago = $order_data['payment_method_title'] ?? '';
+            $metodo_pago = trim($order_data['payment_method_title'] ?? '');
             $billing_id = $documento;
 
             // Simular datos encontrados para compatibilidad
@@ -396,6 +396,10 @@ include("parts/header.php");
                                 <div class="form-group mb-3">
                                     <label for="_payment_method_title" class="form-label">Forma de Pago *</label>
                                     <select class="form-control" id="_payment_method_title" name="_payment_method_title">
+                                        <option value="">Seleccione una forma de pago</option>
+                                        <option value="Paga en línea con Bold" <?php echo ($metodo_pago == 'Paga en línea con Bold') ? 'selected' : 'disabled'; ?>>
+                                            Paga en línea con Bold
+                                        </option>
                                         <option value="Pago Contra Entrega Aplica solo para Bogotá" <?php echo ($metodo_pago == 'Pago Contra Entrega Aplica solo para Bogotá' || empty($metodo_pago)) ? 'selected' : ''; ?>>
                                             Pago Contra Entrega (Solo Bogotá)
                                         </option>

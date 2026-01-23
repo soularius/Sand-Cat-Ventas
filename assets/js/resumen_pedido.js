@@ -220,7 +220,7 @@ class OrderSummary {
                 // Usar product_id para construir permalink básico
                 const productId = product.product_id || product.id;
                 if (productId) {
-                    permalink = `${window.location.protocol}//${window.location.host}/MIAU/?p=${productId}`;
+                    permalink = WooCommerceUrl + `/?p=${productId}`;
                 } else {
                     permalink = '#';
                 }
@@ -376,16 +376,14 @@ class OrderSummary {
             `;
         }
 
-        if (shippingCost > 0) {
-            html += `
-                <div class="total-line">
-                    <span class="label text-pending fs-6">
-                        <i class="fas fa-truck me-1"></i>Envío:
-                    </span>
-                    <span class="value text-pending fs-6">$${shippingCost.toLocaleString('es-CO')}</span>
-                </div>
-            `;
-        }
+        html += `
+            <div class="total-line">
+                <span class="label text-pending fs-6">
+                    <i class="fas fa-truck me-1"></i>Envío:
+                </span>
+                <span class="value text-pending fs-6">${shippingCost > 0 ? `$${shippingCost.toLocaleString('es-CO')}` : "Pago Contra Entrega"}</span>
+            </div>
+        `;
 
         html += `
                 <hr class="total-separator">
@@ -592,7 +590,7 @@ class OrderSummary {
                     <i class="fas fa-truck text-muted me-2"></i>
                     <div>
                         <strong>Costo de Envío: </strong>
-                        <span class="text-muted">${(orderShipping !== null) ? ('$' + orderShipping.toLocaleString('es-CO')) : 'No especificado'}</span>
+                        <span class="text-muted">${(orderShipping !== 0) ? ('$' + orderShipping.toLocaleString('es-CO')) : 'Pago Contra Entrega'}</span>
                     </div>
                 </div>
                 <hr>

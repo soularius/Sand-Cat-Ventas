@@ -247,7 +247,7 @@ include("parts/header.php");
                                                                             if ($shipping_num > 0) {
                                                                                 echo '$' . number_format($shipping_num, 0, ',', '.');
                                                                             } else {
-                                                                                echo ''; // <-- CLAVE: vacío para que JS lo hidrate desde localStorage
+                                                                                echo 'Pago Contra Entrega'; // <-- CLAVE: vacío para que JS lo hidrate desde localStorage
                                                                             }
                                                                             ?></span>
                             </div>

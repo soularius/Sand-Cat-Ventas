@@ -1197,7 +1197,8 @@ class WooCommerceOrders
                     $qty = (int)($product['quantity'] ?? 0);
                     if ($qty < 1) continue;
 
-                    $productId    = (int)($product['id'] ?? 0);
+                    $productId    = (int)($product['product_id'] ?? 0);
+
                     $productTitle = (string)($product['title'] ?? 'Producto');
 
                     $regular = (int)($product['regular_price'] ?? $product['price'] ?? 0);
@@ -2119,7 +2120,7 @@ class WooCommerceOrders
         // 1) Intentar HPOS
         if ($this->tableExists("{$this->db_prefix}wc_orders")) {
 
-            // ✅ Traemos TODO lo que podamos desde addresses (billing)
+            // ✅ Traemos TODO lo que podamos desde addresses (billing) + metadatos HPOS
             $q = "
                 SELECT
                     o.id AS order_id,
@@ -2127,6 +2128,7 @@ class WooCommerceOrders
                     o.status AS estado,
                     COALESCE(o.total_amount, 0) AS total,
                     COALESCE(o.customer_note, '') AS customer_note,
+                    COALESCE(o.payment_method_title, '') AS titulo_metodo_pago,
 
                     COALESCE(NULLIF(o.billing_email,''), NULLIF(ba.email,''), '') AS email_cliente,
                     COALESCE(NULLIF(ba.phone,''), '') AS telefono_cliente,
@@ -2139,40 +2141,64 @@ class WooCommerceOrders
 
                     -- En HPOS addresses sí existen (si los insertaste)
                     COALESCE(ba.state, '')      AS departamento_hpos,
-                    COALESCE(ba.country, '')    AS pais_hpos
+                    COALESCE(ba.country, '')    AS pais_hpos,
+
+                    -- Metadatos HPOS directos
+                    COALESCE(om_barrio.meta_value, '') as barrio_hpos,
+                    COALESCE(om_dni.meta_value, '') as dni_hpos,
+                    COALESCE(om_shipping.meta_value, '0') as envio_hpos,
+                    COALESCE(om_discount.meta_value, '0') as descuento_hpos,
+                    COALESCE(om_subtotal.meta_value, '0') as subtotal_hpos,
+                    COALESCE(om_method.meta_value, '') as metodo_pago_hpos
 
                 FROM {$this->db_prefix}wc_orders o
                 LEFT JOIN {$this->db_prefix}wc_order_addresses ba
                     ON o.id = ba.order_id AND ba.address_type = 'billing'
-                WHERE o.id = {$order_id}
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_barrio 
+                    ON o.id = om_barrio.order_id AND om_barrio.meta_key = '_billing_barrio'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_dni 
+                    ON o.id = om_dni.order_id AND om_dni.meta_key = '_billing_dni'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_shipping 
+                    ON o.id = om_shipping.order_id AND om_shipping.meta_key = '_order_shipping'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_discount 
+                    ON o.id = om_discount.order_id AND om_discount.meta_key = '_cart_discount'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_subtotal 
+                    ON o.id = om_subtotal.order_id AND om_subtotal.meta_key = '_order_subtotal'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_method 
+                    ON o.id = om_method.order_id AND om_method.meta_key = '_payment_method'
+                WHERE o.id = {$order_id} AND o.type = 'shop_order'
                 LIMIT 1
             ";
 
             $r = mysqli_query($this->wp_connection, $q);
             if ($r && ($row = mysqli_fetch_assoc($r))) {
 
-                // � Complemento desde postmeta (legacy) porque ahí guardas DNI/Barrio/etc.
-                $row['envio']     = (float)$this->getLegacyMetaValue($order_id, '_order_shipping');
-                $row['descuento'] = (float)$this->getLegacyMetaValue($order_id, '_cart_discount');
-                $row['subtotal']  = (float)$this->getLegacyMetaValue($order_id, '_order_subtotal');
+                // ✅ Complemento desde postmeta (legacy) con fallback a HPOS
+                $row['envio'] = (float)($this->getLegacyMetaValue($order_id, '_order_shipping') ?: $row['envio_hpos']);
+                $row['descuento'] = (float)($this->getLegacyMetaValue($order_id, '_cart_discount') ?: $row['descuento_hpos']);
+                $row['subtotal'] = (float)($this->getLegacyMetaValue($order_id, '_order_subtotal') ?: $row['subtotal_hpos']);
 
-                $row['metodo_pago']        = $this->getLegacyMetaValue($order_id, '_payment_method');
-                $row['titulo_metodo_pago'] = $this->getLegacyMetaValue($order_id, '_payment_method_title');
+                $row['metodo_pago'] = $this->getLegacyMetaValue($order_id, '_payment_method') ?: $row['metodo_pago_hpos'];
+                
+                // Si no tenemos titulo_metodo_pago desde HPOS orders, buscar en legacy
+                if (empty($row['titulo_metodo_pago'])) {
+                    $row['titulo_metodo_pago'] = $this->getLegacyMetaValue($order_id, '_payment_method_title');
+                }
 
-                // ✅ DNI: tú guardas varios keys, devolvemos el primero que exista
+                // ✅ DNI: preferir legacy, fallback a HPOS
                 $row['dni_cliente'] = $this->getLegacyMetaFirst($order_id, [
                     '_billing_dni',
                     'billing_id',
                     '_billing_id'
-                ]);
+                ]) ?: $row['dni_hpos'];
 
-                // ✅ Barrio: tu sistema guarda _billing_neighborhood (NO _billing_barrio)
+                // ✅ Barrio: preferir legacy (_billing_neighborhood), fallback a HPOS
                 $row['barrio'] = $this->getLegacyMetaFirst($order_id, [
                     '_billing_neighborhood',
                     'billing_neighborhood',
                     '_billing_barrio',
-                    'billing_barrio' // por si algún pedido viejo lo tiene así
-                ]);
+                    'billing_barrio'
+                ]) ?: $row['barrio_hpos'];
 
                 // ✅ Departamento: preferimos el legacy (más "humano"), si no, el HPOS
                 $row['departamento'] = $this->getLegacyMetaFirst($order_id, [
@@ -2191,6 +2217,11 @@ class WooCommerceOrders
                 if (trim((string)$row['pais']) === '') {
                     $row['pais'] = (string)($row['pais_hpos'] ?? '');
                 }
+
+                // Limpiar campos temporales HPOS
+                unset($row['departamento_hpos'], $row['pais_hpos'], $row['barrio_hpos'], 
+                      $row['dni_hpos'], $row['envio_hpos'], $row['descuento_hpos'], 
+                      $row['subtotal_hpos'], $row['metodo_pago_hpos']);
 
                 // Normalizaciones para tu UI
                 $row['total'] = (float)($row['total'] ?? 0);
@@ -2447,6 +2478,8 @@ class WooCommerceOrders
         if (!$result) {
             throw new Exception("Error al obtener items de la orden: " . mysqli_error($this->wp_connection));
         }
+
+        Utils::logError("SQL: " . $query, 'DEBUG', 'woocommerce_orders.php');
 
         $items = [];
         while ($row = mysqli_fetch_assoc($result)) {
@@ -3841,7 +3874,7 @@ class WooCommerceOrders
         try {
             $order_id = (int)$order_id;
 
-            // 1) Consulta única con HPOS y wc_orders_meta, con fallback a postmeta
+            // 1) Consulta HPOS optimizada con metadatos directos
             if ($this->tableExists("{$this->db_prefix}wc_orders")) {
                 
                 $query = "SELECT
@@ -3850,8 +3883,9 @@ class WooCommerceOrders
                     o.status AS post_status,
                     COALESCE(o.total_amount, 0) AS total,
                     COALESCE(o.customer_note, '') AS customer_note,
+                    COALESCE(o.payment_method_title, '') AS payment_method_title,
 
-                    -- Datos básicos de billing (HPOS addresses primero)
+                    -- Datos básicos de billing desde addresses
                     COALESCE(NULLIF(o.billing_email,''), NULLIF(ba.email,''), '') AS billing_email,
                     COALESCE(NULLIF(ba.phone,''), '') AS billing_phone,
                     COALESCE(ba.first_name, '') AS billing_first_name,
@@ -3859,29 +3893,23 @@ class WooCommerceOrders
                     COALESCE(ba.address_1, '') AS billing_address_1,
                     COALESCE(ba.address_2, '') AS billing_address_2,
                     COALESCE(ba.city, '') AS billing_city,
-                    COALESCE(ba.state, '') AS billing_state,
-                    COALESCE(ba.country, '') AS billing_country,
+                    COALESCE(ba.state, '') AS billing_state_hpos,
+                    COALESCE(ba.country, '') AS billing_country_hpos,
 
-                    -- Datos desde wc_orders_meta primero, fallback a postmeta
-                    COALESCE(NULLIF(om_shipping.meta_value,''), NULLIF(pm_shipping.meta_value,''), '0') AS shipping_cost,
-                    COALESCE(NULLIF(om_payment.meta_value,''), NULLIF(pm_payment.meta_value,''), '') AS payment_method,
-                    COALESCE(NULLIF(om_payment_title.meta_value,''), NULLIF(pm_payment_title.meta_value,''), '') AS payment_method_title,
-
-                    -- DNI: wc_orders_meta primero, luego postmeta
-                    COALESCE(NULLIF(om_dni.meta_value,''), NULLIF(om_billing_id.meta_value,''), NULLIF(pm_dni.meta_value,''), NULLIF(pm_billing_id.meta_value,''), '') AS dni_cliente,
-
-                    -- Barrio: wc_orders_meta primero, luego postmeta
-                    COALESCE(NULLIF(om_barrio.meta_value,''), NULLIF(om_neighborhood.meta_value,''), NULLIF(pm_barrio.meta_value,''), NULLIF(pm_neighborhood.meta_value,''), '') AS billing_barrio,
-
-                    -- Complementar state y country desde meta si no están en addresses
-                    COALESCE(NULLIF(ba.state,''), NULLIF(om_state.meta_value,''), NULLIF(pm_state.meta_value,''), '') AS billing_state_final,
-                    COALESCE(NULLIF(ba.country,''), NULLIF(om_country.meta_value,''), NULLIF(pm_country.meta_value,''), '') AS billing_country_final
+                    -- Metadatos HPOS directos
+                    COALESCE(om_shipping.meta_value, '0') AS shipping_cost_hpos,
+                    COALESCE(om_payment.meta_value, '') AS payment_method_hpos,
+                    COALESCE(om_payment_title.meta_value, '') AS payment_method_title_hpos,
+                    COALESCE(om_dni.meta_value, '') AS dni_hpos,
+                    COALESCE(om_billing_id.meta_value, '') AS billing_id_hpos,
+                    COALESCE(om_barrio.meta_value, '') AS barrio_hpos,
+                    COALESCE(om_neighborhood.meta_value, '') AS neighborhood_hpos,
+                    COALESCE(om_subtotal.meta_value, '0') AS subtotal_hpos,
+                    COALESCE(om_discount.meta_value, '0') AS discount_hpos
 
                 FROM {$this->db_prefix}wc_orders o
                 LEFT JOIN {$this->db_prefix}wc_order_addresses ba
                     ON o.id = ba.order_id AND ba.address_type = 'billing'
-
-                -- wc_orders_meta JOINs (prioridad)
                 LEFT JOIN {$this->db_prefix}wc_orders_meta om_shipping 
                     ON o.id = om_shipping.order_id AND om_shipping.meta_key = '_order_shipping'
                 LEFT JOIN {$this->db_prefix}wc_orders_meta om_payment 
@@ -3896,51 +3924,80 @@ class WooCommerceOrders
                     ON o.id = om_barrio.order_id AND om_barrio.meta_key = '_billing_barrio'
                 LEFT JOIN {$this->db_prefix}wc_orders_meta om_neighborhood 
                     ON o.id = om_neighborhood.order_id AND om_neighborhood.meta_key = '_billing_neighborhood'
-                LEFT JOIN {$this->db_prefix}wc_orders_meta om_state 
-                    ON o.id = om_state.order_id AND om_state.meta_key = '_billing_state'
-                LEFT JOIN {$this->db_prefix}wc_orders_meta om_country 
-                    ON o.id = om_country.order_id AND om_country.meta_key = '_billing_country'
-
-                -- postmeta JOINs (fallback)
-                LEFT JOIN {$this->db_prefix}postmeta pm_shipping 
-                    ON o.id = pm_shipping.post_id AND pm_shipping.meta_key = '_order_shipping'
-                LEFT JOIN {$this->db_prefix}postmeta pm_payment 
-                    ON o.id = pm_payment.post_id AND pm_payment.meta_key = '_payment_method'
-                LEFT JOIN {$this->db_prefix}postmeta pm_payment_title 
-                    ON o.id = pm_payment_title.post_id AND pm_payment_title.meta_key = '_payment_method_title'
-                LEFT JOIN {$this->db_prefix}postmeta pm_dni 
-                    ON o.id = pm_dni.post_id AND pm_dni.meta_key = '_billing_dni'
-                LEFT JOIN {$this->db_prefix}postmeta pm_billing_id 
-                    ON o.id = pm_billing_id.post_id AND pm_billing_id.meta_key = '_billing_id'
-                LEFT JOIN {$this->db_prefix}postmeta pm_barrio 
-                    ON o.id = pm_barrio.post_id AND pm_barrio.meta_key = '_billing_barrio'
-                LEFT JOIN {$this->db_prefix}postmeta pm_neighborhood 
-                    ON o.id = pm_neighborhood.post_id AND pm_neighborhood.meta_key = '_billing_neighborhood'
-                LEFT JOIN {$this->db_prefix}postmeta pm_state 
-                    ON o.id = pm_state.post_id AND pm_state.meta_key = '_billing_state'
-                LEFT JOIN {$this->db_prefix}postmeta pm_country 
-                    ON o.id = pm_country.post_id AND pm_country.meta_key = '_billing_country'
-
-                WHERE o.id = {$order_id}
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_subtotal 
+                    ON o.id = om_subtotal.order_id AND om_subtotal.meta_key = '_order_subtotal'
+                LEFT JOIN {$this->db_prefix}wc_orders_meta om_discount 
+                    ON o.id = om_discount.order_id AND om_discount.meta_key = '_cart_discount'
+                WHERE o.id = {$order_id} AND o.type = 'shop_order'
                 LIMIT 1";
 
                 $result = mysqli_query($this->wp_connection, $query);
 
                 if ($result && ($order_data = mysqli_fetch_assoc($result))) {
+                    // ✅ Complemento desde postmeta (legacy) con fallback a HPOS
+                    $order_data['shipping_cost'] = $this->getLegacyMetaValue($order_id, '_order_shipping') ?: $order_data['shipping_cost_hpos'];
+                    $order_data['payment_method'] = $this->getLegacyMetaValue($order_id, '_payment_method') ?: $order_data['payment_method_hpos'];
+
+                    if($order_data['shipping_cost'] == "0") {
+                        $query_option_shipping = "SELECT om.meta_value FROM `{$this->db_prefix}woocommerce_order_items` oi
+                        LEFT JOIN `{$this->db_prefix}woocommerce_order_itemmeta` om ON oi.order_item_id = om.order_item_id
+                        WHERE oi.order_id = {$order_id} AND om.meta_key = 'cost' AND oi.order_item_type = 'shipping'";
+                        
+                        $result_option_shipping = mysqli_query($this->wp_connection, $query_option_shipping);
+
+                        if($result_option_shipping && ($option_shipping = mysqli_fetch_assoc($result_option_shipping))) {
+                            $order_data['shipping_cost'] = $option_shipping['meta_value'];
+                        }
+                    }
                     
-                    // Usar los campos finales calculados
-                    $order_data['billing_state'] = $order_data['billing_state_final'];
-                    $order_data['billing_country'] = $order_data['billing_country_final'];
-                    
-                    // Limpiar campos temporales
-                    unset($order_data['billing_state_final'], $order_data['billing_country_final']);
+                    // Si no tenemos payment_method_title desde HPOS orders, buscar en legacy
+                    if (empty($order_data['payment_method_title'])) {
+                        $order_data['payment_method_title'] = $this->getLegacyMetaValue($order_id, '_payment_method_title') ?: $order_data['payment_method_title_hpos'];
+                    }
+
+                    // ✅ DNI: preferir legacy, fallback a HPOS
+                    $order_data['dni_cliente'] = $this->getLegacyMetaFirst($order_id, [
+                        '_billing_dni',
+                        'billing_id',
+                        '_billing_id'
+                    ]) ?: ($order_data['dni_hpos'] ?: $order_data['billing_id_hpos']);
+
+                    // ✅ Barrio: preferir legacy (_billing_neighborhood), fallback a HPOS
+                    $order_data['billing_barrio'] = $this->getLegacyMetaFirst($order_id, [
+                        '_billing_neighborhood',
+                        'billing_neighborhood',
+                        '_billing_barrio',
+                        'billing_barrio'
+                    ]) ?: ($order_data['neighborhood_hpos'] ?: $order_data['barrio_hpos']);
+
+                    // ✅ State y Country: preferir legacy, fallback a HPOS
+                    $order_data['billing_state'] = $this->getLegacyMetaFirst($order_id, [
+                        '_billing_state',
+                        '_shipping_state'
+                    ]) ?: $order_data['billing_state_hpos'];
+
+                    $order_data['billing_country'] = $this->getLegacyMetaFirst($order_id, [
+                        '_billing_country',
+                        '_shipping_country'
+                    ]) ?: $order_data['billing_country_hpos'];
+
+                    // Campos adicionales con fallback
+                    $order_data['subtotal'] = (float)($this->getLegacyMetaValue($order_id, '_order_subtotal') ?: $order_data['subtotal_hpos']);
+                    $order_data['discount'] = (float)($this->getLegacyMetaValue($order_id, '_cart_discount') ?: $order_data['discount_hpos']);
+
+                    // Limpiar campos temporales HPOS
+                    unset($order_data['billing_state_hpos'], $order_data['billing_country_hpos'], 
+                          $order_data['shipping_cost_hpos'], $order_data['payment_method_hpos'], 
+                          $order_data['payment_method_title_hpos'], $order_data['dni_hpos'], 
+                          $order_data['billing_id_hpos'], $order_data['barrio_hpos'], 
+                          $order_data['neighborhood_hpos'], $order_data['subtotal_hpos'], 
+                          $order_data['discount_hpos']);
 
                     // Obtener productos de la orden
                     $order_data['items'] = $this->getOrderItems($order_id);
 
                     // Verificar si tiene factura
                     $order_data['has_invoice'] = $this->hasInvoice($order_id);
-
                     return $order_data;
                 }
             }

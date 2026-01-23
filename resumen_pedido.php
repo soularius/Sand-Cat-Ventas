@@ -209,6 +209,12 @@ $pes2 = '';
     </div>
 
     <?php include("parts/footer.php"); ?>
+    
+    <!-- Definir variables globales antes de cargar scripts -->
+    <script>
+        const WooCommerceUrl = "<?php echo URL_WOOCOMMERCE ?>";
+    </script>
+    
     <!-- Order Summary JavaScript -->
     <script src="assets/js/resumen_pedido.js"></script>
 </body>

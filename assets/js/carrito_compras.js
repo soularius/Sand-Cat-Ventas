@@ -203,6 +203,20 @@ if (typeof ProductCart === 'undefined') {
             return cartKey;
         }
 
+        getShipingValue() {
+            const persistedFormData = (window.VentasUtils && window.VentasUtils.getFormData)
+                ? window.VentasUtils.getFormData()
+                : (() => {
+                    try {
+                        return JSON.parse(localStorage.getItem('ventasFormData') || '{}');
+                    } catch (e) {
+                        return {};
+                    }
+                })();
+            const shippingCost = parseInt(persistedFormData?._order_shipping_value || '0', 10);
+            return shippingCost;
+        }
+
         // Actualizar cantidad por cart_key
         updateQuantity(cartKey, quantity) {
             cartKey = cartKey.toString();
@@ -308,6 +322,7 @@ if (typeof ProductCart === 'undefined') {
             // Totales para mostrar descuentos
             let subtotalRegular = 0;
             let totalDiscount = 0;
+            let shippingCost = this.getShipingValue();
 
             items.forEach(item => {
                 const regularPrice = this.parseCOP(item.regular_price || item.price || 0);
@@ -393,7 +408,7 @@ if (typeof ProductCart === 'undefined') {
             `;
             });
 
-            const totalFinal = subtotalRegular - totalDiscount;
+            const totalFinal = subtotalRegular - totalDiscount + shippingCost;
 
             html += `
             </div>
@@ -405,6 +420,10 @@ if (typeof ProductCart === 'undefined') {
                 <div class="d-flex justify-content-between ${totalDiscount > 0 ? '' : 'd-none'}">
                     <span class="text-success">Descuento:</span>
                     <strong class="text-success">-$${totalDiscount.toLocaleString('es-CO')}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Domicilio:</span>
+                    <strong>${ shippingCost > 0 ? `$${shippingCost.toLocaleString('es-CO')}` : "Pago Contra Entrega"}</strong>
                 </div>
                 <div class="d-flex justify-content-between mt-1">
                     <strong>Total:</strong>
